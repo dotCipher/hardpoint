@@ -1,0 +1,64 @@
+card = 1
+
+[device]
+id = "apple/macbook-pro-mac16-6"
+vendor = "Apple"
+name = "MacBook Pro (Mac16,6)"
+kind = "laptop"
+summary = "Apple silicon laptop with an M4 Max chip and a 3024 x 1964 built-in display."
+links = ["https://www.apple.com/macbook-pro/"]
+
+[[match]]
+bus = "builtin"
+model = "Mac16,6"
+
+[[capability]]
+id = "battery.level"
+adapter = "macos-system"
+risk = "read"
+params = { source = "power", field = "state_of_charge" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "battery.charging"
+adapter = "macos-system"
+risk = "read"
+params = { source = "power", field = "is_charging" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "battery.cycles"
+adapter = "macos-system"
+risk = "read"
+params = { source = "power", field = "cycle_count" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "battery.health"
+adapter = "macos-system"
+risk = "read"
+params = { source = "power", field = "maximum_capacity" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "storage.health"
+adapter = "macos-system"
+risk = "read"
+params = { source = "storage", field = "smart_status" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "thermal.pressure"
+adapter = "macos-system"
+risk = "read"
+params = { source = "thermal", field = "warning_level" }
+note = "macOS exposes a coarse warning level without special permission. Individual temperatures and fan speeds need elevated access."
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "Read from the system by hand. The adapter is not written yet." }]
+
+[[capability]]
+id = "audio.output_volume"
+adapter = "macos-system"
+risk = "reversible"
+params = { source = "audio", field = "output_volume" }
+range = [0, 100]
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "The current value was read. Setting it was not exercised." }]

@@ -1,0 +1,77 @@
+card = 1
+
+[device]
+id = "logitech/mx-master-3"
+vendor = "Logitech"
+name = "MX Master 3"
+kind = "mouse"
+summary = "Wireless mouse with a thumb wheel, a gesture button and three host slots."
+links = ["https://www.logitech.com/"]
+
+[[match]]
+bus = "bluetooth"
+vendor_id = 0x046d
+product_id = 0xb023
+
+[[requires]]
+platform = "macos"
+what = "Input Monitoring permission for the program that opens the device"
+note = "Without it the control channel refuses to open (\"not permitted\"). With it, the channel opened. Checked both ways on macOS 27.2."
+
+[[capability]]
+id = "identity.firmware"
+adapter = "macos-system"
+risk = "read"
+params = { source = "bluetooth", field = "firmware_version" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "macOS reports a firmware version for this mouse. Not read through an adapter yet." }]
+
+[[capability]]
+id = "battery.level"
+adapter = "hidpp"
+risk = "read"
+params = { feature = 0x1000 }
+note = "This model answers on the older battery feature (0x1000), not the unified one (0x1004). macOS does not report this mouse's battery itself."
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "A charge level was read with a one-off HID++ query. The adapter is not written yet." }]
+
+[[capability]]
+id = "pointer.dpi"
+adapter = "hidpp"
+risk = "guarded"
+params = { feature = 0x2201 }
+note = "Other open tools document a 4000 DPI ceiling for this model."
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The current and default values were read (both 1000). Setting it was not exercised." }]
+
+[[capability]]
+id = "pointer.buttons"
+adapter = "hidpp"
+risk = "guarded"
+params = { feature = 0x1b04 }
+note = "The thumb and gesture buttons can be handed to software."
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The mouse reports eight reprogrammable controls. Redirecting one was not exercised." }]
+
+[[capability]]
+id = "scroll.mode"
+adapter = "hidpp"
+risk = "reversible"
+params = { feature = 0x2110 }
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The mouse reports the feature. Reading or changing the mode was not exercised." }]
+
+[[capability]]
+id = "pointer.host"
+adapter = "hidpp"
+risk = "guarded"
+params = { feature = 0x1814 }
+note = "Moves the mouse to another paired computer, so the computer that sent the change loses it."
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "Three host slots and the current slot were read. Switching was not exercised." }]
+
+[[sources]]
+title = "Solaar capabilities"
+url = "https://pwr-solaar.github.io/Solaar/capabilities/"
+
+[[sources]]
+title = "ArchWiki: Logitech MX Master"
+url = "https://wiki.archlinux.org/title/Logitech_MX_Master"
+
+[[sources]]
+title = "OpenLogi"
+url = "https://openlogi.org/"

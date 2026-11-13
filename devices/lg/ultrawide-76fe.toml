@@ -1,0 +1,34 @@
+card = 1
+
+[device]
+id = "lg/ultrawide-76fe"
+vendor = "LG"
+name = "UltraWide (display id 1e6d:76fe)"
+kind = "display"
+summary = "2560 x 1080 ultrawide display from 2018. The exact model name is not reported to the computer."
+links = ["https://www.lg.com/"]
+
+[[match]]
+bus = "display"
+vendor_id = 0x1e6d
+product_id = 0x76fe
+
+[[requires]]
+platform = "any"
+what = "DDC/CI switched on in the display's own menu"
+
+[[capability]]
+id = "display.brightness"
+adapter = "ddc-ci"
+risk = "reversible"
+params = { vcp = 0x10 }
+range = [0, 100]
+verification = [{ status = "unverified", platform = "macos", note = "Standard DDC/CI control. Not tried on this display." }]
+
+[[capability]]
+id = "display.input"
+adapter = "ddc-ci"
+risk = "guarded"
+params = { vcp = 0x60 }
+note = "Switching input takes the picture away from the computer that asked, so it has to be confirmed or reverted."
+verification = [{ status = "unverified", platform = "macos", note = "Standard DDC/CI control. Not tried on this display." }]

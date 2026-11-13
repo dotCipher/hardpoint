@@ -1,0 +1,102 @@
+# System design (draft)
+
+The catalog is one of three parts.
+
+```text
+catalog (this repo)        daemon (on your computer)          clients
+  device cards       ->      discovery                  <-      AI agents over MCP
+  vocabulary                 adapters                           command line
+  adapter registry           change protocol                    rules you write
+                             journal and policy
+```
+
+- **The catalog** says what a device can do. It is data, shared and versioned.
+- **The daemon** finds the devices that are present, reaches them through
+  adapters, and is the only thing that touches hardware.
+- **Clients** ask the daemon. They never talk to a device directly.
+
+`keyslate` is the first piece of the daemon: it already implements the
+`oryx-hid` adapter, a rules engine for keys and lights, and a local socket.
+
+## Discovery
+
+1. At start, and whenever a device comes or goes, each bus is enumerated: USB
+   and Bluetooth HID, displays, audio, and the computer's own model.
+2. Each observation is matched against the `[[match]]` sections of the cards.
+3. A match becomes an instance: the card plus local facts such as firmware.
+4. Anything unmatched is listed as uncatalogued, with what was observed. That
+   listing is the starting point for a new card.
+
+The inventory is kept in memory, so "what do I have" is answered at once.
+
+## Adapters
+
+An adapter is code in the daemon that implements some of: read a value,
+set a value, subscribe to events. The catalog registers each adapter's name,
+platforms and parameter names; cards refer to them.
+
+On the first computer, a MacBook Pro:
+
+| Device | Adapter | State |
+|---|---|---|
+| ZSA Moonlander | `oryx-hid` | Implemented in keyslate. Lights, key positions and layer reports work |
+| Logitech MX Master 3 | `hidpp` | Not written. macOS refuses to open the control channel until the program has Input Monitoring permission. With it, one-off queries read the battery level, DPI, host slots and the list of features. Nothing has been changed on the mouse yet |
+| The MacBook itself | `macos-system` | Not written. Battery, storage health, thermal warning level and output volume were all read by hand without special permission |
+| LG UltraWide | `ddc-ci` | Not written, and not tried on this display |
+| Dock, camera, microphone, AirPods | none yet | Seen during enumeration; no card |
+
+Things macOS does not hand over without elevated access, and which are
+therefore out of scope for now: individual temperatures, fan speeds, the
+ambient light sensor and the keyboard backlight.
+
+## Changing things
+
+A client never writes to a device. It proposes a change, and the daemon:
+
+1. Checks the change against the card: the capability exists, the value has
+   the right type and is within `range` or `choices`.
+2. Checks policy: this client is allowed changes up to this risk.
+3. For `reversible`: reads the current value, applies the change, records both.
+4. For `guarded`: does the same, then waits for a confirmation. Without one
+   within a few seconds it restores the previous value.
+5. For `gated`: does nothing to the device. It returns the steps a person
+   has to take.
+
+Every change is written to a local journal: who asked, what changed, the
+previous value, and whether it was confirmed or reverted.
+
+Routine changes come from rules, not from a model deciding live: by app, by
+computer, by time of day. An AI's job is to write and revise the rules.
+
+## Asking things
+
+Three read tools are enough to start:
+
+| Tool | Answers |
+|---|---|
+| `inventory` | What is attached, and what each device can do |
+| `read` | The current value of one capability, with its unit |
+| `history` | How a reading has changed over a period |
+
+Answers are small and labelled so that a small local model can use them.
+Capabilities marked `aggregate` or `presence` only ever return counts or
+coarse states.
+
+## Interfaces
+
+- A local socket with one JSON request per line (exists in keyslate).
+- An MCP server over the same operations, so any agent and any model provider
+  can connect, including local ones.
+- A command-line tool for people.
+
+Policy is a local file: for each client, the highest risk it may request and
+any capabilities it may never touch. It is enforced in code, never in a prompt.
+
+## Order of work
+
+1. This catalog, with cards for the devices on the first computer. (Drafted.)
+2. Discovery and `inventory` in the daemon, reading cards from this repo.
+3. `macos-system` readings, so "ask about the machine" works.
+4. The change protocol, first for lights, which are already `reversible`.
+5. `hidpp` for the mouse, once the permission question is settled.
+6. The MCP server.

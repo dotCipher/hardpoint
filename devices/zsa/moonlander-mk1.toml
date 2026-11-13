@@ -1,0 +1,80 @@
+card = 1
+
+[device]
+id = "zsa/moonlander-mk1"
+vendor = "ZSA Technology Labs"
+name = "Moonlander Mark I"
+kind = "keyboard"
+summary = "Split ergonomic keyboard with a light under every key and an open control protocol."
+links = ["https://www.zsa.io/moonlander"]
+
+[[match]]
+bus = "usb"
+vendor_id = 0x3297
+product_id = 0x1969
+
+[[requires]]
+platform = "any"
+what = "Sole use of the keyboard's control channel"
+note = "ZSA's Keymapp holds the same channel, so it has to be closed. Checked on macOS."
+
+[[capability]]
+id = "identity.firmware"
+adapter = "oryx-hid"
+risk = "read"
+note = "Reports the Oryx layout id and revision id that were flashed."
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher" }]
+
+[[capability]]
+id = "keys.position_events"
+adapter = "oryx-hid"
+risk = "read"
+privacy = "aggregate"
+note = "Reported for every key, including keys with nothing assigned, so unused keys can be given meaning without reflashing."
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "A press on a physical key was received and acted on." }]
+
+[[capability]]
+id = "keys.layer"
+adapter = "oryx-hid"
+risk = "read"
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "The layer reported on connecting was received. A layer change was not exercised." }]
+
+[[capability]]
+id = "light.per_key"
+adapter = "oryx-hid"
+risk = "reversible"
+note = "While the host controls lighting it must set every key; there is no overlay on the keyboard's own effects."
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-13, by = "dotCipher", note = "Six keys confirmed by eye. The order of the other 66 follows QMK's published table." }]
+
+[[capability]]
+id = "light.global"
+adapter = "oryx-hid"
+risk = "reversible"
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "Taking and releasing control was confirmed by the keyboard's own reply." }]
+
+[[capability]]
+id = "light.status"
+adapter = "oryx-hid"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "In the published protocol. Not tried." }]
+
+[[capability]]
+id = "keys.layer_set"
+adapter = "oryx-hid"
+risk = "guarded"
+verification = [{ status = "unverified", platform = "macos", note = "In the published protocol. Not tried." }]
+
+[[capability]]
+id = "firmware.flash"
+adapter = "manual"
+risk = "gated"
+note = "Needs the physical reset button on the keyboard, so software cannot do it alone."
+verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation. Not tried." }]
+
+[[sources]]
+title = "Oryx raw-HID protocol (zsa/qmk_modules)"
+url = "https://github.com/zsa/qmk_modules/blob/main/oryx/oryx.h"
+
+[[sources]]
+title = "QMK keyboard definition, including LED order"
+url = "https://github.com/qmk/qmk_firmware/blob/master/keyboards/zsa/moonlander/keyboard.json"

@@ -1,0 +1,135 @@
+# The shared vocabulary. A capability id means the same thing on every device,
+# so a rule or an AI can ask for "battery.level" without knowing the hardware.
+#
+# kind:     reading (a value you can read), event (a stream), control (a value
+#           you can set), action (something you can trigger once)
+# value:    the type of the value, with its unit where it has one
+# min_risk: the lowest risk tier a device card may claim for it
+# privacy:  the least a card must promise about what leaves the adapter
+
+[capability."identity.firmware"]
+kind = "reading"
+value = "string"
+summary = "Firmware version or layout identifier the device reports."
+min_risk = "read"
+
+[capability."keys.position_events"]
+kind = "event"
+value = "key position, down or up"
+summary = "Every key press and release, by physical position."
+min_risk = "read"
+privacy = "aggregate"
+
+[capability."keys.layer"]
+kind = "event"
+value = "layer number"
+summary = "The active keymap layer, reported when it changes."
+min_risk = "read"
+
+[capability."keys.layer_set"]
+kind = "control"
+value = "layer number"
+summary = "Switch the active keymap layer from the host."
+min_risk = "guarded"
+
+[capability."light.per_key"]
+kind = "control"
+value = "rgb per key"
+summary = "Set the colour of an individual key."
+min_risk = "reversible"
+
+[capability."light.global"]
+kind = "control"
+value = "rgb"
+summary = "Set every light on the device to one colour, or hand lighting back to the firmware."
+min_risk = "reversible"
+
+[capability."light.status"]
+kind = "control"
+value = "on or off per indicator"
+summary = "Switch the device's separate indicator lights."
+min_risk = "reversible"
+
+[capability."firmware.flash"]
+kind = "action"
+value = "firmware image"
+summary = "Replace the device's firmware."
+min_risk = "gated"
+
+[capability."battery.level"]
+kind = "reading"
+value = "percent"
+summary = "Charge remaining."
+min_risk = "read"
+
+[capability."battery.charging"]
+kind = "reading"
+value = "boolean"
+summary = "Whether the battery is charging."
+min_risk = "read"
+
+[capability."battery.cycles"]
+kind = "reading"
+value = "count"
+summary = "Charge cycles so far."
+min_risk = "read"
+
+[capability."battery.health"]
+kind = "reading"
+value = "percent"
+summary = "Capacity now, relative to when the battery was new."
+min_risk = "read"
+
+[capability."storage.health"]
+kind = "reading"
+value = "status"
+summary = "The drive's own health verdict."
+min_risk = "read"
+
+[capability."thermal.pressure"]
+kind = "reading"
+value = "level"
+summary = "Whether the system is limiting performance because of heat."
+min_risk = "read"
+
+[capability."audio.output_volume"]
+kind = "control"
+value = "percent"
+summary = "Output volume."
+min_risk = "reversible"
+
+[capability."pointer.dpi"]
+kind = "control"
+value = "dots per inch"
+summary = "Pointer sensitivity."
+min_risk = "guarded"
+
+[capability."pointer.buttons"]
+kind = "control"
+value = "button to software"
+summary = "Send a button's presses to software instead of its built-in action."
+min_risk = "guarded"
+
+[capability."pointer.host"]
+kind = "control"
+value = "host number"
+summary = "Move the device to another paired computer."
+min_risk = "guarded"
+
+[capability."scroll.mode"]
+kind = "control"
+value = "ratchet or free-spin"
+summary = "How the scroll wheel behaves."
+min_risk = "reversible"
+
+[capability."display.input"]
+kind = "control"
+value = "input source"
+summary = "Which video input the display shows."
+min_risk = "guarded"
+
+[capability."display.brightness"]
+kind = "control"
+value = "percent"
+summary = "Display brightness."
+min_risk = "reversible"

@@ -1,0 +1,42 @@
+# Adapters are the code that talks to hardware. They live in the daemon, not
+# here: a device card can only name an adapter and give it typed parameters.
+# A card can never carry a command or a script.
+#
+# status: implemented (code exists and has run against a device)
+#         planned     (designed, not written)
+
+[adapter.oryx-hid]
+summary = "ZSA keyboards over ZSA's published raw-HID protocol."
+platforms = ["macos", "linux", "windows"]
+status = "implemented"
+implementation = "keyslate (not published yet), src/device/oryx.rs"
+params = []
+notes = "Only one program can hold the channel, so Keymapp must be closed. Run on macOS only so far."
+
+[adapter.hidpp]
+summary = "Logitech devices over HID++ 2.0."
+platforms = ["macos", "linux", "windows"]
+status = "planned"
+params = ["feature"]
+notes = "On macOS the calling process needs Input Monitoring permission before the channel will open. One-off read queries have worked against an MX Master 3; the adapter itself is not written."
+
+[adapter.macos-system]
+summary = "Facts macOS already reports: power, storage, audio, thermal state and Bluetooth device details."
+platforms = ["macos"]
+status = "planned"
+params = ["source", "field"]
+notes = "Read through system interfaces. No special permission was needed for the readings tried so far."
+
+[adapter.ddc-ci]
+summary = "Displays over DDC/CI, the control channel carried on the video cable."
+platforms = ["macos", "linux", "windows"]
+status = "planned"
+params = ["vcp"]
+notes = "The display must have DDC/CI enabled in its own menu."
+
+[adapter.manual]
+summary = "A person performs the step. The daemon only explains what to do."
+platforms = ["macos", "linux", "windows"]
+status = "implemented"
+params = []
+notes = "Used for anything software must not do alone, such as flashing firmware."

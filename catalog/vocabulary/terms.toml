@@ -1,0 +1,47 @@
+# The catalog's own terms. The validator, the site and the feed all read their
+# meanings from here.
+
+[risk.read]
+meaning = "Nothing changes. The value is only read."
+
+[risk.reversible]
+meaning = "Changes take effect at once, can be undone at once, and cannot stop you using the machine."
+
+[risk.guarded]
+meaning = "Could get in the way of using the machine, so the change is reverted unless you confirm it within a few seconds."
+
+[risk.gated]
+meaning = "Cannot be undone by software, or needs a physical step. Software never does this alone; it only explains what to do."
+
+[status.tested]
+meaning = "Someone exercised this through the named adapter on that platform."
+
+[status.observed]
+meaning = "Seen working or present on a real device, but not yet through the adapter."
+
+[status.imported]
+meaning = "Taken from another project's data. Nobody here has tried it."
+
+[status.unverified]
+meaning = "Documented somewhere. Nobody here has tried it."
+
+[privacy.open]
+meaning = "The value can be passed on as it is."
+
+[privacy.aggregate]
+meaning = "Only counts and coarse states may leave the adapter, never the raw stream."
+
+[privacy.presence]
+meaning = "Only whether it is in use or present may leave the adapter, never the content."
+
+[kind.reading]
+meaning = "A value you can read."
+
+[kind.event]
+meaning = "A stream of things that happen."
+
+[kind.control]
+meaning = "A value you can set."
+
+[kind.action]
+meaning = "Something you can trigger once."

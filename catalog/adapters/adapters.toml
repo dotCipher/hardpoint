@@ -9,9 +9,9 @@
 summary = "ZSA keyboards over ZSA's published raw-HID protocol."
 platforms = ["macos", "linux", "windows"]
 status = "implemented"
-implementation = "keyslate (not published yet), src/device/oryx.rs"
+implementation = "src/device/oryx.rs"
 params = []
-notes = "Only one program can hold the channel, so Keymapp must be closed. Run on macOS only so far."
+notes = "Only one program can hold the channel, so the vendor's own app must be closed. Run on macOS only so far."
 
 [adapter.hidpp]
 summary = "Logitech devices over HID++ 2.0."

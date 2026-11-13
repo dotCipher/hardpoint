@@ -1,4 +1,4 @@
-name: Site
+name: Build
 
 on:
   push:
@@ -14,7 +14,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  daemon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the libraries the HID layer needs
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev pkg-config
+      - name: Test the daemon
+        run: cargo test --locked
+
+  site:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -23,6 +32,8 @@ jobs:
           python-version: "3.13"
       - name: Validate the catalog and build the site
         run: python3 tools/build.py
+      - name: Check the committed images match the catalog
+        run: git diff --exit-code -- assets
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
@@ -30,7 +41,7 @@ jobs:
 
   deploy:
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: [daemon, site]
     runs-on: ubuntu-latest
     permissions:
       pages: write

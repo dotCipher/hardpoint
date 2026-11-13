@@ -1,2 +1,4 @@
+target/
 site/
+local/
 __pycache__/

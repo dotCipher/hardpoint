@@ -1,9 +1,9 @@
 # System design (draft)
 
-The catalog is one of three parts.
+This repository holds two of the three parts: the catalog and the daemon.
 
 ```text
-catalog (this repo)        daemon (on your computer)          clients
+catalog                    daemon (on your computer)          clients
   device cards       ->      discovery                  <-      AI agents over MCP
   vocabulary                 adapters                           command line
   adapter registry           change protocol                    rules you write
@@ -15,8 +15,10 @@ catalog (this repo)        daemon (on your computer)          clients
   adapters, and is the only thing that touches hardware.
 - **Clients** ask the daemon. They never talk to a device directly.
 
-`keyslate` is the first piece of the daemon: it already implements the
-`oryx-hid` adapter, a rules engine for keys and lights, and a local socket.
+The daemon already has discovery, the `oryx-hid` adapter, a rules engine
+for keys and lights, and a local socket. It takes everything it knows about
+a device from that device's card; nothing about a particular keyboard is
+written in the code.
 
 ## Discovery
 
@@ -27,7 +29,8 @@ catalog (this repo)        daemon (on your computer)          clients
 4. Anything unmatched is listed as uncatalogued, with what was observed. That
    listing is the starting point for a new card.
 
-The inventory is kept in memory, so "what do I have" is answered at once.
+`hardpoint inventory` does this today for USB and Bluetooth input devices
+and the computer itself. Displays and audio devices are not looked for yet.
 
 ## Adapters
 
@@ -39,7 +42,7 @@ On the first computer, a MacBook Pro:
 
 | Device | Adapter | State |
 |---|---|---|
-| ZSA Moonlander | `oryx-hid` | Implemented in keyslate. Lights, key positions and layer reports work |
+| ZSA Moonlander | `oryx-hid` | Implemented. Lights, key positions and layer reports work |
 | Logitech MX Master 3 | `hidpp` | Not written. macOS refuses to open the control channel until the program has Input Monitoring permission. With it, one-off queries read the battery level, DPI, host slots and the list of features. Nothing has been changed on the mouse yet |
 | The MacBook itself | `macos-system` | Not written. Battery, storage health, thermal warning level and output volume were all read by hand without special permission |
 | LG UltraWide | `ddc-ci` | Not written, and not tried on this display |
@@ -84,7 +87,7 @@ coarse states.
 
 ## Interfaces
 
-- A local socket with one JSON request per line (exists in keyslate).
+- A local socket with one JSON request per line (exists; only its owner can write to it).
 - An MCP server over the same operations, so any agent and any model provider
   can connect, including local ones.
 - A command-line tool for people.
@@ -94,8 +97,8 @@ any capabilities it may never touch. It is enforced in code, never in a prompt.
 
 ## Order of work
 
-1. This catalog, with cards for the devices on the first computer. (Drafted.)
-2. Discovery and `inventory` in the daemon, reading cards from this repo.
+1. The catalog, with cards for the devices on the first computer. (Done.)
+2. Discovery and `inventory` in the daemon, reading cards. (Done for input devices.)
 3. `macos-system` readings, so "ask about the machine" works.
 4. The change protocol, first for lights, which are already `reversible`.
 5. `hidpp` for the mouse, once the permission question is settled.

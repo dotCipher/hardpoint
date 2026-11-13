@@ -1,0 +1,70 @@
+# An example setup for a ZSA Moonlander: the six keys of the two inner
+# columns become agent slots. Key numbers are the ones the device card
+# declares (see the card's page on the site for a picture).
+#
+# Copy to ~/.config/hardpoint/config.toml and change the slots to keys that
+# are free in your own layout.
+
+[device]
+backend = "auto"
+card = "zsa/moonlander-mk1"
+
+[brightness]
+day = 0.8
+night = 0.35
+night_start = 21
+night_end = 7
+
+[lighting]
+idle = "release"
+base = "#0c0a08"
+empty_slot = "#000000"
+done_hold_secs = 20
+failed_hold_secs = 300
+
+[colors]
+running = "#0090ff"
+needs-you = "#ffa000"
+done = "#00d060"
+failed = "#ff3030"
+
+# Only mark a key `pressable` if pressing it is otherwise harmless: nothing
+# assigned to it in your layout, or a bare modifier hold.
+[[slot]]
+key = 36
+kind = "agent"
+pressable = true
+
+[[slot]]
+key = 50
+kind = "agent"
+pressable = true
+
+[[slot]]
+key = 6
+kind = "agent"
+
+[[slot]]
+key = 13
+kind = "agent"
+
+[[slot]]
+key = 20
+kind = "agent"
+
+[[slot]]
+key = 43
+kind = "agent"
+
+[sources.opencode]
+enabled = true
+roots_only = true
+
+[sources.socket]
+enabled = true
+
+[actions]
+agent_press = ""
+
+[telemetry]
+enabled = false

@@ -1,0 +1,204 @@
+# The words and the demo scripts on the site and in the README. Everything a
+# visitor reads comes from here or from the catalog; nothing is written into
+# the build script.
+
+name = "Hardpoint"
+tagline = "Hardware your AI can read and change, with the risk written down."
+eyebrow = "Open device catalog · local daemon"
+lede = "Hardpoint tells software what each device on your desk can do, how to reach it, and how risky each change is. A local daemon is the only thing that touches the hardware, and it works from device cards anyone can read, check and add to."
+
+# The moving board on the landing page. It replays what the named device card
+# and example setup do together; the build checks that both exist.
+[demo]
+card = "zsa/moonlander-mk1"
+config = "examples/moonlander.toml"
+title = "A keyboard that shows what your agents are doing"
+caption = "A replay, not a recording. Lighting keys from agent state and acting on a press both run today on this keyboard. Click a lit key yourself."
+loop_secs = 27
+pressed = "You pressed the key yourself. That session's action would run now."
+
+[[demo.step]]
+at = 0.8
+session = "Refactor"
+state = "running"
+say = "An agent starts work. It gets a key, lit blue."
+
+[[demo.step]]
+at = 2.6
+session = "Tests"
+state = "running"
+say = "A second agent takes the next key."
+
+[[demo.step]]
+at = 4.4
+session = "Docs"
+state = "running"
+say = "A third lands on a key that only displays."
+
+[[demo.step]]
+at = 6.8
+session = "Docs"
+state = "needs-you"
+say = "It needs an answer, so it moves to a key you can press and pulses."
+
+[[demo.step]]
+at = 10.6
+press = true
+say = "You press the lit key. Your own action runs for that session."
+
+[[demo.step]]
+at = 13.0
+session = "Tests"
+state = "done"
+say = "One finishes. Green, then it fades out."
+
+[[demo.step]]
+at = 15.2
+session = "Refactor"
+state = "failed"
+say = "One fails. Red, on a pressable key, until you acknowledge it."
+
+[[demo.step]]
+at = 18.6
+press = true
+say = "A press acknowledges it."
+
+[[demo.step]]
+at = 20.6
+level = 0.4
+say = "After 21:00 the board dims by itself. There are no brightness keys."
+
+[[demo.step]]
+at = 23.2
+release = true
+say = "Nothing is active, so the lights go back to the keyboard."
+
+[sections]
+devices_title = "Each device gets a card"
+devices_lede = "A card says how to recognise the device, what it can do, how risky each change is, and how much of that a person has checked. The bar shows how much is checked; the dots show which risk levels it has."
+devices_more = "All devices"
+status_title = "What runs today, and what is next"
+built_label = "Runs today"
+next_label = "Designed, not built"
+start_title = "Try it"
+start_lede = "It builds with Rust and needs no account. The first command works with no supported hardware attached."
+promise_title = "What it will not do"
+replay = "Replay"
+
+[travel]
+title = "Every change takes the same road"
+lede = "A client never touches a device. It asks, and the daemon decides what happens from the device's card. Pick a risk level to follow one."
+stops = ["Asked", "Card check", "Risk gate", "Device"]
+asked = "A client proposes it"
+checked = "The card lists it, and the value fits"
+confirm = "Keep it"
+
+# One worked example per risk level. The build checks each one against the
+# catalog, so these cannot drift from the cards.
+[[ladder]]
+risk = "read"
+device = "logitech/mx-master-3"
+capability = "battery.level"
+ask = "How much charge does the mouse have?"
+before = ""
+after = "20%"
+gate = "Nothing to guard"
+reach = "Value read"
+outcome = "The value comes back. Nothing on the device changed."
+
+[[ladder]]
+risk = "reversible"
+device = "zsa/moonlander-mk1"
+capability = "light.per_key"
+ask = "Light the top inner key amber."
+before = "off"
+after = "amber"
+gate = "Previous value saved"
+reach = "Applied"
+outcome = "Applied at once. The previous colour is on record, so it can be put back at once."
+
+[[ladder]]
+risk = "guarded"
+device = "logitech/mx-master-3"
+capability = "pointer.dpi"
+ask = "Set the pointer to 3200 DPI."
+before = "1000"
+after = "3200"
+gate = "Saved, and a timer starts"
+reach = "Applied, waiting for you"
+outcome = "Applied, then held open. Confirm it, or do nothing and it goes back."
+kept = "Confirmed, so it stays."
+reverted = "No answer, so it went back."
+
+[[ladder]]
+risk = "gated"
+device = "zsa/moonlander-mk1"
+capability = "firmware.flash"
+ask = "Flash a new layout onto the keyboard."
+before = ""
+after = ""
+gate = "Stops here"
+reach = "Never reached"
+outcome = "Refused. Hardpoint explains the steps; a person presses the reset button."
+
+[ladder_note]
+text = "Reading and reversible lighting run today. Confirm-or-revert and the change journal are designed and not built yet."
+
+[[status.built]]
+text = "The catalog format, its validator, and this site generated from it"
+
+[[status.built]]
+text = "Discovery: `hardpoint inventory` matches attached devices to cards"
+
+[[status.built]]
+text = "A keyboard driven entirely from its card: lights, key presses, layers"
+
+[[status.built]]
+text = "Agent sessions shown on keys, and a press that runs your own action"
+
+[[status.built]]
+text = "Brightness that follows the clock, and per-key press counts (counts only)"
+
+[[status.next]]
+text = "Reading the mouse and the computer through adapters, not one-off queries"
+
+[[status.next]]
+text = "Confirm-or-revert for guarded changes, and a journal of every change"
+
+[[status.next]]
+text = "An MCP server, so any agent and any model provider can connect"
+
+[[status.next]]
+text = "Linux, and a second computer"
+
+[[start]]
+say = "Build it"
+run = "cargo build --release"
+
+[[start]]
+say = "See what is attached, and which cards describe it"
+run = "./target/release/hardpoint inventory"
+
+[[start]]
+say = "Try it with no hardware: it prints which keys would be lit"
+run = "./target/release/hardpoint run --device dry --config examples/moonlander.toml"
+
+[[start]]
+say = "Report an agent's state from any script or hook"
+run = "./target/release/hardpoint emit --source my-tool --session 1 --state needs-you"
+
+[[promise]]
+title = "Cards are data"
+text = "A card can name an adapter and give it typed values. It can never carry a command, a script or a path, and the validator rejects any field it does not know."
+
+[[promise]]
+title = "Risk has a floor"
+text = "A card cannot claim a change is safer than the shared vocabulary allows. Anything that cannot be undone is never done by software alone."
+
+[[promise]]
+title = "It stays on your computer"
+text = "There is no account and no server. The daemon listens on a local socket that only you can write to."
+
+[[promise]]
+title = "Counts, not keystrokes"
+text = "To act on a press the daemon sees which key went down. It keeps counts per key if you ask it to, and never the order, the timing or the text."

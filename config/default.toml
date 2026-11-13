@@ -1,0 +1,54 @@
+# Hardpoint's built-in settings. Nothing here is specific to a device or a
+# person. To change them, copy this file to ~/.config/hardpoint/config.toml
+# or pass --config. See examples/ for a complete setup.
+
+[device]
+# auto: use the first attached keyboard the catalog describes.
+# dry:  no hardware; print which keys would be lit.
+backend = "auto"
+# Pin a particular device card, for example "vendor/model". Empty means auto.
+card = ""
+
+# Brightness follows the clock. There are no brightness keys to press.
+[brightness]
+day = 0.8
+night = 0.35
+night_start = 21        # local hour, inclusive
+night_end = 7           # local hour, exclusive
+
+[lighting]
+# release: hand the lights back to the keyboard whenever nothing is active.
+# hold:    keep the board on `base` even when idle.
+idle = "release"
+base = "#0c0a08"        # every key that is not a slot, while Hardpoint has the lights
+empty_slot = "#000000"  # an agent slot with no session in it
+done_hold_secs = 20     # how long a finished session stays lit
+failed_hold_secs = 300
+
+[colors]
+running = "#0090ff"
+needs-you = "#ffa000"
+done = "#00d060"
+failed = "#ff3030"
+
+# Slots are the keys Hardpoint may light and listen to. None are set here,
+# because which keys are free depends on your keyboard and your layout.
+# Add [[slot]] entries in your own config; see examples/.
+
+[sources.opencode]
+enabled = true
+roots_only = true       # ignore subagent sessions
+
+[sources.socket]
+enabled = true          # `hardpoint emit ...`, and any script or hook
+
+[actions]
+# A shell command of your own, run when a pressable agent slot is pressed.
+# It receives HARDPOINT_SOURCE, HARDPOINT_SESSION, HARDPOINT_TITLE,
+# HARDPOINT_DIRECTORY, HARDPOINT_STATE and HARDPOINT_KEY in its environment.
+# This is only ever read from your own config file, never from the catalog.
+agent_press = ""
+
+[telemetry]
+# Per-key press counts per day. Counts only: no order, no timing, no text.
+enabled = false

@@ -1,8 +1,10 @@
 # Card format, version 1 (draft)
 
 A card describes one device model. It is a TOML file at
-`devices/<vendor>/<model>.toml`. The machine-checkable form of these rules is
-`schema/device.schema.json` plus the cross-checks in `tools/build.py`.
+`catalog/devices/<vendor>/<model>.toml`. The machine-checkable form of these
+rules is `catalog/schema/device.schema.json` plus the cross-checks in
+`tools/build.py`. The meanings of the risk levels, verification statuses and
+privacy levels are kept in `catalog/vocabulary/terms.toml`.
 
 ## Principles
 
@@ -37,6 +39,21 @@ How software recognises the device. At least one. `bus` is `usb`,
 `vendor_id`, `product_id`, `usage_page`, `model` (for built-in hardware, the
 computer's model identifier) and `name`.
 
+### `[keys]`
+
+Optional, for keyboards. It says how key numbers, switch positions and lights
+line up, so software can light the right key and recognise a press. Each list
+has one entry per key, in key-number order.
+
+| Field | Meaning |
+|---|---|
+| `numbering` | Whose key numbers these are, in words |
+| `matrix` | `[row, column]` of each key's switch, as the keyboard reports presses |
+| `leds` | The light under each key, numbered from 0 |
+| `grid` | `[x, y]` cell of each key, for drawing the board |
+
+No two keys may share a switch position, a light or a cell.
+
 ### `[[requires]]`
 
 Optional. Something that must be true before the capabilities work, such as a
@@ -47,8 +64,8 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 
 | Field | Meaning |
 |---|---|
-| `id` | A word from `vocabulary/capabilities.toml` |
-| `adapter` | A name from `adapters/adapters.toml` |
+| `id` | A word from `catalog/vocabulary/capabilities.toml` |
+| `adapter` | A name from `catalog/adapters/adapters.toml` |
 | `risk` | `read`, `reversible`, `guarded` or `gated` |
 | `privacy` | Optional: `open`, `aggregate` or `presence` |
 | `params` | Optional. Only parameters the adapter declares |
@@ -104,8 +121,6 @@ a stricter one.
 
 ## Open questions
 
-- Per-device data that is larger than a capability list, such as a keyboard's
-  key-to-light map, has no home yet.
 - There is no way to say that one device contains another, such as a dock and
   its audio interface.
 - Version ranges for firmware are free text.

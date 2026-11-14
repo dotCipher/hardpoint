@@ -1,50 +1,36 @@
-# The catalog's own terms. The validator, the site and the feed all read their
-# meanings from here.
+# The catalog's own terms. The validator, the site and the feed all read them
+# from here.
 #
 # meaning: the exact definition
-# plain:   the same thing in everyday words, for labels people read
-# like:    an everyday comparison
 # does:    what happens when something asks for a change at this level
 
 [risk.read]
 meaning = "Nothing changes. The value is only read."
-plain = "Just looking"
-like = "Like reading a thermometer."
 does = "It looks, and tells you."
 
 [risk.reversible]
 meaning = "Changes take effect at once, can be undone at once, and cannot stop you using the machine."
-plain = "Easy to undo"
-like = "Like a dimmer switch."
-does = "It makes the change, and remembers how things were."
+does = "It makes the change, and can put it back."
 
 [risk.guarded]
 meaning = "Could get in the way of using the machine, so the change is reverted unless you confirm it within a few seconds."
-plain = "Checks with you first"
-like = "Like \"keep these display settings?\""
-does = "It makes the change, then asks if you want to keep it. No answer, and it puts things back."
+does = "It makes the change, then asks you to keep it."
 
 [risk.gated]
 meaning = "Cannot be undone by software, or needs a physical step. Software never does this alone; it only explains what to do."
-plain = "Only you can do this"
-like = "Like changing the locks."
-does = "It will not do it. It tells you how to do it yourself."
+does = "It will not. It tells you how to do it yourself."
 
 [status.tested]
 meaning = "Someone exercised this through the named adapter on that platform."
-plain = "Tested by a person"
 
 [status.observed]
 meaning = "Seen working or present on a real device, but not yet through the adapter."
-plain = "Seen working"
 
 [status.imported]
 meaning = "Taken from another project's data. Nobody here has tried it."
-plain = "Borrowed, not checked"
 
 [status.unverified]
 meaning = "Documented somewhere. Nobody here has tried it."
-plain = "Not tried yet"
 
 [privacy.open]
 meaning = "The value can be passed on as it is."

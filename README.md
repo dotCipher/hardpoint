@@ -10,6 +10,7 @@
 <p align="center"><b>A safety label for everything your AI can touch.</b></p>
 
 <p align="center">
+  <a href="https://dotcipher.github.io/hardpoint/">Site</a> ·
   <a href="#what-it-is">What it is</a> ·
   <a href="#the-four-labels">The four labels</a> ·
   <a href="#try-it">Try it</a> ·
@@ -25,8 +26,8 @@
 ## What it is
 
 AI helpers are starting to do things, not just answer questions. Hardpoint
-gives each device a plain label: what an AI may look at, what it may change,
-and what only you can do.
+gives each device a label: what an AI may read, what it may change, and what
+only you can do.
 
 The name comes from engineering. A hardpoint is the reinforced, load-rated
 spot on a vehicle where equipment is allowed to attach. A device's label is
@@ -45,26 +46,18 @@ runs an action of your own for that session.
 
 ## The four labels
 
-Every ability a device has gets one of four labels. Colour always means the
-same thing, here and on the site.
-
-| Label | In everyday words | Like |
-|---|---|---|
-| `read` | Just looking | Reading a thermometer |
-| `reversible` | Easy to undo | A dimmer switch |
-| `guarded` | Checks with you first | "Keep these display settings?" |
-| `gated` | Only you can do this | Changing the locks |
+Every ability a device has gets one of four labels.
 
 <p align="center">
   <img src="assets/ladder.svg" width="820" alt="The four risk levels: read, reversible, guarded and gated, each with its meaning">
 </p>
 
-| Risk | What the daemon does |
+| Label | What happens when an AI asks |
 |---|---|
-| `read` | Reads the value. |
-| `reversible` | Applies the change and records the previous value. |
-| `guarded` | Applies it, then puts it back unless you confirm within a few seconds. |
-| `gated` | Never does it. It explains the steps a person has to take. |
+| `read` | It looks, and tells you. |
+| `reversible` | It makes the change, and can put it back. |
+| `guarded` | It makes the change, then asks you to keep it. If you do not answer, it goes back. |
+| `gated` | It will not. It tells you how to do it yourself. |
 
 A card cannot claim a lower risk than the shared vocabulary allows for that
 capability, and anything `guarded` or `gated` has to say, in plain words, what
@@ -84,12 +77,13 @@ goes wrong if it is done carelessly.
 | An MCP server for any agent and model provider | Designed |
 | Linux | Not tried |
 
-Each device's page on the site shows, capability by capability, what has been
-tested and what has only been read about.
+Each device's page on [the site](https://dotcipher.github.io/hardpoint/devices.html)
+shows, capability by capability, what has been tested and what has only been
+read about.
 
 ## Try it
 
-It needs Rust to build the daemon, and Python 3.12 or newer to build the site.
+It needs Rust to build the daemon, and Python 3.11 or newer to build the site.
 
 ```sh
 cargo build --release
@@ -118,19 +112,26 @@ no keys.
 
 ## Add a device
 
-1. Copy a card in [`catalog/devices/`](catalog/devices) to
-   `catalog/devices/<vendor>/<model>.toml`.
-2. Fill in how the device is recognised under `[[match]]`. `hardpoint
-   inventory` lists what it sees for anything not yet in the catalog.
-3. List each capability with a word from
-   [the vocabulary](catalog/vocabulary/capabilities.toml). If the word you
-   need is missing, add it in the same change.
-4. Be exact in `verification`. `tested` means you exercised it through the
-   named adapter. `observed` means you saw it work some other way.
-   `unverified` means you only read about it.
-5. Run `python3 tools/build.py --check`.
+A label is one small file. Adding one needs no code and changes nothing on
+your device.
 
-The rules are in [docs/SPEC.md](docs/SPEC.md).
+**With an AI coding assistant:** open the
+[Add a device](https://dotcipher.github.io/hardpoint/add.html) page, press
+Copy, and paste. The prompt has it list what is plugged in, ask which device
+you mean, and write the card with you.
+
+**By hand:**
+
+```sh
+python3 tools/observe.py             # what is plugged in, and what has no card yet
+python3 tools/observe.py --draft 3   # start a card for one of them
+python3 tools/build.py --check       # check it
+```
+
+Be exact about what was checked: `observed` is for something you ran and saw
+work, `unverified` for something you only read about.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the rest, and
+[docs/SPEC.md](docs/SPEC.md) the full rules.
 
 ## What it will not do
 
@@ -153,6 +154,7 @@ config/         built-in settings
 examples/       complete setups to copy
 site-src/       the site's words, styles and scripts
 tools/build.py  validates the catalog; builds the site, the feed and assets/
+tools/observe.py  lists attached devices and drafts a card for one
 docs/           the design and the card format
 ```
 

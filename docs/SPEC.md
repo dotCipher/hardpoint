@@ -12,8 +12,10 @@ privacy levels are kept in `catalog/vocabulary/terms.toml`.
    It never contains a command, a script or a path. Unknown fields are errors.
 2. **Risk is declared, and has a floor.** Each capability states its risk. The
    vocabulary sets the lowest risk a card may claim for that capability.
-3. **Verification is explicit.** Every capability says who checked it, where,
-   and how thoroughly. Unchecked entries are welcome but are labelled as such.
+3. **Verification is explicit.** Every capability says where it was checked,
+   when, and how thoroughly. Unchecked entries are welcome but are labelled as
+   such. A card names no person: the commit that adds a record says who
+   checked it, and the site links each record to that commit.
 4. **One vocabulary.** A capability id means the same thing on every device.
 
 ## Sections
@@ -80,7 +82,7 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 | `status` | `tested`, `observed`, `imported` or `unverified` |
 | `platform` | `macos`, `linux` or `windows` |
 | `os`, `firmware` | Versions it was checked on |
-| `date`, `by` | Required for `tested` and `observed` |
+| `date` | The day it was checked. Required for `tested` and `observed` |
 | `note` | What exactly was and was not checked |
 
 ### `[[sources]]`
@@ -98,14 +100,18 @@ Each word in `catalog/vocabulary/capabilities.toml` has:
 | `summary` | The exact definition |
 | `min_risk` | The lowest risk a card may claim for it |
 | `privacy` | Optional. The least a card must promise |
-| `ask` | How a person would ask for it, in everyday words |
-| `example` | An illustrative value for explanations. Not a reading |
+| `ask` | Optional. Something a person would really say to an AI. Leave it out for abilities nobody asks for in everyday words |
+| `example` | Required with `ask`: an illustrative answer. Not a reading |
 | `example_before` | Optional. For something you can change, an illustrative value before |
 | `swatch` | Optional. For colours, the colour the example names |
 | `harm` | Required when `min_risk` is `guarded` or `gated`: what goes wrong, in plain words |
 
-The site builds a scene for every device from these fields, so a new card
-needs no site work.
+The site builds a scene for every device from the abilities that have an
+`ask`, so a new card needs no site work.
+
+`catalog/vocabulary/terms.toml` holds the catalog's own terms. Each risk level
+has a `meaning` and a `does` (what happens when something asks for a change at
+that level); each status, privacy level and kind has a `meaning`.
 
 ## Risk
 

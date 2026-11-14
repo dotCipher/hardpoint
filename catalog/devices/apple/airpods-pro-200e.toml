@@ -1,0 +1,29 @@
+card = 1
+
+[device]
+id = "apple/airpods-pro-200e"
+vendor = "Apple"
+name = "AirPods Pro"
+kind = "audio"
+summary = "Wireless earbuds with a charging case. This card is for the model that reports product id 200e."
+links = ["https://www.apple.com/airpods-pro/"]
+
+[[match]]
+bus = "bluetooth"
+vendor_id = 0x004c
+product_id = 0x200e
+
+[[capability]]
+id = "identity.firmware"
+adapter = "macos-system"
+risk = "read"
+params = { source = "bluetooth", field = "firmware_version" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reports a version for the paired earbuds, even when they are not connected. Read by hand." }]
+
+[[capability]]
+id = "battery.level"
+adapter = "macos-system"
+risk = "read"
+params = { source = "bluetooth", field = "battery_level" }
+note = "macOS reports separate levels for each earbud and the case while they are connected."
+verification = [{ status = "unverified", platform = "macos", note = "The earbuds were not connected when this card was written." }]

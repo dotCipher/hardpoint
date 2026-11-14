@@ -10,17 +10,30 @@
     return el ? JSON.parse(el.textContent) : null;
   }
 
-  // ---- sections arrive as they scroll into view
-  var seen = "IntersectionObserver" in window && !still
-    ? new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) { entry.target.classList.add("in"); seen.unobserve(entry.target); }
-        });
-      }, { threshold: 0.12 })
-    : null;
-  document.querySelectorAll(".reveal").forEach(function (el) {
-    if (seen) { seen.observe(el); } else { el.classList.add("in"); }
-  });
+  function make(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) { node.className = cls; }
+    if (text) { node.textContent = text; }
+    return node;
+  }
+
+  function ghost(node) {
+    node.classList.add("ghost");
+    node.setAttribute("aria-hidden", "true");
+    return node;
+  }
+
+  // A box whose words change must not change size. Lay out every wording it
+  // can show in the same place, unseen, and return the one that is seen.
+  function reserve(box, texts) {
+    box.textContent = "";
+    box.classList.add("stack");
+    var had = {};
+    texts.forEach(function (text) {
+      if (text && !had[text]) { had[text] = true; box.appendChild(ghost(make("span", "", text))); }
+    });
+    return box.appendChild(make("span", "live"));
+  }
 
   // ---- filter the device list
   var q = document.getElementById("q");
@@ -29,6 +42,34 @@
     q.addEventListener("input", function () {
       var term = q.value.trim().toLowerCase();
       rows.forEach(function (row) { row.style.display = row.dataset.search.indexOf(term) >= 0 ? "" : "none"; });
+    });
+  }
+
+  // ---- copy the prompt
+  var copy = document.getElementById("copy");
+  var prompt = document.getElementById("prompt");
+  if (copy && prompt) {
+    var copyLabel = copy.textContent;
+    var copyText = reserve(copy, [copyLabel, copy.dataset.done]);
+    copyText.textContent = copyLabel;
+    var copied = function () {
+      copyText.textContent = copy.dataset.done;
+      setTimeout(function () { copyText.textContent = copyLabel; }, 1600);
+    };
+    var bySelecting = function () {
+      var range = document.createRange();
+      range.selectNodeContents(prompt);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      try { if (document.execCommand("copy")) { copied(); } } catch (error) { /* the text stays selected to copy by hand */ }
+    };
+    copy.addEventListener("click", function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(prompt.textContent).then(copied, bySelecting);
+      } else {
+        bySelecting();
+      }
     });
   }
 
@@ -53,66 +94,82 @@
   var scenes = data("scene-data");
   var stage = document.getElementById("scenes");
   if (scenes && stage) {
-    var pills = Array.prototype.slice.call(stage.querySelectorAll("#scene-pills .pill"));
-    var pictures = Array.prototype.slice.call(stage.querySelectorAll(".drawing-wrap"));
     var el = function (id) { return document.getElementById(id); };
-    var askEl = el("scene-ask"), verdict = el("scene-verdict"), chipEl = el("scene-chip"), doesEl = el("scene-does");
+    var pillBox = el("scene-pills");
+    var pills = Array.prototype.slice.call(pillBox.querySelectorAll(".pill"));
+    var pictures = Array.prototype.slice.call(stage.querySelectorAll(".drawing-wrap"));
+    var askEl = el("scene-ask"), verdict = el("scene-verdict"), chipEl = el("scene-chip");
     var readout = el("scene-readout"), confirm = el("scene-confirm"), statusEl = el("scene-status");
-    var deviceEl = el("scene-device"), dotsEl = el("scene-dots"), toggle = el("scene-toggle");
+    var dotsEl = el("scene-dots"), toggle = el("scene-toggle");
+    var words = scenes.words;
     var di = 0, ci = 0, playing = !still, queue = [], decide = null;
+
+    // One line showing a value: a meter, a colour or a pulse, then the words.
+    function row(cap, from, value, note) {
+      var node = make("span", "row");
+      if (cap.risk === "gated") { node.appendChild(make("span", "why", cap.harm)); return node; }
+      if (cap.show === "meter") {
+        var fill = make("i");
+        fill.style.width = (parseInt(from || "0", 10) || 0) + "%";
+        fill.dataset.to = (parseInt(value, 10) || 0) + "%";
+        node.appendChild(make("span", "bar2")).appendChild(fill);
+      } else if (cap.show === "swatch") {
+        node.appendChild(make("span", "dotc")).style.background = value === cap.after ? cap.swatch : "transparent";
+      } else if (cap.show === "pulse") {
+        var ticks = node.appendChild(make("span", "ticks3"));
+        for (var n = 0; n < 3; n++) { ticks.appendChild(make("i")); }
+      }
+      node.appendChild(make("span", "", !note && from && from !== value ? from + " → " + value : value));
+      if (note) { node.appendChild(make("span", "was", note)); }
+      return node;
+    }
+
+    var caps = [];
+    scenes.devices.forEach(function (device) { caps = caps.concat(device.caps); });
+    var askLive = reserve(askEl, caps.map(function (cap) { return cap.ask; }));
+    var doesLive = reserve(el("scene-does"), caps.map(function (cap) { return cap.does; }));
+    readout.classList.add("stack");
+    var had = {};
+    caps.forEach(function (cap) {
+      var key = [cap.risk, cap.show, cap.before, cap.after, cap.harm].join("|");
+      if (had[key]) { return; }
+      had[key] = true;
+      readout.appendChild(ghost(row(cap, cap.before, cap.after, "")));
+      if (cap.risk === "guarded") {
+        readout.appendChild(ghost(row(cap, cap.after, cap.after, words.kept)));
+        readout.appendChild(ghost(row(cap, cap.after, cap.before, words.undone)));
+      }
+    });
+    var valueLive = readout.appendChild(make("span", "live"));
 
     function wait(ms, fn) { queue.push(setTimeout(fn, still ? 0 : ms)); }
     function stopAll() { queue.forEach(clearTimeout); queue = []; decide = null; }
     function lampOf() { return pictures[di].querySelector(".lamp"); }
 
-    function showValue(cap, value, before) {
-      readout.innerHTML = "";
-      var add = function (tag, cls, text) {
-        var node = document.createElement(tag); node.className = cls || ""; if (text) { node.textContent = text; }
-        readout.appendChild(node); return node;
-      };
-      if (cap.show === "meter") {
-        var bar = add("span", "bar2"); var fill = document.createElement("i"); bar.appendChild(fill);
-        fill.style.width = (parseInt(before || "0", 10) || 0) + "%";
-        requestAnimationFrame(function () { requestAnimationFrame(function () { fill.style.width = (parseInt(value, 10) || 0) + "%"; }); });
-      } else if (cap.show === "swatch") {
-        add("span", "dotc").style.background = value === cap.after ? cap.swatch : "transparent";
-      } else if (cap.show === "pulse") {
-        var ticks = add("span", "ticks3"); for (var n = 0; n < 3; n++) { ticks.appendChild(document.createElement("i")); }
-      }
-      add("span", "", value);
-      if (before && before !== value) { add("span", "was", "was " + before); }
+    function showValue(cap, from, value, note) {
+      var node = row(cap, from, value, note);
+      valueLive.textContent = "";
+      valueLive.appendChild(node);
+      var fill = node.querySelector(".bar2 i");
+      if (fill) { requestAnimationFrame(function () { requestAnimationFrame(function () { fill.style.width = fill.dataset.to; }); }); }
       var lamp = lampOf();
-      if (lamp) { lamp.style.fill = cap.show === "swatch" && value === cap.after ? cap.swatch : "var(--c)"; }
+      if (lamp && cap.risk !== "gated") { lamp.style.fill = cap.show === "swatch" && value === cap.after ? cap.swatch : "var(--c)"; }
       readout.classList.add("show");
     }
+
+    function finish(hold) { if (playing) { wait(hold, next); } }
 
     function settle(cap, kept) {
       decide = null;
       confirm.classList.remove("on", "show", "counting");
-      showValue(cap, kept ? cap.after : cap.before, kept ? cap.before : "");
-      var note = document.createElement("span");
-      note.className = "was";
-      note.textContent = kept ? scenes.words.kept : scenes.words.undone;
-      readout.appendChild(note);
-      finish(cap, 2200);
-    }
-
-    function finish(cap, hold) {
-      statusEl.textContent = cap.checked;
-      statusEl.className = "checked show " + cap.status;
-      if (playing) { wait(hold, next); }
+      showValue(cap, cap.after, kept ? cap.after : cap.before, kept ? words.kept : words.undone);
+      finish(2200);
     }
 
     function result(cap) {
-      if (cap.risk === "gated") {
-        readout.innerHTML = "";
-        var why = document.createElement("span"); why.className = "why"; why.textContent = cap.harm; readout.appendChild(why);
-        readout.classList.add("show");
-        return finish(cap, 3600);
-      }
-      showValue(cap, cap.after, cap.before);
-      if (cap.risk !== "guarded") { return finish(cap, 2600); }
+      showValue(cap, cap.before, cap.after, "");
+      if (cap.risk === "gated") { return finish(3600); }
+      if (cap.risk !== "guarded") { return finish(2600); }
       // The change is made, then held open: keep it, or it goes back by itself.
       confirm.classList.add("on");
       confirm.style.setProperty("--secs", "5s");
@@ -125,28 +182,31 @@
       stopAll();
       var device = scenes.devices[di], cap = device.caps[ci];
       pills.forEach(function (pill, n) { pill.setAttribute("aria-selected", n === di ? "true" : "false"); });
+      var pill = pills[di];
+      pillBox.scrollTo({ left: Math.max(0, pill.offsetLeft - (pillBox.clientWidth - pill.offsetWidth) / 2), behavior: still ? "auto" : "smooth" });
       pictures.forEach(function (pic, n) { pic.hidden = n !== di; pic.classList.remove("asking"); });
       var lamp = lampOf(); if (lamp) { lamp.style.fill = ""; }
       stage.style.setProperty("--c", "var(--" + cap.risk + ")");
-      deviceEl.textContent = device.name;
-      dotsEl.innerHTML = "";
-      device.caps.forEach(function (_, n) { var dot = document.createElement("i"); if (n === ci) { dot.className = "on"; } dotsEl.appendChild(dot); });
+      dotsEl.textContent = "";
+      device.caps.forEach(function (_, n) { dotsEl.appendChild(make("i", n === ci ? "on" : "")); });
       [verdict, readout, statusEl].forEach(function (node) { node.classList.remove("show"); });
       confirm.classList.remove("on", "show", "counting");
       askEl.classList.remove("done");
-      askEl.textContent = "";
-      var typed = 0, speed = still ? 0 : 20;
+      askLive.textContent = "";
+      var typed = 0;
       (function type() {
         if (typed < cap.ask.length && !still) {
-          askEl.textContent = cap.ask.slice(0, ++typed);
-          queue.push(setTimeout(type, speed));
+          askLive.textContent = cap.ask.slice(0, ++typed);
+          queue.push(setTimeout(type, 20));
           return;
         }
-        askEl.textContent = cap.ask;
+        askLive.textContent = cap.ask;
         askEl.classList.add("done");
         wait(350, function () {
-          chipEl.textContent = cap.plain;
-          doesEl.textContent = cap.does;
+          chipEl.textContent = cap.risk;
+          doesLive.textContent = cap.does;
+          statusEl.textContent = cap.status;
+          statusEl.className = "check show " + cap.status;
           verdict.classList.add("show");
           pictures[di].classList.add("asking");
           wait(900, function () { result(cap); });
@@ -162,7 +222,7 @@
 
     function setPlaying(on) {
       playing = on && !still;
-      toggle.textContent = playing ? scenes.words.pause : scenes.words.play;
+      toggle.textContent = playing ? words.pause : words.play;
       if (playing) { play(); } else { queue.forEach(clearTimeout); queue = []; }
     }
 
@@ -180,25 +240,24 @@
   var whys = data("why-data");
   var whyPills = Array.prototype.slice.call(document.querySelectorAll("#why-pills .pill"));
   if (whys && whyPills.length) {
-    var bad = document.getElementById("why-bad"), good = document.getElementById("why-good");
+    var good = document.getElementById("why-good");
     var bar = document.getElementById("why-bar");
-    function compare(i) {
+    var whyChip = document.getElementById("why-chip");
+    var harmLive = reserve(document.getElementById("why-harm"), whys.items.map(function (item) { return item.harm; }));
+    var whyDoes = reserve(document.getElementById("why-does"), whys.items.map(function (item) { return item.does; }));
+    var compare = function (i) {
       var item = whys.items[i];
       whyPills.forEach(function (pill, n) { pill.setAttribute("aria-pressed", n === i ? "true" : "false"); });
-      document.getElementById("why-harm").textContent = item.harm;
-      document.getElementById("why-chip").textContent = item.plain;
-      document.getElementById("why-does").textContent = item.does;
+      harmLive.textContent = item.harm;
+      whyChip.textContent = item.risk;
+      whyDoes.textContent = item.does;
       good.style.setProperty("--c", "var(--" + item.risk + ")");
-      bad.classList.remove("jolt"); bar.classList.remove("on", "counting");
-      if (still) { return; }
-      void bad.offsetWidth;
-      bad.classList.add("jolt");
-      if (item.risk === "guarded") {
-        bar.classList.add("on");
-        bar.style.setProperty("--secs", "4s");
-        requestAnimationFrame(function () { requestAnimationFrame(function () { bar.classList.add("counting"); }); });
-      }
-    }
+      bar.classList.remove("on", "counting");
+      if (still || item.risk !== "guarded") { return; }
+      bar.classList.add("on");
+      bar.style.setProperty("--secs", "4s");
+      requestAnimationFrame(function () { requestAnimationFrame(function () { bar.classList.add("counting"); }); });
+    };
     whyPills.forEach(function (pill, i) { pill.addEventListener("click", function () { compare(i); }); });
     compare(0);
   }
@@ -208,6 +267,7 @@
   var board = document.querySelector(".board.replay");
   if (demo && board) {
     var feed = document.getElementById("feed");
+    var line = feed ? reserve(feed, demo.steps.map(function (step) { return step.say; }).concat([demo.pressed])) : null;
     var slots = demo.slots.map(function (slot) {
       return { key: slot.key, pressable: slot.pressable, el: board.querySelector('[data-key="' + slot.key + '"]'), session: null };
     });
@@ -217,17 +277,7 @@
     var shown = function (name) { return name && sessions[name] && sessions[name] !== "idle"; };
 
     function later(fn, secs) { timers.push(setTimeout(fn, secs * 1000)); }
-
-    function say(text, kind) {
-      if (!feed || !text) { return; }
-      var li = document.createElement("li");
-      var dot = document.createElement("span");
-      dot.className = "dot " + (kind || "");
-      li.appendChild(dot);
-      li.appendChild(document.createTextNode(text));
-      feed.insertBefore(li, feed.firstChild);
-      while (feed.children.length > 4) { feed.removeChild(feed.lastChild); }
-    }
+    function say(text) { if (line && text) { line.textContent = text; } }
 
     // The same rules the daemon uses: a session keeps its key, and one that
     // wants a response trades places onto a key that can give one.
@@ -270,7 +320,7 @@
       slot.el.classList.add("flash");
       setTimeout(function () { slot.el.classList.remove("flash"); }, 360);
       if (state === "needs-you") { set(name, "running"); } else if (state === "failed" || state === "done") { set(name, "idle"); }
-      say(text, "press");
+      say(text);
       return true;
     }
 
@@ -283,12 +333,11 @@
     }
 
     function run(step) {
-      if (step.session) { set(step.session, step.state); say(step.say, step.state); }
+      if (step.session) { set(step.session, step.state); say(step.say); }
       else if (step.press) { pressMostUrgent(step.say); }
-      else if (step.level !== undefined) { board.style.setProperty("--level", step.level); say(step.say, ""); }
       else if (step.release) {
         Object.keys(sessions).forEach(function (name) { sessions[name] = "idle"; });
-        assign(); paint(); board.style.setProperty("--level", 1); say(step.say, "");
+        assign(); paint(); say(step.say);
       }
     }
 
@@ -296,15 +345,14 @@
       timers.forEach(clearTimeout); timers = [];
       sessions = {};
       slots.forEach(function (slot) { slot.session = null; });
-      board.style.setProperty("--level", 1);
-      if (feed) { feed.innerHTML = ""; }
+      if (line) { line.textContent = ""; }
       paint();
     }
 
-    function play() {
+    function replayAll() {
       reset();
       demo.steps.forEach(function (step) { later(function () { run(step); }, step.at); });
-      later(play, demo.loop);
+      later(replayAll, demo.loop);
     }
 
     slots.forEach(function (slot) {
@@ -318,13 +366,13 @@
       slot.el.addEventListener("keydown", act);
     });
     var replay = document.getElementById("replay");
-    if (replay) { replay.addEventListener("click", play); }
+    if (replay) { replay.addEventListener("click", replayAll); }
 
     if (still) {
-      // No autoplay: show the moment an agent needs an answer, and wait.
+      // No autoplay: show the moment a helper needs an answer, and wait.
       demo.steps.some(function (step) { run(step); return step.state === "needs-you"; });
     } else {
-      play();
+      replayAll();
     }
   }
 
@@ -332,13 +380,20 @@
   var ladder = data("ladder-data");
   var travel = document.getElementById("travel");
   if (ladder && travel) {
+    var items = ladder.items;
+    var pick = function (field) { return items.map(function (item) { return item[field]; }); };
     var tabs = Array.prototype.slice.call(travel.querySelectorAll(".tab"));
     var stops = Array.prototype.slice.call(travel.querySelectorAll(".stop"));
     var token = travel.querySelector(".token");
     var timer = travel.querySelector(".timer");
     var keep = travel.querySelector("#keep");
-    var out = travel.querySelector("#outcome");
     var value = travel.querySelector("#value");
+    var target = function (item) { return item.device + " · " + item.capability; };
+    var askLine = reserve(travel.querySelector("#ask"), pick("ask"));
+    var targetLine = reserve(travel.querySelector("#target"), items.map(target));
+    var gateLine = reserve(stops[2].querySelector("span"), pick("gate"));
+    var reachLine = reserve(stops[3].querySelector("span"), pick("reach"));
+    var out = reserve(travel.querySelector("#outcome"), pick("outcome").concat(pick("kept"), pick("reverted")));
     var pending = [];
 
     function clear() { pending.forEach(clearTimeout); pending = []; }
@@ -348,24 +403,25 @@
       var stop = stops[i];
       stop.classList.add(cls || "on");
       token.classList.add("show");
-      token.style.left = (stop.offsetLeft + stop.offsetWidth / 2 - 7) + "px";
+      token.style.transform = "translateX(" + (stop.offsetLeft + stop.offsetWidth / 2 - 7) + "px)";
     }
 
     function settle(text, shownValue) {
       out.textContent = text;
-      value.innerHTML = shownValue ? "now <b>" + shownValue + "</b>" : "";
+      value.textContent = "";
+      if (shownValue) { value.appendChild(document.createTextNode("now ")); value.appendChild(make("b", "", shownValue)); }
     }
 
     function show(i) {
-      var item = ladder.items[i];
+      var item = items[i];
       clear();
       tabs.forEach(function (tab, n) { tab.setAttribute("aria-selected", n === i ? "true" : "false"); });
       travel.style.setProperty("--c", "var(--" + item.risk + ")");
-      travel.querySelector("#ask").textContent = item.ask;
-      travel.querySelector("#target").textContent = item.device + " · " + item.capability + " · " + item.risk;
+      askLine.textContent = item.ask;
+      targetLine.textContent = target(item);
       stops.forEach(function (stop) { stop.className = "stop"; });
-      stops[2].querySelector("span").textContent = item.gate;
-      stops[3].querySelector("span").textContent = item.reach;
+      gateLine.textContent = item.gate;
+      reachLine.textContent = item.reach;
       token.classList.remove("show");
       timer.classList.remove("show", "run");
       settle("", item.before);
@@ -376,8 +432,8 @@
       at(2250, function () {
         if (item.risk === "gated") { stops[3].classList.add("skip"); settle(item.outcome, ""); return; }
         reach(3);
-        if (item.risk !== "guarded") { settle(item.outcome, item.after); return; }
         settle(item.outcome, item.after);
+        if (item.risk !== "guarded") { return; }
         timer.classList.add("show");
         // Start the countdown on the next frame so the bar animates from full.
         requestAnimationFrame(function () { requestAnimationFrame(function () { timer.classList.add("run"); }); });
@@ -391,14 +447,14 @@
     tabs.forEach(function (tab, i) { tab.addEventListener("click", function () { show(i); }); });
     if (keep) {
       keep.addEventListener("click", function () {
-        var item = ladder.items[tabs.findIndex(function (t) { return t.getAttribute("aria-selected") === "true"; })];
+        var item = items[tabs.findIndex(function (t) { return t.getAttribute("aria-selected") === "true"; })];
         clear();
         timer.classList.remove("show", "run");
         settle(item.kept, item.after);
       });
     }
     var started = false;
-    function start() { if (!started) { started = true; show(0); } }
+    var start = function () { if (!started) { started = true; show(0); } };
     if ("IntersectionObserver" in window && !still) {
       new IntersectionObserver(function (entries, watcher) {
         if (entries[0].isIntersecting) { start(); watcher.disconnect(); }

@@ -50,7 +50,7 @@ id = "identity.firmware"
 adapter = "oryx-hid"
 risk = "read"
 note = "Reports the Oryx layout id and revision id that were flashed."
-verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher" }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12 }]
 
 [[capability]]
 id = "keys.position_events"
@@ -58,26 +58,26 @@ adapter = "oryx-hid"
 risk = "read"
 privacy = "aggregate"
 note = "Reported for every key, including keys with nothing assigned, so unused keys can be given meaning without reflashing."
-verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "A press on a physical key was received and acted on." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, note = "A press on a physical key was received and acted on." }]
 
 [[capability]]
 id = "keys.layer"
 adapter = "oryx-hid"
 risk = "read"
-verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "The layer reported on connecting was received. A layer change was not exercised." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, note = "The layer reported on connecting was received. A layer change was not exercised." }]
 
 [[capability]]
 id = "light.per_key"
 adapter = "oryx-hid"
 risk = "reversible"
 note = "While the host controls lighting it must set every key; there is no overlay on the keyboard's own effects."
-verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-13, by = "dotCipher", note = "Six keys confirmed by eye. The order of the other 66 follows QMK's published table." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-13, note = "Six keys confirmed by eye. The order of the other 66 follows QMK's published table." }]
 
 [[capability]]
 id = "light.global"
 adapter = "oryx-hid"
 risk = "reversible"
-verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, by = "dotCipher", note = "Taking and releasing control was confirmed by the keyboard's own reply." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, note = "Taking and releasing control was confirmed by the keyboard's own reply." }]
 
 [[capability]]
 id = "light.status"

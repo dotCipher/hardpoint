@@ -1,0 +1,28 @@
+card = 1
+
+[device]
+id = "bose/nc-700"
+vendor = "Bose"
+name = "Noise Cancelling Headphones 700"
+kind = "audio"
+summary = "Wireless over-ear headphones."
+links = ["https://www.bose.com/"]
+
+[[match]]
+bus = "bluetooth"
+vendor_id = 0x009e
+product_id = 0x4024
+
+[[capability]]
+id = "identity.firmware"
+adapter = "macos-system"
+risk = "read"
+params = { source = "bluetooth", field = "firmware_version" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reports a version for the paired headphones, even when they are not connected. Read by hand." }]
+
+[[capability]]
+id = "battery.level"
+adapter = "macos-system"
+risk = "read"
+params = { source = "bluetooth", field = "battery_level" }
+verification = [{ status = "unverified", platform = "macos", note = "The headphones were not connected when this card was written." }]

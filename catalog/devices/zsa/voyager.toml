@@ -1,0 +1,56 @@
+card = 1
+
+[device]
+id = "zsa/voyager"
+vendor = "ZSA Technology Labs"
+name = "Voyager"
+kind = "keyboard"
+summary = "Low-profile split keyboard with a light under every key. Nobody has checked this card on a real Voyager yet."
+links = ["https://www.zsa.io/voyager"]
+
+[[match]]
+bus = "usb"
+vendor_id = 0x3297
+product_id = 0x1977
+
+# There is no [keys] section yet: the key numbers have to be read from a
+# real keyboard. Until then software can light the whole board, not one key.
+
+[[requires]]
+platform = "any"
+what = "Sole use of the keyboard's control channel"
+note = "Expected, as on the Moonlander: ZSA's Keymapp holds the same channel. Not checked on this model."
+
+[[capability]]
+id = "identity.firmware"
+adapter = "oryx-hid"
+risk = "read"
+verification = [{ status = "unverified", platform = "macos", note = "ZSA publishes one protocol for its keyboards. Not tried on this model." }]
+
+[[capability]]
+id = "keys.position_events"
+adapter = "oryx-hid"
+risk = "read"
+privacy = "aggregate"
+verification = [{ status = "unverified", platform = "macos", note = "ZSA publishes one protocol for its keyboards. Not tried on this model." }]
+
+[[capability]]
+id = "light.global"
+adapter = "oryx-hid"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "ZSA publishes one protocol for its keyboards. Not tried on this model." }]
+
+[[capability]]
+id = "firmware.flash"
+adapter = "manual"
+risk = "gated"
+note = "Needs the physical reset button on the keyboard, so software cannot do it alone."
+verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation. Not tried." }]
+
+[[sources]]
+title = "Oryx raw-HID protocol (zsa/qmk_modules)"
+url = "https://github.com/zsa/qmk_modules/blob/main/oryx/oryx.h"
+
+[[sources]]
+title = "QMK keyboard definition, for the USB identifiers"
+url = "https://github.com/qmk/qmk_firmware/blob/master/keyboards/zsa/voyager/keyboard.json"

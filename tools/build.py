@@ -19,6 +19,11 @@ import re
 import shutil
 import subprocess
 import sys
+
+if sys.version_info < (3, 11):
+    sys.exit(f"tools/build.py needs Python 3.11 or newer, and this is {sys.version.split()[0]}. "
+             "A pull request is checked for you either way.")
+
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -126,14 +131,13 @@ class Catalog:
                 self.errors.append(f"{where}: a {cap.get('kind')} changes something, so it cannot be 'read'")
             if "privacy" in cap and cap["privacy"] not in self.privacy:
                 self.errors.append(f"{where}: privacy must be one of {', '.join(self.privacy)}")
-            for field in ("ask", "example"):
-                if not cap.get(field):
-                    self.errors.append(f"{where}: needs {field!r}, in everyday words")
+            if cap.get("ask") and not cap.get("example"):
+                self.errors.append(f"{where}: an 'ask' needs an 'example' answer to go with it")
             if self.rank("risks", cap["min_risk"]) >= self.rank("risks", "guarded") and not cap.get("harm"):
                 self.errors.append(f"{where}: anything guarded or gated must say what goes wrong, in 'harm'")
             if "swatch" in cap and not re.fullmatch(r"#[0-9a-fA-F]{6}", cap["swatch"]):
                 self.errors.append(f"{where}: swatch must be a colour like #ffa000")
-        for group, fields in (("risk", ("meaning", "plain", "like", "does")), ("status", ("meaning", "plain"))):
+        for group, fields in (("risk", ("meaning", "does")), ("status", ("meaning",))):
             for name, term in self.terms[group].items():
                 for field in fields:
                     if not term.get(field):
@@ -161,6 +165,7 @@ class Catalog:
             self._check_keys(card, rel)
             card["_path"] = str(rel)
             card["_source"] = path.read_text()
+            card["_commits"] = record_commits(path, card["_source"])
             self.cards.append(card)
 
     def _check_capabilities(self, card, rel):
@@ -197,8 +202,8 @@ class Catalog:
                     self.errors.append(f"{where}: adapter {cap['adapter']!r} does not run on {record['platform']}")
                 if record["status"] == "tested" and adapter.get("status") != "implemented":
                     self.errors.append(f"{where}: cannot be 'tested' through an adapter that is not implemented")
-                if record["status"] in ("tested", "observed") and not (record.get("date") and record.get("by")):
-                    self.errors.append(f"{where}: a {record['status']} record needs a date and who checked it")
+                if record["status"] in ("tested", "observed") and not record.get("date"):
+                    self.errors.append(f"{where}: a {record['status']} record needs the date it was checked")
 
     def _check_keys(self, card, rel):
         keys = card.get("keys")
@@ -219,6 +224,32 @@ class Catalog:
 
     def best_status(self, cap):
         return min((r["status"] for r in cap["verification"]), key=lambda s: self.rank("statuses", s))
+
+
+def record_commits(path, source):
+    """For each capability, the commit that last touched its verification record.
+
+    The catalog does not store who checked something. The commit does, so the
+    site links to it instead.
+    """
+    try:
+        blame = subprocess.run(["git", "-C", str(ROOT), "blame", "--porcelain", "--", str(path)],
+                               capture_output=True, text=True, timeout=20).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    by_line = {}
+    for line in blame.splitlines():
+        found = re.match(r"([0-9a-f]{40}) \d+ (\d+)", line)
+        if found and set(found.group(1)) != {"0"}:
+            by_line[int(found.group(2))] = found.group(1)
+    commits, current = {}, None
+    for number, line in enumerate(source.splitlines(), 1):
+        named = re.match(r'id = "([a-z]+\.[a-z_]+)"', line)
+        if named:
+            current = named.group(1)
+        elif line.startswith("verification") and current and number in by_line:
+            commits[current] = by_line[number]
+    return commits
 
 
 def load_content(catalog):
@@ -250,7 +281,7 @@ def load_content(catalog):
         else:
             word = catalog.vocabulary[item["capability"]]
             item["device_name"] = f'{target["device"]["vendor"]} {target["device"]["name"]}'
-            item["ask"] = word["ask"]
+            item["ask"] = word.get("ask") or word["summary"]
             item["before"] = word.get("example_before", "")
             item["after"] = "" if item["risk"] == "gated" else word["example"]
     if [item["risk"] for item in content["ladder"]] != list(catalog.risks):
@@ -419,8 +450,8 @@ def write_assets(catalog, content):
 
 # ---------------------------------------------------------------------- site
 
-def chip(kind, value, label=None):
-    return f'<span class="chip {kind}-{e(value)}" title="{e(value)}">{e(label or value)}</span>'
+def chip(kind, value):
+    return f'<span class="chip {kind}-{e(value)}">{e(value)}</span>'
 
 
 def defs(pairs):
@@ -471,10 +502,17 @@ def drawing(card):
         "display": '<rect class="glow" x="24" y="26" width="272" height="122" rx="12"/>'
                    '<path class="glow thin" d="M160 148 V172 M112 174 H208"/>'
                    '<circle class="lamp" cx="280" cy="134" r="4"/>',
+        "audio": '<path class="glow" d="M92 120 V96 a68 68 0 0 1 136 0 V120"/>'
+                 '<rect class="glow" x="76" y="112" width="34" height="62" rx="14"/>'
+                 '<rect class="glow" x="210" y="112" width="34" height="62" rx="14"/>'
+                 '<circle class="lamp" cx="227" cy="160" r="4"/>',
+        "storage": '<rect class="glow" x="96" y="26" width="128" height="148" rx="14"/>'
+                   '<path class="glow thin" d="M120 146 H170"/>'
+                   '<circle class="lamp" cx="200" cy="146" r="5"/>',
     }
-    body = shapes.get(kind, '<rect class="glow" x="70" y="50" width="180" height="100" rx="14"/>'
-                            '<path class="glow thin" d="M96 126 H116 M130 126 H150 M164 126 H184"/>'
-                            '<circle class="lamp" cx="226" cy="74" r="5"/>')
+    body = shapes.get(kind, '<rect class="glow" x="56" y="62" width="208" height="76" rx="14"/>'
+                            '<path class="glow thin" d="M82 114 H102 M116 114 H136 M150 114 H170"/>'
+                            '<circle class="lamp" cx="238" cy="86" r="5"/>')
     return f'<svg class="drawing kind-{e(kind)}" viewBox="0 0 320 200" role="img" aria-label="{e(card["device"]["name"])}">{body}</svg>'
 
 
@@ -492,25 +530,19 @@ class Site:
         self.c, self.t, self.repo = catalog, content, repo
         self.name = content["name"]
         self.risk = catalog.terms["risk"]
-        self.status = catalog.terms["status"]
-
-    def risk_chip(self, risk):
-        return chip("risk", risk, self.risk[risk]["plain"])
-
-    def status_chip(self, status):
-        return chip("st", status, self.status[status]["plain"])
+        # The devices with the most checked come first, wherever devices are listed.
+        count = lambda card, status: sum(1 for cap in card["capability"] if catalog.best_status(cap) == status)
+        self.cards = sorted(catalog.cards, key=lambda card: [-count(card, s) for s in catalog.statuses][:-1] + [card["device"]["name"]])
 
     def page(self, title, body, root, active, scripts=""):
         n = self.t["nav"]
-        links = [(n["devices"], "devices.html"), (n["how"], "index.html#how"), (n["questions"], "index.html#questions"),
-                 (n["builders"], "format.html")]
+        links = [(n["devices"], "devices.html"), (n["how"], "index.html#how"), (n["add"], "add.html"), (n["builders"], "format.html")]
         nav = ""
         for label, href in links:
             current = ' class="on"' if label == active else ""
             nav += f'<a href="{root}{href}"{current}>{e(label)}</a>'
         if self.repo:
             nav += f'<a href="{e(self.repo)}">GitHub</a>'
-        add = f' <a href="{e(self.repo)}#add-a-device">Add a device</a>.' if self.repo else ""
         return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(title)}</title><meta name="description" content="{e(self.t["lede"])}">
@@ -518,56 +550,58 @@ class Site:
 <link rel="stylesheet" href="{root}style.css"></head><body>
 <header><div class="wrap bar"><a class="brand" href="{root}index.html">{site_mark()}<span>{e(self.name)}</span></a><nav>{nav}</nav></div></header>
 <main>{body}</main>
-<footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.{add}
+<footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.
 Product names belong to their owners; this project is not affiliated with them.</div></footer>
 {scripts}<script src="{root}app.js" defer></script>
 </body></html>"""
 
     # ---- pieces shared between pages
 
+    def checked(self, status):
+        """How much has been checked, as one word with a mark."""
+        return f'<span class="check {e(status)}">{e(status)}</span>'
+
     def device_tile(self, card, root=""):
         d, caps = card["device"], card["capability"]
         counts = {s: sum(1 for c in caps if self.c.best_status(c) == s) for s in self.c.statuses}
         meter = "".join(f'<i class="{s}" style="width:{100 * n / len(caps):.1f}%"></i>' for s, n in counts.items() if n and s != "unverified")
-        risks = "".join(f'<i class="{r}" title="{e(self.risk[r]["plain"])}"></i>' for r in self.c.risks if any(c["risk"] == r for c in caps))
-        summary = ", ".join(f"{n} {self.status[s]['plain'].lower()}" for s, n in counts.items() if n)
+        risks = "".join(f'<i class="{r}" title="{e(r)}"></i>' for r in self.c.risks if any(c["risk"] == r for c in caps))
+        summary = ", ".join(f"{n} {s}" for s, n in counts.items() if n)
         search = " ".join([d["name"], d["vendor"], d["kind"]] + [c["id"] for c in caps]).lower()
-        return (f'<a class="card plate reveal" href="{root}devices/{slug(card)}.html" data-search="{e(search)}">'
+        return (f'<a class="card plate" href="{root}devices/{slug(card)}.html" data-search="{e(search)}">'
                 f'<span class="kind">{e(d["kind"])}</span><span class="name">{e(d["name"])}</span>'
                 f'<span class="vendor">{e(d["vendor"])}</span><div class="meter">{meter}</div>'
-                f'<span class="counts">{len(caps)} abilities · {e(summary)}</span><div class="riskdots">{risks}</div></a>')
+                f'<span class="counts">{e(summary)}</span><div class="riskdots">{risks}</div></a>')
 
     def scene_data(self):
-        """One scene per device, made from its card. Nothing here knows any device by name."""
+        """One scene per device, made from its card, using only the abilities
+        people would ask for in everyday words. Nothing here knows any device by name."""
         devices = []
-        for card in self.c.cards:
+        for card in self.cards:
             caps = []
             for cap in card["capability"]:
                 word = self.c.vocabulary[cap["id"]]
-                status = self.c.best_status(cap)
+                if not word.get("ask"):
+                    continue
                 caps.append({
-                    "ask": word["ask"], "risk": cap["risk"], "plain": self.risk[cap["risk"]]["plain"],
-                    "does": self.risk[cap["risk"]]["does"], "show": how_to_show(word), "after": word["example"],
-                    "before": word.get("example_before", ""), "swatch": word.get("swatch", ""),
-                    "changes": word["kind"] in ("control", "action"), "harm": word.get("harm", ""),
-                    "status": status, "checked": self.status[status]["plain"],
+                    "ask": word["ask"], "risk": cap["risk"], "does": self.risk[cap["risk"]]["does"],
+                    "show": how_to_show(word), "after": word["example"], "before": word.get("example_before", ""),
+                    "swatch": word.get("swatch", ""), "harm": word.get("harm", ""), "status": self.c.best_status(cap),
                 })
-            devices.append({"name": f'{card["device"]["vendor"]} {card["device"]["name"]}', "kind": card["device"]["kind"], "caps": caps})
+            if caps:
+                devices.append({"card": card["device"]["id"], "name": card["device"]["name"], "kind": card["device"]["kind"], "caps": caps})
         s = self.t["scenes"]
-        words = {k: s[k] for k in ("pause", "play", "kept", "undone", "waiting")}
-        return {"devices": devices, "words": words}
+        return {"devices": devices, "words": {k: s[k] for k in ("pause", "play", "kept", "undone")}}
 
     def why_data(self):
-        """Every ability in the catalog that can go wrong, with what goes wrong."""
+        """Every everyday request in the catalog that can go wrong, with what goes wrong."""
         items, seen = [], set()
         for card in self.c.cards:
             for cap in card["capability"]:
                 word = self.c.vocabulary[cap["id"]]
-                if word.get("harm") and cap["id"] not in seen:
+                if word.get("harm") and word.get("ask") and cap["id"] not in seen:
                     seen.add(cap["id"])
-                    items.append({"ask": word["ask"], "harm": word["harm"], "risk": cap["risk"],
-                                  "plain": self.risk[cap["risk"]]["plain"], "does": self.risk[cap["risk"]]["does"],
-                                  "device": card["device"]["name"]})
+                    items.append({"ask": word["ask"], "harm": word["harm"], "risk": cap["risk"], "does": self.risk[cap["risk"]]["does"]})
         return {"items": items}
 
     def travel_block(self):
@@ -578,39 +612,42 @@ Product names belong to their owners; this project is not affiliated with them.<
                         for name, note in zip(travel["stops"], [travel["asked"], travel["checked"], "", ""]))
         data = {"items": [{k: i.get(k, "") for k in ("risk", "ask", "capability", "gate", "reach", "outcome", "before", "after", "kept", "reverted")}
                           | {"device": i["device_name"]} for i in t["ladder"]]}
-        html_block = f"""<div id="travel" class="travel plate pad">
+        block = f"""<div id="travel" class="travel plate pad">
     <div class="tabs" role="tablist">{tabs}</div>
     <p class="ask" id="ask">{e(t["ladder"][0]["ask"])}</p>
-    <p class="target mono" id="target"></p>
+    <p class="target mono" id="target">&nbsp;</p>
     <div class="lane"><span class="token"></span>{stops}</div>
-    <div class="result"><p id="outcome"></p><span class="value" id="value"></span>
+    <div class="result"><p id="outcome"></p><div class="line"><span class="value" id="value"></span>
       <span class="timer"><span class="barbox"><span class="fill"></span></span>
-      <button class="btn small" id="keep" type="button">{e(travel["confirm"])}</button></span></div>
+      <button class="btn small" id="keep" type="button">{e(travel["confirm"])}</button></span></div></div>
     <p class="note">{e(t["ladder_note"]["text"])}</p></div>"""
-        return html_block, f'<script type="application/json" id="ladder-data">{json.dumps(data)}</script>'
+        return block, f'<script type="application/json" id="ladder-data">{json.dumps(data)}</script>'
+
+    def steps(self, items):
+        rows = ""
+        for item in items:
+            run = item["run"].replace("{repo}", self.repo or "<this repository's address>")
+            rows += f'<div class="step"><span>{e(item["say"])}</span>' + (f"<pre>{e(run)}</pre>" if run else "") + "</div>"
+        return f'<div class="steps">{rows}</div>'
 
     # ---- pages
 
     def landing(self):
         t, c = self.t, self.c
-        s, why, labels, aud, demo, sec = t["scenes"], t["why"], t["labels"], t["audience"], t["demo"], t["sections"]
+        s, why, labels, demo, sec = t["scenes"], t["why"], t["labels"], t["demo"], t["sections"]
         scenes, whys = self.scene_data(), self.why_data()
         caps = [cap for card in c.cards for cap in card["capability"]]
-        pills = "".join(f'<button class="pill" type="button" role="tab" aria-selected="false">{e(d["kind"])}</button>' for d in scenes["devices"])
-        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(card)}</div>' for card in c.cards)
-        label_cards = ""
-        for risk, term in self.risk.items():
-            mine = [cap for cap in caps if cap["risk"] == risk]
-            sample = c.vocabulary[mine[0]["id"]]["ask"] if mine else ""
-            label_cards += (f'<div class="plate label reveal" style="--c:var(--{risk})"><span class="swatchbar"></span>'
-                            f'<h3>{e(term["plain"])}</h3><p class="like">{e(term["like"])}</p><p class="does">{e(term["does"])}</p>'
-                            f'<p class="eg">{e(sample)}</p><p class="tally"><b>{len(mine)}</b> {e(labels["count"])} · <span class="mono">{e(risk)}</span></p></div>')
+        pills = "".join(f'<button class="pill" type="button" role="tab" aria-selected="false">{e(d["name"])}</button>' for d in scenes["devices"])
+        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(c.card(d["card"]))}</div>' for d in scenes["devices"])
+        label_cards = "".join(
+            f'<div class="plate label" style="--c:var(--{risk})"><span class="swatchbar"></span><h3>{e(risk)}</h3>'
+            f'<p class="does">{e(term["does"])}</p><p class="tally"><b>{sum(1 for cap in caps if cap["risk"] == risk)}</b> {e(labels["count"])}</p></div>'
+            for risk, term in self.risk.items())
         why_pills = "".join(f'<button class="pill" type="button" aria-pressed="false">{e(i["ask"])}</button>' for i in whys["items"])
-        audience = "".join(f'<div class="plate pad reveal"><h3>{e(a["title"])}</h3><p class="sub">{e(a["text"])}</p></div>' for a in aud["item"])
-        questions = "".join(f'<details class="plate q reveal"><summary>{e(q["ask"])}</summary><p>{e(q["answer"])}</p></details>' for q in t["question"])
+        questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{e(q["answer"])}</p></details>' for q in t["question"])
         ticks = lambda items, cls: f'<ul class="ticks {cls}">' + "".join(f"<li>{inline_code(i['text'])}</li>" for i in items) + "</ul>"
-        steps = "".join(f'<div class="step"><span>{e(x["say"])}</span><pre>{e(x["run"])}</pre></div>' for x in t["start"])
-        promises = "".join(f'<div class="plate pad reveal"><h3>{e(p["title"])}</h3><p class="sub">{e(p["text"])}</p></div>' for p in t["promise"])
+        legend = "".join(f'<span><i style="background:var(--{k})"></i>{e(v)}</span>'
+                         for k, v in (("reversible", "working"), ("guarded", "needs you"), ("read", "done"), ("gated", "problem")))
         body = f"""
 <div class="wrap">
 <div class="hero">
@@ -618,88 +655,71 @@ Product names belong to their owners; this project is not affiliated with them.<
     <p class="eyebrow">{e(t["eyebrow"])}</p>
     <h1>{e(t["tagline"])}</h1>
     <p class="lede">{e(t["lede"])}</p>
-    <div class="cta"><a class="btn primary" href="#why">{e(why["eyebrow"])}</a><a class="btn" href="devices.html">{e(sec["devices_more"])}</a></div>
+    <div class="cta"><a class="btn primary" href="#why">{e(why["eyebrow"])}</a><a class="btn" href="add.html">{e(t["nav"]["add"])}</a></div>
     <p class="early"><span class="dot"></span>{e(t["early"])} <a href="#status">{e(t["early_link"])}</a></p>
   </div>
   <div class="plate stage scenes" id="scenes">
     <div class="stage-top"><h3>{e(s["title"])}</h3>
-      <button class="btn small" id="scene-toggle" type="button">{e(s["pause"])}</button>
+      <button class="btn small fixed" id="scene-toggle" type="button">{e(s["pause"])}</button>
       <button class="btn small" id="scene-next" type="button">{e(s["next"])}</button></div>
-    <div class="pills" role="tablist" id="scene-pills">{pills}</div>
-    <div class="scene-body">
-      <div class="drawings">{drawings}</div>
-      <div class="talk" aria-live="polite">
-        <p class="who">{e(s["you"])}</p>
-        <p class="bubble" id="scene-ask">&nbsp;</p>
-        <div class="verdict" id="scene-verdict"><span class="chip" id="scene-chip"></span><span id="scene-does"></span></div>
-        <div class="readout" id="scene-readout"></div>
-        <div class="confirm" id="scene-confirm"><span>{e(s["waiting"])}</span><span class="barbox"><span class="fill"></span></span>
-          <button class="btn small" id="scene-keep" type="button">{e(s["keep"])}</button>
-          <button class="btn small" id="scene-undo" type="button">{e(s["undo"])}</button></div>
-        <p class="checked" id="scene-status"></p>
-      </div>
+    <div class="pills scroll" role="tablist" id="scene-pills">{pills}</div>
+    <div class="drawings">{drawings}</div>
+    <div class="talk" aria-live="polite">
+      <p class="bubble" id="scene-ask">&nbsp;</p>
+      <p class="verdict" id="scene-verdict"><span class="chip fixed" id="scene-chip"></span><span id="scene-does"></span></p>
+      <p class="readout" id="scene-readout"></p>
+      <p class="confirm" id="scene-confirm"><span>{e(s["waiting"])}</span><span class="barbox"><span class="fill"></span></span>
+        <button class="btn small" id="scene-keep" type="button">{e(s["keep"])}</button>
+        <button class="btn small" id="scene-undo" type="button">{e(s["undo"])}</button></p>
     </div>
-    <p class="scene-foot"><span id="scene-device"></span><span class="dots" id="scene-dots"></span></p>
+    <p class="scene-foot"><span class="check" id="scene-status">&nbsp;</span><span class="dots" id="scene-dots"></span></p>
     <p class="caption">{e(s["caption"])}</p>
   </div>
 </div>
 
 <section id="why">
-  <div class="sec-head reveal"><p class="eyebrow">{e(why["eyebrow"])}</p><h2>{e(why["title"])}</h2><p class="lede">{e(why["lede"])}</p></div>
-  <div class="pills wide reveal" id="why-pills">{why_pills}</div>
+  <div class="sec-head"><p class="eyebrow">{e(why["eyebrow"])}</p><h2>{e(why["title"])}</h2><p class="lede">{e(why["lede"])}</p></div>
+  <div class="pills wide" id="why-pills">{why_pills}</div>
   <div class="cols compare">
-    <div class="plate pad bad" id="why-bad"><h3>{e(why["without"])}</h3><p class="does">{e(why["without_does"])}</p><p class="harm" id="why-harm"></p></div>
-    <div class="plate pad good" id="why-good"><h3>{e(why["with"])}</h3><p><span class="chip" id="why-chip"></span></p><p class="does" id="why-does"></p>
+    <div class="plate pad bad"><h3>{e(why["without"])}</h3><p class="does">{e(why["without_does"])}</p><p class="harm" id="why-harm"></p></div>
+    <div class="plate pad good" id="why-good"><h3>{e(why["with"])} <span class="chip fixed" id="why-chip"></span></h3><p class="does" id="why-does"></p>
       <div class="barbox" id="why-bar"><span class="fill"></span></div></div>
   </div>
-  <p class="note reveal">{e(why["proof"])} <a href="{e(why["proof_url"])}">{e(why["proof_link"])}</a>.</p>
+  <p class="note">{e(why["proof"])} <a href="{e(why["proof_url"])}">{e(why["proof_link"])}</a>.</p>
 </section>
 
 <section id="how">
-  <div class="sec-head reveal"><p class="eyebrow">{e(labels["eyebrow"])}</p><h2>{e(labels["title"])}</h2><p class="lede">{e(labels["lede"])}</p></div>
+  <div class="sec-head"><p class="eyebrow">{e(labels["eyebrow"])}</p><h2>{e(labels["title"])}</h2><p class="lede">{e(labels["lede"])}</p></div>
   <div class="cards four">{label_cards}</div>
 </section>
 
-<section id="for">
-  <div class="sec-head reveal"><p class="eyebrow">{e(aud["eyebrow"])}</p><h2>{e(aud["title"])}</h2></div>
-  <div class="cols">{audience}</div>
-</section>
-
 <section id="today">
-  <div class="sec-head reveal"><p class="eyebrow">{e(demo["eyebrow"])}</p><h2>{e(demo["title"])}</h2><p class="lede">{e(demo["lede"])}</p></div>
-  <div class="plate stage reveal">
-    <div class="stage-top"><span class="legend">{''.join(f'<span><i style="background:var(--{k})"></i>{e(v)}</span>' for k, v in (("reversible", "working"), ("guarded", "needs you"), ("read", "done"), ("gated", "problem")))}</span>
-      <button class="btn small" id="replay" type="button">{e(sec["replay"])}</button></div>
+  <div class="sec-head"><p class="eyebrow">{e(demo["eyebrow"])}</p><h2>{e(demo["title"])}</h2><p class="lede">{e(demo["lede"])}</p></div>
+  <div class="plate stage">
+    <div class="stage-top"><span class="legend">{legend}</span><button class="btn small" id="replay" type="button">{e(sec["replay"])}</button></div>
     {board_svg(c.card(demo["card"]), "replay", demo["slots"])}
-    <ul class="feed" id="feed" aria-live="polite"></ul>
+    <p class="feed" id="feed" aria-live="polite">&nbsp;</p>
     <p class="caption">{e(demo["caption"])}</p>
   </div>
 </section>
 
 <section id="devices">
-  <div class="sec-head reveal"><p class="eyebrow">{e(sec["devices_eyebrow"])}</p><h2>{e(sec["devices_title"])}</h2><p class="lede">{e(sec["devices_lede"])}</p></div>
-  <div class="cards">{''.join(self.device_tile(card) for card in c.cards)}</div>
-  <p class="after"><a class="btn" href="devices.html">{e(sec["devices_more"])}</a></p>
+  <div class="sec-head"><p class="eyebrow">{e(sec["devices_eyebrow"])}</p><h2>{e(sec["devices_title"])}</h2><p class="lede">{e(sec["devices_lede"])}</p></div>
+  <div class="cards">{''.join(self.device_tile(card) for card in self.cards)}</div>
+  <p class="after"><a class="btn primary" href="add.html">{e(sec["devices_add"])}</a> <a class="btn" href="devices.html">{e(sec["devices_more"])}</a></p>
 </section>
 
 <section id="questions">
-  <div class="sec-head reveal"><p class="eyebrow">{e(sec["questions_eyebrow"])}</p><h2>{e(sec["questions_title"])}</h2></div>
+  <div class="sec-head"><p class="eyebrow">{e(sec["questions_eyebrow"])}</p><h2>{e(sec["questions_title"])}</h2></div>
   <div class="qs">{questions}</div>
 </section>
 
 <section id="status">
-  <div class="sec-head reveal"><p class="eyebrow">{e(sec["status_eyebrow"])}</p><h2>{e(sec["status_title"])}</h2></div>
+  <div class="sec-head"><p class="eyebrow">{e(sec["status_eyebrow"])}</p><h2>{e(sec["status_title"])}</h2></div>
   <div class="cols">
-    <div class="plate pad reveal"><h3>{e(sec["built_label"])}</h3>{ticks(t["status"]["built"], "built")}</div>
-    <div class="plate pad reveal"><h3>{e(sec["next_label"])}</h3>{ticks(t["status"]["next"], "")}</div>
+    <div class="plate pad"><h3>{e(sec["built_label"])}</h3>{ticks(t["status"]["built"], "built")}</div>
+    <div class="plate pad"><h3>{e(sec["next_label"])}</h3>{ticks(t["status"]["next"], "")}</div>
   </div>
-</section>
-
-<section id="start">
-  <div class="sec-head reveal"><p class="eyebrow">{e(sec["start_eyebrow"])}</p><h2>{e(sec["start_title"])}</h2><p class="lede">{e(sec["start_lede"])}</p></div>
-  <div class="plate pad reveal"><div class="steps">{steps}</div></div>
-  <h3 class="sub-head">{e(sec["promise_title"])}</h3>
-  <div class="cols">{promises}</div>
 </section>
 </div>"""
         demo_data = {"slots": demo["slots"], "loop": demo["loop_secs"], "pressed": demo["pressed"], "steps": demo["step"]}
@@ -707,15 +727,34 @@ Product names belong to their owners; this project is not affiliated with them.<
                           for name, value in (("scene-data", scenes), ("why-data", whys), ("demo-data", demo_data)))
         return self.page(f'{self.name}: {t["tagline"]}', body, "", "", scripts)
 
+    def add(self):
+        a = self.t["add"]
+        prompt = (SOURCE / "add-device-prompt.md").read_text().strip().replace("{repo}", self.repo or "(the Hardpoint repository)")
+        rules = '<ul class="ticks built">' + "".join(f"<li>{inline_code(r['text'])}</li>" for r in a["rule"]) + "</ul>"
+        issue = (f'<h2 class="small">{e(a["issue_title"])}</h2><p class="lede">{e(a["issue_text"])}</p>'
+                 f'<p class="after"><a class="btn" href="{e(self.repo)}/issues/new?template=device.yml">{e(a["issue_link"])}</a></p>') if self.repo else ""
+        body = f"""<div class="wrap narrow"><div class="page-head"><p class="eyebrow">{e(self.t["sections"]["devices_eyebrow"])}</p><h1>{e(a["title"])}</h1>
+<p class="lede">{e(a["lede"])}</p></div>
+<h2 class="small">{e(a["ai_title"])}</h2><p class="lede">{e(a["ai_lede"])}</p>
+<div class="plate prompt"><button class="btn small fixed" id="copy" type="button" data-done="{e(a["copied"])}">{e(a["copy"])}</button>
+<pre id="prompt">{e(prompt)}</pre></div>
+<h2 class="small">{e(a["hand_title"])}</h2>
+<div class="plate pad">{self.steps(a["step"])}</div>
+<h2 class="small">{e(a["rules_title"])}</h2>
+<div class="plate pad">{rules}</div>
+{issue}</div>"""
+        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["add"])
+
     def devices(self):
         c, sec = self.c, self.t["sections"]
         body = f"""<div class="wrap"><div class="page-head"><p class="eyebrow">{e(sec["devices_eyebrow"])}</p><h1>{e(self.t["nav"]["devices"])}</h1>
-<p class="lede">{e(sec["devices_lede"])}</p></div>
+<p class="lede">{e(sec["devices_lede"])}</p>
+<p class="after"><a class="btn primary" href="add.html">{e(sec["devices_add"])}</a></p></div>
 <h2 class="small">{len(c.cards)} devices</h2>
 <input type="search" id="q" placeholder="Filter by name, maker, kind or ability" aria-label="Filter devices">
-<div class="cards">{''.join(self.device_tile(card) for card in c.cards)}</div>
-<h2 class="small">How much has been checked</h2>{defs((self.status_chip(s), text) for s, text in c.statuses.items())}
-<h2 class="small">The four labels</h2>{defs((self.risk_chip(r), text) for r, text in c.risks.items())}</div>"""
+<div class="cards">{''.join(self.device_tile(card) for card in self.cards)}</div>
+<h2 class="small">Checked</h2>{defs((self.checked(s), text) for s, text in c.statuses.items())}
+<h2 class="small">Labels</h2>{defs((chip("risk", r), text) for r, text in c.risks.items())}</div>"""
         return self.page(f'{self.t["nav"]["devices"]} · {self.name}', body, "", self.t["nav"]["devices"])
 
     def device(self, card):
@@ -729,25 +768,25 @@ Product names belong to their owners; this project is not affiliated with them.<
         rows = []
         for cap in card["capability"]:
             word = c.vocabulary[cap["id"]]
-            params = " ".join(f"{k}={hexid(v) if isinstance(v, int) else v}" for k, v in cap.get("params", {}).items())
-            limits = f'range {cap["range"][0]:g} to {cap["range"][1]:g}' if "range" in cap else ""
             record = min(cap["verification"], key=lambda r: c.rank("statuses", r["status"]))
-            detail = " · ".join(x for x in [record["platform"] + (" " + record["os"] if record.get("os") else ""),
-                                            record.get("firmware", ""), record.get("date", ""), record.get("by", "")] if x)
-            privacy = f' <span class="chip plain">{e(cap["privacy"])}</span>' if "privacy" in cap else ""
-            harm = f'<span class="sub harm">{e(word["harm"])}</span>' if word.get("harm") else ""
+            params = " ".join(f"{k}={hexid(v) if isinstance(v, int) else v}" for k, v in cap.get("params", {}).items())
+            on = " ".join(x for x in [record["platform"], record.get("os", ""), record.get("firmware", "")] if x)
+            facts = [("Checked on", " · ".join(x for x in [on, record.get("date", "")] if x)), ("What was checked", record.get("note", "")),
+                     ("Note", cap.get("note", "")), ("If done carelessly", word.get("harm", "")),
+                     ("Route", f'{cap["adapter"]} {params}'.strip() + f' ({c.adapters[cap["adapter"]]["status"]})'),
+                     ("Value", f'{word["kind"]}, {word["value"]}' + (f', {cap["range"][0]:g} to {cap["range"][1]:g}' if "range" in cap else "")),
+                     ("Privacy", cap.get("privacy", ""))]
+            details = "".join(f"<dt>{e(k)}</dt><dd>{e(v)}</dd>" for k, v in facts if v)
+            commit = card["_commits"].get(cap["id"])
+            link = f' <a class="commit" href="{e(self.repo)}/commit/{commit}">commit</a>' if commit and self.repo else ""
             rows.append(
-                f'<tr><td><b>{e(word["ask"])}</b><span class="sub mono">{e(cap["id"])}</span>'
-                f'<span class="sub">{e(cap.get("note", ""))}</span>{harm}</td>'
-                f'<td>{self.risk_chip(cap["risk"])}{privacy}<span class="sub mono">{e(cap["risk"])}</span></td>'
-                f'<td>{self.status_chip(record["status"])}<span class="sub">{e(detail)}</span><span class="sub">{e(record.get("note", ""))}</span></td>'
-                f'<td><span class="mono">{e(cap["adapter"])}</span><span class="sub mono">{e(params)}</span>'
-                f'<span class="sub">{e(word["kind"])} · {e(word["value"])} {e(limits)}</span>'
-                f'<span class="sub">adapter {e(c.adapters[cap["adapter"]]["status"])}</span></td></tr>')
+                f'<tr><td><b>{e(word.get("ask") or word["summary"])}</b><span class="sub mono">{e(cap["id"])}</span>'
+                f'<details class="more"><summary>Details</summary><dl>{details}</dl></details></td>'
+                f'<td>{chip("risk", cap["risk"])}</td>'
+                f'<td>{self.checked(record["status"])}{link}</td></tr>')
         keymap = ""
         if card.get("keys"):
-            keymap = (f'<h2 class="small">Key numbers</h2><p class="lede">{e(card["keys"]["numbering"])}. '
-                      f'Point at a key to read its switch position and light.</p>'
+            keymap = (f'<h2 class="small">Key numbers</h2><p class="lede">{e(card["keys"]["numbering"])}.</p>'
                       f'<div class="plate stage">{board_svg(card, "keymap", numbers=True)}'
                       f'<p class="keyinfo" id="keyinfo">{len(card["keys"]["grid"])} keys</p></div>')
         sources = "".join(f'<li><a href="{e(s["url"])}">{e(s["title"])}</a></li>' for s in card.get("sources", []))
@@ -755,17 +794,16 @@ Product names belong to their owners; this project is not affiliated with them.<
                  if self.repo else f'<span class="mono">{e(card["_path"])}</span>')
         body = f"""<div class="wrap"><div class="page-head">
 <p class="crumb"><a href="../devices.html">{e(self.t["nav"]["devices"])}</a> / {e(d["vendor"])}</p>
-<h1>{e(d["name"])}</h1><p class="lede">{e(d["summary"])}</p>
-<p class="lede"><span class="chip plain">{e(d["kind"])}</span> <span class="mono">{e(d["id"])}</span></p></div>
-<h2 class="small">What you can ask of it</h2>
-<div class="tablebox"><table><tr><th>Ability</th><th>Label</th><th>Checked</th><th>For builders</th></tr>{''.join(rows)}</table></div>
+<h1>{e(d["name"])}</h1><p class="lede">{e(d["summary"])}</p></div>
+<h2 class="small">What it can do</h2>
+<div class="tablebox"><table><tr><th>Ability</th><th>Label</th><th>Checked</th></tr>{''.join(rows)}</table></div>
 {keymap}
 {f'<h2 class="small">Before it will work</h2><div class="tablebox"><table><tr><th>Platform</th><th>Needs</th></tr>{requires}</table></div>' if requires else ''}
 <h2 class="small">How it is recognised</h2>
 <div class="tablebox"><table><tr><th>Bus</th><th>Identifiers</th></tr>{match_rows}</table></div>
 {f'<h2 class="small">Sources</h2><ul>{sources}</ul>' if sources else ''}
 <h2 class="small">The label file</h2>
-<p class="lede">This page is generated from {where}. If something here is wrong, or you have checked more of it, edit that file.</p>
+<p class="lede">This page is made from {where}. If something is wrong, or you have checked more of it, <a href="../add.html">edit that file</a>.</p>
 <pre>{e(card["_source"])}</pre></div>"""
         return self.page(f'{d["vendor"]} {d["name"]} · {self.name}', body, "../", self.t["nav"]["devices"])
 
@@ -780,8 +818,7 @@ Product names belong to their owners; this project is not affiliated with them.<
             privacy = f' <span class="chip plain">{e(word["privacy"])}</span>' if "privacy" in word else ""
             devices = ", ".join(f'<a href="devices/{slug(card)}.html">{e(card["device"]["name"])}</a>'
                                 for card in used.get(cid, [])) or '<span class="sub">none yet</span>'
-            rows += (f'<tr><td><span class="mono">{e(cid)}</span><span class="sub">{e(word["summary"])}</span>'
-                     f'<span class="sub">“{e(word["ask"])}”</span></td>'
+            rows += (f'<tr><td><span class="mono">{e(cid)}</span><span class="sub">{e(word["summary"])}</span></td>'
                      f'<td>{e(word["kind"])}<span class="sub">{e(word["value"])}</span></td>'
                      f'<td>{chip("risk", word["min_risk"])}{privacy}</td><td>{devices}</td></tr>')
         body = f"""<div class="wrap"><div class="page-head"><p class="crumb"><a href="format.html">{e(self.t["nav"]["builders"])}</a> / Vocabulary</p><h1>Vocabulary</h1>
@@ -798,10 +835,9 @@ Product names belong to their owners; this project is not affiliated with them.<
         rows = ""
         for name, adapter in c.adapters.items():
             count = sum(1 for card in c.cards for cap in card["capability"] if cap["adapter"] == name)
-            state = "st-tested" if adapter["status"] == "implemented" else "st-unverified"
             rows += (f'<tr><td><span class="mono">{e(name)}</span><span class="sub">{e(adapter["summary"])}</span>'
                      f'<span class="sub">{e(adapter.get("notes", ""))}</span></td>'
-                     f'<td><span class="chip {state}">{e(adapter["status"])}</span><span class="sub">{e(adapter.get("implementation", ""))}</span></td>'
+                     f'<td>{e(adapter["status"])}<span class="sub">{e(adapter.get("implementation", ""))}</span></td>'
                      f'<td>{e(", ".join(adapter["platforms"]))}</td><td class="mono">{e(", ".join(adapter.get("params", [])) or "none")}</td>'
                      f"<td>{count}</td></tr>")
         body = f"""<div class="wrap"><div class="page-head"><p class="crumb"><a href="format.html">{e(self.t["nav"]["builders"])}</a> / Adapters</p><h1>Adapters</h1>
@@ -812,24 +848,26 @@ A device card can only name an adapter and give it typed values; it can never ca
         return self.page(f"Adapters · {self.name}", body, "", self.t["nav"]["builders"])
 
     def format(self):
-        c, travel = self.c, self.t["travel"]
+        c, travel, sec = self.c, self.t["travel"], self.t["sections"]
         example = c.card(self.t["demo"]["card"]) or c.cards[0]
         block, script = self.travel_block()
         parts = [("[device]", "What the device is: vendor, name, kind and a one-line summary."),
                  ("[[match]]", "How software recognises it when it is attached: bus and identifiers."),
                  ("[keys]", "For keyboards: how key numbers, switch positions and lights line up."),
                  ("[[requires]]", "What has to be true before any of it works, such as a permission or a closed program."),
-                 ("[[capability]]", "One thing the device can do: a word from the vocabulary, the adapter that reaches it, its risk, and who has checked it."),
+                 ("[[capability]]", "One thing the device can do: a word from the vocabulary, the adapter that reaches it, its risk, and how much has been checked."),
                  ("[[sources]]", "Where the information came from.")]
         body = f"""<div class="wrap"><div class="page-head"><p class="eyebrow">{e(self.t["nav"]["builders"])}</p><h1>The card format</h1>
 <p class="lede">A device's label is a card: one TOML file per model, at
 <span class="mono">catalog/devices/&lt;vendor&gt;/&lt;model&gt;.toml</span>. Cards are data only.</p>
-<p class="after"><a class="btn" href="vocabulary.html">Vocabulary</a> <a class="btn" href="adapters.html">Adapters</a></p></div>
+<p class="after"><a class="btn" href="vocabulary.html">Vocabulary</a> <a class="btn" href="adapters.html">Adapters</a> <a class="btn" href="add.html">{e(self.t["nav"]["add"])}</a></p></div>
 <h2 class="small">{e(travel["title"])}</h2><p class="lede">{e(travel["lede"])}</p>
 {block}
 <h2 class="small">What a card says</h2>{defs((f'<span class="mono">{e(k)}</span>', text) for k, text in parts)}
 <h2 class="small">Risk</h2>{defs((chip("risk", r), text) for r, text in c.risks.items())}
-<h2 class="small">Checked</h2>{defs((chip("st", s), text) for s, text in c.statuses.items())}
+<h2 class="small">Checked</h2>{defs((self.checked(s), text) for s, text in c.statuses.items())}
+<h2 class="small">{e(sec["start_title"])}</h2><p class="lede">{e(sec["start_lede"])}</p>
+<div class="plate pad">{self.steps(self.t["start"])}</div>
 <h2 class="small">An example</h2><p class="lede"><span class="mono">{e(example["_path"])}</span>. The full rules are in
 <span class="mono">docs/SPEC.md</span> and <span class="mono">catalog/schema/device.schema.json</span>.</p>
 <pre>{e(example["_source"])}</pre></div>"""
@@ -843,11 +881,10 @@ A device card can only name an adapter and give it typed values; it can never ca
         for name in ("style.css", "app.js"):
             shutil.copy(SOURCE / name, SITE / name)
         (SITE / "logo.svg").write_text(mark(MUTED, RISK_COLOR["guarded"]))
-        (SITE / "index.html").write_text(self.landing())
-        (SITE / "devices.html").write_text(self.devices())
-        (SITE / "vocabulary.html").write_text(self.vocabulary())
-        (SITE / "adapters.html").write_text(self.adapters())
-        (SITE / "format.html").write_text(self.format())
+        pages = {"index": self.landing, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
+                 "adapters": self.adapters, "format": self.format}
+        for name, render in pages.items():
+            (SITE / f"{name}.html").write_text(render())
         for card in c.cards:
             (SITE / "devices" / f"{slug(card)}.html").write_text(self.device(card))
         feed = {"format": 1, "terms": c.terms, "vocabulary": c.vocabulary, "adapters": c.adapters,

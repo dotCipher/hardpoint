@@ -1,0 +1,22 @@
+card = 1
+
+[device]
+id = "seagate/expansion-2322"
+vendor = "Seagate"
+name = "Expansion portable drive"
+kind = "storage"
+summary = "External USB hard drive. This card is for the model that reports product id 2322."
+links = ["https://www.seagate.com/"]
+
+[[match]]
+bus = "usb"
+vendor_id = 0x0bc2
+product_id = 0x2322
+
+[[capability]]
+id = "storage.health"
+adapter = "macos-system"
+risk = "read"
+params = { source = "storage", field = "smart_status" }
+note = "Not every USB drive passes its health verdict through to the computer. This one does."
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reported the drive's own verdict over USB. Read by hand; the adapter is not written yet." }]

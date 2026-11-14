@@ -1,0 +1,39 @@
+name: Device request
+description: Ask for a device to be added to the catalog.
+title: "Device: "
+labels: ["device"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. If you would rather add it yourself, CONTRIBUTING.md has a prompt you can paste into an AI coding assistant.
+  - type: input
+    id: device
+    attributes:
+      label: Maker and model
+      placeholder: "For example: Logitech MX Master 3"
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What the script printed
+      description: Run `python3 tools/observe.py` and paste the line for this device. It lists identifiers only, nothing personal.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: abilities
+    attributes:
+      label: What would you want an AI to read or change on it?
+      description: In everyday words. For example "tell me the battery level" or "dim it".
+  - type: input
+    id: system
+    attributes:
+      label: Operating system and version
+      placeholder: "For example: macOS 15.1"
+  - type: textarea
+    id: links
+    attributes:
+      label: Links
+      description: The maker's page, or any documentation of how software talks to it.

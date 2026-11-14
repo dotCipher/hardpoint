@@ -6,20 +6,21 @@
 # value:    the type of the value, with its unit where it has one
 # min_risk: the lowest risk level a device card may claim for it
 # privacy:  the least a card must promise about what leaves the adapter
-# ask:      how a person would ask for it, in everyday words
-# example:  an illustrative value, for explanations and demos. Not a reading.
-# example_before: for something you can change, an illustrative value before
-# swatch:   for colours, the colour the example names
 # harm:     required for anything guarded or gated: what goes wrong, in plain
 #           words, if it is done carelessly
+#
+# For the examples people see on the site. Leave these out for abilities
+# nobody would ask for in everyday words.
+# ask:      something a person would really say to an AI
+# example:  an illustrative answer. Not a reading
+# example_before: for something you can change, an illustrative value before
+# swatch:   for colours, the colour the example names
 
 [capability."identity.firmware"]
 kind = "reading"
 value = "string"
 summary = "Firmware version or layout identifier the device reports."
 min_risk = "read"
-ask = "Which version of its software is it running?"
-example = "version 4.5"
 
 [capability."keys.position_events"]
 kind = "event"
@@ -27,25 +28,20 @@ value = "key position, down or up"
 summary = "Every key press and release, by physical position."
 min_risk = "read"
 privacy = "aggregate"
-ask = "Tell me when a spare key is pressed."
-example = "a key was pressed"
+ask = "Let me answer my AI by pressing a spare key."
+example = "spare key pressed"
 
 [capability."keys.layer"]
 kind = "event"
 value = "layer number"
 summary = "The active keymap layer, reported when it changes."
 min_risk = "read"
-ask = "Which set of keys is active?"
-example = "the main set"
 
 [capability."keys.layer_set"]
 kind = "control"
 value = "layer number"
 summary = "Switch the active keymap layer from the host."
 min_risk = "guarded"
-ask = "Switch the keyboard to its numbers layout."
-example = "numbers"
-example_before = "letters"
 harm = "Every key suddenly types something else, including the keys you would use to switch back."
 
 [capability."light.per_key"]
@@ -53,7 +49,7 @@ kind = "control"
 value = "rgb per key"
 summary = "Set the colour of an individual key."
 min_risk = "reversible"
-ask = "Light up one key in amber."
+ask = "Light up a key when my AI needs me."
 example = "amber"
 example_before = "off"
 swatch = "#ffa000"
@@ -63,35 +59,32 @@ kind = "control"
 value = "rgb"
 summary = "Set every light on the device to one colour, or hand lighting back to the firmware."
 min_risk = "reversible"
-ask = "Make the whole keyboard glow blue."
+ask = "Make its lights blue."
 example = "blue"
 example_before = "off"
-swatch = "#0090ff"
+swatch = "#2f9bff"
 
 [capability."light.status"]
 kind = "control"
 value = "on or off per indicator"
 summary = "Switch the device's separate indicator lights."
 min_risk = "reversible"
-ask = "Turn on its little indicator light."
-example = "on"
-example_before = "off"
 
 [capability."firmware.flash"]
 kind = "action"
 value = "firmware image"
 summary = "Replace the device's firmware."
 min_risk = "gated"
-ask = "Install new software on the device itself."
-example = "new software installed"
-harm = "If the install fails part-way, the device may not start again."
+ask = "Update its software."
+example = "updated"
+harm = "If an update fails part-way, the device may not start again."
 
 [capability."battery.level"]
 kind = "reading"
 value = "percent"
 summary = "Charge remaining."
 min_risk = "read"
-ask = "How much charge is left?"
+ask = "How much battery is left?"
 example = "20%"
 
 [capability."battery.charging"]
@@ -107,8 +100,6 @@ kind = "reading"
 value = "count"
 summary = "Charge cycles so far."
 min_risk = "read"
-ask = "How many times has the battery been through a full charge?"
-example = "101 times"
 
 [capability."battery.health"]
 kind = "reading"
@@ -123,7 +114,7 @@ kind = "reading"
 value = "status"
 summary = "The drive's own health verdict."
 min_risk = "read"
-ask = "Is the drive healthy?"
+ask = "Is my drive about to fail?"
 example = "healthy"
 
 [capability."thermal.pressure"]
@@ -131,7 +122,7 @@ kind = "reading"
 value = "level"
 summary = "Whether the system is limiting performance because of heat."
 min_risk = "read"
-ask = "Is it running hot?"
+ask = "Is it overheating?"
 example = "no"
 
 [capability."audio.output_volume"]
@@ -148,29 +139,26 @@ kind = "control"
 value = "dots per inch"
 summary = "Pointer sensitivity."
 min_risk = "guarded"
-ask = "Make the pointer move faster."
+ask = "My pointer is too slow. Speed it up."
 example = "fast"
 example_before = "normal"
-harm = "A pointer that is suddenly far too fast or too slow can be too hard to steer to undo the change."
+harm = "A pointer that is suddenly far too fast or too slow can be too hard to steer to undo it."
 
 [capability."pointer.buttons"]
 kind = "control"
 value = "button to software"
 summary = "Send a button's presses to software instead of its built-in action."
 min_risk = "guarded"
-ask = "Let the side button answer my AI."
-example = "answers the AI"
+ask = "Make the side button mute my microphone."
+example = "mutes the mic"
 example_before = "goes back"
-harm = "A button stops doing what your hand expects, and it may be the one you would use to undo it."
+harm = "A button stops doing what your hand expects, and it may be the one you would undo it with."
 
 [capability."pointer.host"]
 kind = "control"
 value = "host number"
 summary = "Move the device to another paired computer."
 min_risk = "guarded"
-ask = "Move the mouse over to my other computer."
-example = "other computer"
-example_before = "this computer"
 harm = "The mouse leaves this computer, so you can no longer use it here to bring it back."
 
 [capability."scroll.mode"]
@@ -178,16 +166,13 @@ kind = "control"
 value = "ratchet or free-spin"
 summary = "How the scroll wheel behaves."
 min_risk = "reversible"
-ask = "Let the scroll wheel spin freely."
-example = "free spin"
-example_before = "clicks"
 
 [capability."display.input"]
 kind = "control"
 value = "input source"
 summary = "Which video input the display shows."
 min_risk = "guarded"
-ask = "Show my other computer on the screen."
+ask = "Switch the screen to my other computer."
 example = "other computer"
 example_before = "this computer"
 harm = "The picture leaves the computer that asked, so you cannot see what you are doing to switch back."
@@ -197,6 +182,6 @@ kind = "control"
 value = "percent"
 summary = "Display brightness."
 min_risk = "reversible"
-ask = "Dim the screen."
+ask = "The screen is too bright. Dim it."
 example = "40%"
 example_before = "80%"

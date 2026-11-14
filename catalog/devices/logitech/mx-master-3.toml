@@ -23,7 +23,7 @@ id = "identity.firmware"
 adapter = "macos-system"
 risk = "read"
 params = { source = "bluetooth", field = "firmware_version" }
-verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, by = "dotCipher", note = "macOS reports a firmware version for this mouse. Not read through an adapter yet." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-13, note = "macOS reports a firmware version for this mouse. Not read through an adapter yet." }]
 
 [[capability]]
 id = "battery.level"
@@ -31,7 +31,7 @@ adapter = "hidpp"
 risk = "read"
 params = { feature = 0x1000 }
 note = "This model answers on the older battery feature (0x1000), not the unified one (0x1004). macOS does not report this mouse's battery itself."
-verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "A charge level was read with a one-off HID++ query. The adapter is not written yet." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, note = "A charge level was read with a one-off HID++ query. The adapter is not written yet." }]
 
 [[capability]]
 id = "pointer.dpi"
@@ -39,7 +39,7 @@ adapter = "hidpp"
 risk = "guarded"
 params = { feature = 0x2201 }
 note = "Other open tools document a 4000 DPI ceiling for this model."
-verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The current and default values were read (both 1000). Setting it was not exercised." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, note = "The current and default values were read (both 1000). Setting it was not exercised." }]
 
 [[capability]]
 id = "pointer.buttons"
@@ -47,14 +47,14 @@ adapter = "hidpp"
 risk = "guarded"
 params = { feature = 0x1b04 }
 note = "The thumb and gesture buttons can be handed to software."
-verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The mouse reports eight reprogrammable controls. Redirecting one was not exercised." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, note = "The mouse reports eight reprogrammable controls. Redirecting one was not exercised." }]
 
 [[capability]]
 id = "scroll.mode"
 adapter = "hidpp"
 risk = "reversible"
 params = { feature = 0x2110 }
-verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "The mouse reports the feature. Reading or changing the mode was not exercised." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, note = "The current mode was read with a one-off query. Changing it was not exercised." }]
 
 [[capability]]
 id = "pointer.host"
@@ -62,7 +62,7 @@ adapter = "hidpp"
 risk = "guarded"
 params = { feature = 0x1814 }
 note = "Moves the mouse to another paired computer, so the computer that sent the change loses it."
-verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, by = "dotCipher", note = "Three host slots and the current slot were read. Switching was not exercised." }]
+verification = [{ status = "observed", platform = "macos", os = "27.2", firmware = "HID++ 4.5", date = 2026-11-13, note = "Three host slots and the current slot were read. Switching was not exercised." }]
 
 [[sources]]
 title = "Solaar capabilities"

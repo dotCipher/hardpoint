@@ -1,0 +1,23 @@
+card = 1
+
+[device]
+id = "caldigit/ts3-plus"
+vendor = "CalDigit"
+name = "TS3 Plus"
+kind = "dock"
+summary = "Thunderbolt 3 dock with display, USB, audio and network ports."
+links = ["https://www.caldigit.com/"]
+
+# Recognised by the audio interface the dock adds, which is how it shows up
+# among input devices.
+[[match]]
+bus = "usb"
+vendor_id = 0x2188
+product_id = 0x6533
+
+[[capability]]
+id = "identity.firmware"
+adapter = "macos-system"
+risk = "read"
+params = { source = "thunderbolt", field = "switch_version" }
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reports a version for the dock. Read by hand; the adapter is not written yet." }]

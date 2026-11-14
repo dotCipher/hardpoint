@@ -1,67 +1,51 @@
-# The words and the demo scripts on the site and in the README. Everything a
-# visitor reads comes from here or from the catalog; nothing is written into
-# the build script.
+# The words and the demo scripts on the site. Everything a visitor reads
+# comes from here or from the catalog; nothing is written into the build
+# script.
 
 name = "Hardpoint"
 tagline = "A safety label for everything your AI can touch."
 eyebrow = "Open · runs on your own computer"
-lede = "AI helpers are starting to do things, not just answer questions. Hardpoint gives each device a plain label: what an AI may look at, what it may change, and what only you can do."
+lede = "Each device gets a label: what an AI may read, what it may change, and what only you can do."
 early = "Early project. Today it fully runs one keyboard on a Mac."
-early_link = "See what works"
+early_link = "What works"
 
 [nav]
 devices = "Devices"
 how = "How it works"
-questions = "Questions"
+add = "Add a device"
 builders = "For builders"
 
-# The moving pictures at the top. One is generated for every device in the
-# catalog, from that device's own card; nothing here names a device.
+# The moving pictures at the top. One is made for every device in the
+# catalog from that device's own card; nothing here names a device.
 [scenes]
-title = "Ask about a device. Watch what is allowed."
-caption = "These are illustrations made from each device's label. The values are examples, not readings from your computer."
+title = "Ask about a device"
+caption = "Made from each device's label. The answers are examples, not readings from your computer."
 you = "You ask"
 next = "Next"
 pause = "Pause"
 play = "Play"
 keep = "Keep it"
 undo = "Put it back"
-kept = "You kept it."
-undone = "Back to how it was."
+kept = "Kept."
+undone = "Put back."
 waiting = "Keep this change?"
 
 [why]
 eyebrow = "Why it matters"
 title = "The same request, with and without a label"
-lede = "An AI that is trying to be helpful will do exactly what it was asked. These are the requests in the catalog where that goes wrong."
+lede = "A helpful AI does exactly what it was asked. Sometimes that is the problem."
 without = "Without a label"
 without_does = "The AI does it straight away."
 with = "With Hardpoint"
-proof = "This is not hypothetical. One home-automation user asked a voice assistant to \"turn off the office\", meaning the lights, and it also cut power to his server rack."
+proof = "It happens. One person asked a voice assistant to \"turn off the office\", meaning the lights, and it also cut power to his server rack."
 proof_link = "His write-up"
 proof_url = "https://www.joekarlsson.com/blog/local-voice-ai-home-assistant-gpu/"
 
 [labels]
 eyebrow = "How it works"
-title = "Four labels. Every ability gets one."
-lede = "Colour always means the same thing. A device's label cannot claim an ability is safer than it is."
-count = "in the catalog today"
-
-[audience]
-eyebrow = "Who it is for"
-title = "Useful if any of these is you"
-
-[[audience.item]]
-title = "You use AI helpers to get work done"
-text = "When several are running, the hard part is knowing which one is waiting for you. Spare keys on a keyboard can show it at a glance, and a press answers."
-
-[[audience.item]]
-title = "You want to ask your computer about itself"
-text = "\"Is my battery wearing out?\" \"Is it running hot?\" Plain questions, plain answers, and nothing is changed by asking."
-
-[[audience.item]]
-title = "You make a device, or love one"
-text = "Describe it once, in one small file. Every AI tool that reads the catalog then knows how to treat it properly."
+title = "Four labels"
+lede = "Every ability a device has gets one. The colour always means the same thing."
+count = "in the catalog"
 
 # The moving keyboard. It replays what the named device card and example
 # setup do together; the build checks that both exist.
@@ -69,114 +53,164 @@ text = "Describe it once, in one small file. Every AI tool that reads the catalo
 card = "zsa/moonlander-mk1"
 config = "examples/moonlander.toml"
 eyebrow = "Working today"
-title = "See which AI helper needs you, on keys you never use"
-lede = "Each helper gets a spare key. Blue means working, amber means it is waiting for you, green means done, red means something went wrong."
-caption = "A replay, not a recording. This runs today on one keyboard. Click a lit key yourself."
-loop_secs = 27
-pressed = "You pressed the key yourself. That helper would get its answer now."
+title = "See which AI helper needs you"
+lede = "Each helper gets a spare key on the keyboard. Press the key to answer."
+caption = "A replay of something that runs today on one keyboard. You can click a lit key."
+loop_secs = 25
+pressed = "You pressed the key. That helper has its answer."
 
 [[demo.step]]
 at = 0.8
 session = "Refactor"
 state = "running"
-say = "A helper starts work. It gets a key, lit blue."
+say = "A helper starts work. Its key turns blue."
 
 [[demo.step]]
-at = 2.6
+at = 3.0
 session = "Tests"
 state = "running"
 say = "A second helper takes the next key."
 
 [[demo.step]]
-at = 4.4
-session = "Docs"
-state = "running"
-say = "A third lands on a key that only shows a light."
-
-[[demo.step]]
-at = 6.8
-session = "Docs"
+at = 5.4
+session = "Tests"
 state = "needs-you"
-say = "It needs an answer, so it moves to a key you can press, and pulses."
+say = "It needs an answer. Its key pulses amber."
 
 [[demo.step]]
-at = 10.6
+at = 9.6
 press = true
-say = "You press the lit key. It carries on."
+say = "You press the key. It carries on."
 
 [[demo.step]]
-at = 13.0
+at = 12.4
 session = "Tests"
 state = "done"
-say = "One finishes. Green, then it fades."
+say = "It finishes. Green, then it fades."
 
 [[demo.step]]
 at = 15.2
 session = "Refactor"
 state = "failed"
-say = "One hits a problem. Red, until you have seen it."
+say = "The other hits a problem. Red, until you have seen it."
 
 [[demo.step]]
-at = 18.6
+at = 18.8
 press = true
 say = "A press says you have seen it."
 
 [[demo.step]]
-at = 20.6
-level = 0.4
-say = "In the evening the lights dim by themselves."
-
-[[demo.step]]
-at = 23.2
+at = 21.6
 release = true
 say = "Nothing is waiting, so the keyboard goes back to normal."
 
 [sections]
 devices_eyebrow = "The catalog"
-devices_title = "Every device gets a label anyone can read"
-devices_lede = "The bar shows how much of the label a person has actually checked. The dots show which of the four colours it uses."
+devices_title = "Devices with a label"
+devices_lede = "The bar shows how much of each label has been checked on a real device."
 devices_more = "All devices"
+devices_add = "Add yours"
 questions_eyebrow = "Questions"
 questions_title = "Fair things to ask"
-status_eyebrow = "Honest status"
-status_title = "What works today, and what does not yet"
-built_label = "Works today"
-next_label = "Planned, not built"
-start_eyebrow = "For builders"
-start_title = "Try it"
+status_eyebrow = "Status"
+status_title = "What works today"
+built_label = "Works"
+next_label = "Planned"
+start_title = "Run it"
 start_lede = "It builds with Rust and needs no account. The first command works with no supported hardware attached."
-promise_title = "What it will not do"
 replay = "Replay"
 
 [[question]]
 ask = "Does this let an AI control my computer?"
-answer = "It lets an AI ask. A small program on your own computer decides what happens, using each device's label. Some things it will only ever explain how to do yourself."
+answer = "It lets an AI ask. A small program on your own computer decides, using each device's label. Some things it will only ever explain how to do yourself."
 
 [[question]]
 ask = "Is it watching what I type?"
-answer = "To let you answer by pressing a spare key, it sees which key went down. It does not keep what you type. If you switch it on, it keeps a tally per key, and never the order, the timing or the words."
+answer = "To let you answer with a spare key, it sees which key went down. It does not keep what you type."
 
 [[question]]
 ask = "Does anything leave my computer?"
-answer = "No. There is no account and no server. The labels are files, and the program listens only on your own computer."
-
-[[question]]
-ask = "Which AI does it work with?"
-answer = "Today it follows one coding assistant directly, and any other tool can report to it with a one-line command. A standard connection that any assistant can use is planned and not built yet."
+answer = "No. There is no account and no server."
 
 [[question]]
 ask = "Will it work with my devices?"
-answer = "Only a handful have labels so far, and one keyboard is fully working. A label is one small file, and the catalog shows exactly what has and has not been checked for each device."
+answer = "Only if they have a label, and few do yet. A label is one small file, and adding one takes a few minutes."
 
-[[question]]
-ask = "What does it cost?"
-answer = "Nothing. The program and the labels are open for anyone to use, copy and improve."
+[[status.built]]
+text = "The catalog, and this site made from it"
+
+[[status.built]]
+text = "Finding what is attached and matching it to a label"
+
+[[status.built]]
+text = "One keyboard run entirely from its label"
+
+[[status.built]]
+text = "AI helpers shown on spare keys, answered with a press"
+
+[[status.next]]
+text = "Real answers from the mouse, laptop and screen. So far those were read by hand"
+
+[[status.next]]
+text = "\"Keep this change?\" with an automatic undo"
+
+[[status.next]]
+text = "A standard connection, so any AI assistant can use it"
+
+[[status.next]]
+text = "Linux and Windows"
+
+# The page that asks people to add their own devices.
+[add]
+title = "Add your device"
+lede = "A label is one small file. You do not need to write code, and nothing is changed on your device."
+ai_title = "The quick way: give this to an AI coding assistant"
+ai_lede = "Paste it into the assistant you already use. It will look at what is plugged in, ask which device you mean, and write the label with you."
+copy = "Copy"
+copied = "Copied"
+hand_title = "Or by hand"
+rules_title = "What makes a good label"
+issue_title = "Short on time?"
+issue_text = "Tell us what you have and paste what the script printed. Someone else can write the label."
+issue_link = "Open a device request"
+
+[[add.step]]
+say = "Get the files"
+run = "git clone {repo} && cd hardpoint"
+
+[[add.step]]
+say = "See what is plugged in, and what has no label yet"
+run = "python3 tools/observe.py"
+
+[[add.step]]
+say = "Start a label for one of them"
+run = "python3 tools/observe.py --draft 3"
+
+[[add.step]]
+say = "Fill it in, then check it"
+run = "python3 tools/build.py --check"
+
+[[add.step]]
+say = "Send it in as a pull request"
+run = ""
+
+[[add.rule]]
+text = "Only say `observed` for something you ran and saw work. Otherwise say `unverified`, and where the claim comes from."
+
+[[add.rule]]
+text = "Use words from the shared list. If one is missing, add it in the same change."
+
+[[add.rule]]
+text = "A label is information only. It can never contain a command."
+
+[[add.rule]]
+text = "Write from what you see and from documentation. Do not copy another project's data files."
 
 # For builders: one worked example per risk level, on the format page. The
 # build checks each one against the catalog.
 [travel]
 title = "Every change takes the same road"
-lede = "A client never touches a device. It asks, and the daemon decides what happens from the device's card. Pick a risk level to follow one."
+lede = "A client never touches a device. It asks, and the daemon decides what happens from the device's card."
 stops = ["Asked", "Card check", "Risk gate", "Device"]
 asked = "A client proposes it"
 checked = "The card lists it, and the value fits"
@@ -219,39 +253,12 @@ outcome = "Refused. Hardpoint explains the steps; a person presses the reset but
 [ladder_note]
 text = "Reading and reversible lighting run today. Confirm-or-revert and the change journal are designed and not built yet."
 
-[[status.built]]
-text = "The catalog, its checker, and this site made from it"
-
-[[status.built]]
-text = "Finding what is attached and matching it to a label (`hardpoint inventory`)"
-
-[[status.built]]
-text = "One keyboard driven entirely from its label: lights, key presses, layers"
-
-[[status.built]]
-text = "AI helpers shown on spare keys, and a press that runs an action you choose"
-
-[[status.built]]
-text = "Lights that dim by the clock, and an optional tally of presses per key"
-
-[[status.next]]
-text = "Asking the mouse and the computer real questions. So far they were read by hand"
-
-[[status.next]]
-text = "\"Keep this change?\" with an automatic undo, and a record of every change"
-
-[[status.next]]
-text = "A standard connection, so any AI assistant can use it"
-
-[[status.next]]
-text = "Linux and Windows. It has only been run on a Mac"
-
 [[start]]
 say = "Build it"
 run = "cargo build --release"
 
 [[start]]
-say = "See what is attached, and which labels describe it"
+say = "See what is attached, and which cards describe it"
 run = "./target/release/hardpoint inventory"
 
 [[start]]
@@ -261,19 +268,3 @@ run = "./target/release/hardpoint run --device dry --config examples/moonlander.
 [[start]]
 say = "Report a helper's state from any script or hook"
 run = "./target/release/hardpoint emit --source my-tool --session 1 --state needs-you"
-
-[[promise]]
-title = "Labels are only information"
-text = "A label can say what a device is able to do. It can never carry an instruction for your computer to run, and anything unexpected in one is rejected."
-
-[[promise]]
-title = "Risk cannot be talked down"
-text = "A label cannot claim an ability is safer than the shared list allows. Anything that cannot be undone is never done by software alone."
-
-[[promise]]
-title = "It stays on your computer"
-text = "There is no account and no server. Only you can send requests to the program."
-
-[[promise]]
-title = "A tally, not your typing"
-text = "To act on a press it sees which key went down. It keeps a count per key only if you ask, and never the order, the timing or the words."

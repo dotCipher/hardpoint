@@ -7,11 +7,11 @@
 
 <h1 align="center">Hardpoint</h1>
 
-<p align="center"><b>Hardware your AI can read and change, with the risk written down.</b></p>
+<p align="center"><b>A safety label for everything your AI can touch.</b></p>
 
 <p align="center">
   <a href="#what-it-is">What it is</a> ·
-  <a href="#the-risk-ladder">Risk ladder</a> ·
+  <a href="#the-four-labels">The four labels</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="#add-a-device">Add a device</a> ·
   <a href="docs/DESIGN.md">Design</a> ·
@@ -24,9 +24,14 @@
 
 ## What it is
 
-A hardpoint is the reinforced, load-rated spot on a vehicle where equipment is
-allowed to attach. This project gives software the same thing for the devices
-on your desk: named places to attach, each rated for what it can safely carry.
+AI helpers are starting to do things, not just answer questions. Hardpoint
+gives each device a plain label: what an AI may look at, what it may change,
+and what only you can do.
+
+The name comes from engineering. A hardpoint is the reinforced, load-rated
+spot on a vehicle where equipment is allowed to attach. A device's label is
+the same idea: the places software may attach, each rated for what it can
+safely carry.
 
 | Part | What it does |
 |---|---|
@@ -38,9 +43,17 @@ The first thing built on it: agent sessions shown on keyboard keys you never
 use. Each session gets a key, the colour is its state, and pressing the key
 runs an action of your own for that session.
 
-## The risk ladder
+## The four labels
 
-Colour always means risk, here and on the site.
+Every ability a device has gets one of four labels. Colour always means the
+same thing, here and on the site.
+
+| Label | In everyday words | Like |
+|---|---|---|
+| `read` | Just looking | Reading a thermometer |
+| `reversible` | Easy to undo | A dimmer switch |
+| `guarded` | Checks with you first | "Keep these display settings?" |
+| `gated` | Only you can do this | Changing the locks |
 
 <p align="center">
   <img src="assets/ladder.svg" width="820" alt="The four risk levels: read, reversible, guarded and gated, each with its meaning">
@@ -54,7 +67,8 @@ Colour always means risk, here and on the site.
 | `gated` | Never does it. It explains the steps a person has to take. |
 
 A card cannot claim a lower risk than the shared vocabulary allows for that
-capability.
+capability, and anything `guarded` or `gated` has to say, in plain words, what
+goes wrong if it is done carelessly.
 
 ## What runs today
 

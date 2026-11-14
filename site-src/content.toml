@@ -3,88 +3,177 @@
 # the build script.
 
 name = "Hardpoint"
-tagline = "Hardware your AI can read and change, with the risk written down."
-eyebrow = "Open device catalog · local daemon"
-lede = "Hardpoint tells software what each device on your desk can do, how to reach it, and how risky each change is. A local daemon is the only thing that touches the hardware, and it works from device cards anyone can read, check and add to."
+tagline = "A safety label for everything your AI can touch."
+eyebrow = "Open · runs on your own computer"
+lede = "AI helpers are starting to do things, not just answer questions. Hardpoint gives each device a plain label: what an AI may look at, what it may change, and what only you can do."
+early = "Early project. Today it fully runs one keyboard on a Mac."
+early_link = "See what works"
 
-# The moving board on the landing page. It replays what the named device card
-# and example setup do together; the build checks that both exist.
+[nav]
+devices = "Devices"
+how = "How it works"
+questions = "Questions"
+builders = "For builders"
+
+# The moving pictures at the top. One is generated for every device in the
+# catalog, from that device's own card; nothing here names a device.
+[scenes]
+title = "Ask about a device. Watch what is allowed."
+caption = "These are illustrations made from each device's label. The values are examples, not readings from your computer."
+you = "You ask"
+next = "Next"
+pause = "Pause"
+play = "Play"
+keep = "Keep it"
+undo = "Put it back"
+kept = "You kept it."
+undone = "Back to how it was."
+waiting = "Keep this change?"
+
+[why]
+eyebrow = "Why it matters"
+title = "The same request, with and without a label"
+lede = "An AI that is trying to be helpful will do exactly what it was asked. These are the requests in the catalog where that goes wrong."
+without = "Without a label"
+without_does = "The AI does it straight away."
+with = "With Hardpoint"
+proof = "This is not hypothetical. One home-automation user asked a voice assistant to \"turn off the office\", meaning the lights, and it also cut power to his server rack."
+proof_link = "His write-up"
+proof_url = "https://www.joekarlsson.com/blog/local-voice-ai-home-assistant-gpu/"
+
+[labels]
+eyebrow = "How it works"
+title = "Four labels. Every ability gets one."
+lede = "Colour always means the same thing. A device's label cannot claim an ability is safer than it is."
+count = "in the catalog today"
+
+[audience]
+eyebrow = "Who it is for"
+title = "Useful if any of these is you"
+
+[[audience.item]]
+title = "You use AI helpers to get work done"
+text = "When several are running, the hard part is knowing which one is waiting for you. Spare keys on a keyboard can show it at a glance, and a press answers."
+
+[[audience.item]]
+title = "You want to ask your computer about itself"
+text = "\"Is my battery wearing out?\" \"Is it running hot?\" Plain questions, plain answers, and nothing is changed by asking."
+
+[[audience.item]]
+title = "You make a device, or love one"
+text = "Describe it once, in one small file. Every AI tool that reads the catalog then knows how to treat it properly."
+
+# The moving keyboard. It replays what the named device card and example
+# setup do together; the build checks that both exist.
 [demo]
 card = "zsa/moonlander-mk1"
 config = "examples/moonlander.toml"
-title = "A keyboard that shows what your agents are doing"
-caption = "A replay, not a recording. Lighting keys from agent state and acting on a press both run today on this keyboard. Click a lit key yourself."
+eyebrow = "Working today"
+title = "See which AI helper needs you, on keys you never use"
+lede = "Each helper gets a spare key. Blue means working, amber means it is waiting for you, green means done, red means something went wrong."
+caption = "A replay, not a recording. This runs today on one keyboard. Click a lit key yourself."
 loop_secs = 27
-pressed = "You pressed the key yourself. That session's action would run now."
+pressed = "You pressed the key yourself. That helper would get its answer now."
 
 [[demo.step]]
 at = 0.8
 session = "Refactor"
 state = "running"
-say = "An agent starts work. It gets a key, lit blue."
+say = "A helper starts work. It gets a key, lit blue."
 
 [[demo.step]]
 at = 2.6
 session = "Tests"
 state = "running"
-say = "A second agent takes the next key."
+say = "A second helper takes the next key."
 
 [[demo.step]]
 at = 4.4
 session = "Docs"
 state = "running"
-say = "A third lands on a key that only displays."
+say = "A third lands on a key that only shows a light."
 
 [[demo.step]]
 at = 6.8
 session = "Docs"
 state = "needs-you"
-say = "It needs an answer, so it moves to a key you can press and pulses."
+say = "It needs an answer, so it moves to a key you can press, and pulses."
 
 [[demo.step]]
 at = 10.6
 press = true
-say = "You press the lit key. Your own action runs for that session."
+say = "You press the lit key. It carries on."
 
 [[demo.step]]
 at = 13.0
 session = "Tests"
 state = "done"
-say = "One finishes. Green, then it fades out."
+say = "One finishes. Green, then it fades."
 
 [[demo.step]]
 at = 15.2
 session = "Refactor"
 state = "failed"
-say = "One fails. Red, on a pressable key, until you acknowledge it."
+say = "One hits a problem. Red, until you have seen it."
 
 [[demo.step]]
 at = 18.6
 press = true
-say = "A press acknowledges it."
+say = "A press says you have seen it."
 
 [[demo.step]]
 at = 20.6
 level = 0.4
-say = "After 21:00 the board dims by itself. There are no brightness keys."
+say = "In the evening the lights dim by themselves."
 
 [[demo.step]]
 at = 23.2
 release = true
-say = "Nothing is active, so the lights go back to the keyboard."
+say = "Nothing is waiting, so the keyboard goes back to normal."
 
 [sections]
-devices_title = "Each device gets a card"
-devices_lede = "A card says how to recognise the device, what it can do, how risky each change is, and how much of that a person has checked. The bar shows how much is checked; the dots show which risk levels it has."
+devices_eyebrow = "The catalog"
+devices_title = "Every device gets a label anyone can read"
+devices_lede = "The bar shows how much of the label a person has actually checked. The dots show which of the four colours it uses."
 devices_more = "All devices"
-status_title = "What runs today, and what is next"
-built_label = "Runs today"
-next_label = "Designed, not built"
+questions_eyebrow = "Questions"
+questions_title = "Fair things to ask"
+status_eyebrow = "Honest status"
+status_title = "What works today, and what does not yet"
+built_label = "Works today"
+next_label = "Planned, not built"
+start_eyebrow = "For builders"
 start_title = "Try it"
 start_lede = "It builds with Rust and needs no account. The first command works with no supported hardware attached."
 promise_title = "What it will not do"
 replay = "Replay"
 
+[[question]]
+ask = "Does this let an AI control my computer?"
+answer = "It lets an AI ask. A small program on your own computer decides what happens, using each device's label. Some things it will only ever explain how to do yourself."
+
+[[question]]
+ask = "Is it watching what I type?"
+answer = "To let you answer by pressing a spare key, it sees which key went down. It does not keep what you type. If you switch it on, it keeps a tally per key, and never the order, the timing or the words."
+
+[[question]]
+ask = "Does anything leave my computer?"
+answer = "No. There is no account and no server. The labels are files, and the program listens only on your own computer."
+
+[[question]]
+ask = "Which AI does it work with?"
+answer = "Today it follows one coding assistant directly, and any other tool can report to it with a one-line command. A standard connection that any assistant can use is planned and not built yet."
+
+[[question]]
+ask = "Will it work with my devices?"
+answer = "Only a handful have labels so far, and one keyboard is fully working. A label is one small file, and the catalog shows exactly what has and has not been checked for each device."
+
+[[question]]
+ask = "What does it cost?"
+answer = "Nothing. The program and the labels are open for anyone to use, copy and improve."
+
+# For builders: one worked example per risk level, on the format page. The
+# build checks each one against the catalog.
 [travel]
 title = "Every change takes the same road"
 lede = "A client never touches a device. It asks, and the daemon decides what happens from the device's card. Pick a risk level to follow one."
@@ -93,15 +182,10 @@ asked = "A client proposes it"
 checked = "The card lists it, and the value fits"
 confirm = "Keep it"
 
-# One worked example per risk level. The build checks each one against the
-# catalog, so these cannot drift from the cards.
 [[ladder]]
 risk = "read"
 device = "logitech/mx-master-3"
 capability = "battery.level"
-ask = "How much charge does the mouse have?"
-before = ""
-after = "20%"
 gate = "Nothing to guard"
 reach = "Value read"
 outcome = "The value comes back. Nothing on the device changed."
@@ -110,9 +194,6 @@ outcome = "The value comes back. Nothing on the device changed."
 risk = "reversible"
 device = "zsa/moonlander-mk1"
 capability = "light.per_key"
-ask = "Light the top inner key amber."
-before = "off"
-after = "amber"
 gate = "Previous value saved"
 reach = "Applied"
 outcome = "Applied at once. The previous colour is on record, so it can be put back at once."
@@ -121,9 +202,6 @@ outcome = "Applied at once. The previous colour is on record, so it can be put b
 risk = "guarded"
 device = "logitech/mx-master-3"
 capability = "pointer.dpi"
-ask = "Set the pointer to 3200 DPI."
-before = "1000"
-after = "3200"
 gate = "Saved, and a timer starts"
 reach = "Applied, waiting for you"
 outcome = "Applied, then held open. Confirm it, or do nothing and it goes back."
@@ -134,9 +212,6 @@ reverted = "No answer, so it went back."
 risk = "gated"
 device = "zsa/moonlander-mk1"
 capability = "firmware.flash"
-ask = "Flash a new layout onto the keyboard."
-before = ""
-after = ""
 gate = "Stops here"
 reach = "Never reached"
 outcome = "Refused. Hardpoint explains the steps; a person presses the reset button."
@@ -145,38 +220,38 @@ outcome = "Refused. Hardpoint explains the steps; a person presses the reset but
 text = "Reading and reversible lighting run today. Confirm-or-revert and the change journal are designed and not built yet."
 
 [[status.built]]
-text = "The catalog format, its validator, and this site generated from it"
+text = "The catalog, its checker, and this site made from it"
 
 [[status.built]]
-text = "Discovery: `hardpoint inventory` matches attached devices to cards"
+text = "Finding what is attached and matching it to a label (`hardpoint inventory`)"
 
 [[status.built]]
-text = "A keyboard driven entirely from its card: lights, key presses, layers"
+text = "One keyboard driven entirely from its label: lights, key presses, layers"
 
 [[status.built]]
-text = "Agent sessions shown on keys, and a press that runs your own action"
+text = "AI helpers shown on spare keys, and a press that runs an action you choose"
 
 [[status.built]]
-text = "Brightness that follows the clock, and per-key press counts (counts only)"
+text = "Lights that dim by the clock, and an optional tally of presses per key"
 
 [[status.next]]
-text = "Reading the mouse and the computer through adapters, not one-off queries"
+text = "Asking the mouse and the computer real questions. So far they were read by hand"
 
 [[status.next]]
-text = "Confirm-or-revert for guarded changes, and a journal of every change"
+text = "\"Keep this change?\" with an automatic undo, and a record of every change"
 
 [[status.next]]
-text = "An MCP server, so any agent and any model provider can connect"
+text = "A standard connection, so any AI assistant can use it"
 
 [[status.next]]
-text = "Linux, and a second computer"
+text = "Linux and Windows. It has only been run on a Mac"
 
 [[start]]
 say = "Build it"
 run = "cargo build --release"
 
 [[start]]
-say = "See what is attached, and which cards describe it"
+say = "See what is attached, and which labels describe it"
 run = "./target/release/hardpoint inventory"
 
 [[start]]
@@ -184,21 +259,21 @@ say = "Try it with no hardware: it prints which keys would be lit"
 run = "./target/release/hardpoint run --device dry --config examples/moonlander.toml"
 
 [[start]]
-say = "Report an agent's state from any script or hook"
+say = "Report a helper's state from any script or hook"
 run = "./target/release/hardpoint emit --source my-tool --session 1 --state needs-you"
 
 [[promise]]
-title = "Cards are data"
-text = "A card can name an adapter and give it typed values. It can never carry a command, a script or a path, and the validator rejects any field it does not know."
+title = "Labels are only information"
+text = "A label can say what a device is able to do. It can never carry an instruction for your computer to run, and anything unexpected in one is rejected."
 
 [[promise]]
-title = "Risk has a floor"
-text = "A card cannot claim a change is safer than the shared vocabulary allows. Anything that cannot be undone is never done by software alone."
+title = "Risk cannot be talked down"
+text = "A label cannot claim an ability is safer than the shared list allows. Anything that cannot be undone is never done by software alone."
 
 [[promise]]
 title = "It stays on your computer"
-text = "There is no account and no server. The daemon listens on a local socket that only you can write to."
+text = "There is no account and no server. Only you can send requests to the program."
 
 [[promise]]
-title = "Counts, not keystrokes"
-text = "To act on a press the daemon sees which key went down. It keeps counts per key if you ask it to, and never the order, the timing or the text."
+title = "A tally, not your typing"
+text = "To act on a press it sees which key went down. It keeps a count per key only if you ask, and never the order, the timing or the words."

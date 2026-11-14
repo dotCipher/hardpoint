@@ -87,6 +87,26 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 
 Optional. Where the information came from: a `title` and an `https` `url`.
 
+## The vocabulary
+
+Each word in `catalog/vocabulary/capabilities.toml` has:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `reading`, `event`, `control` or `action` |
+| `value` | The type of the value, with its unit |
+| `summary` | The exact definition |
+| `min_risk` | The lowest risk a card may claim for it |
+| `privacy` | Optional. The least a card must promise |
+| `ask` | How a person would ask for it, in everyday words |
+| `example` | An illustrative value for explanations. Not a reading |
+| `example_before` | Optional. For something you can change, an illustrative value before |
+| `swatch` | Optional. For colours, the colour the example names |
+| `harm` | Required when `min_risk` is `guarded` or `gated`: what goes wrong, in plain words |
+
+The site builds a scene for every device from these fields, so a new card
+needs no site work.
+
 ## Risk
 
 | Risk | Meaning | What the daemon does |

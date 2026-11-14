@@ -2,7 +2,7 @@
 name = "hardpoint"
 version = "0.1.0"
 edition = "2021"
-description = "Hardware your AI can read and change, with the risk written down."
+description = "A safety label for everything your AI can touch."
 license = "Apache-2.0"
 readme = "README.md"
 keywords = ["hardware", "agents", "keyboard", "hid", "catalog"]

@@ -49,6 +49,160 @@
     });
   }
 
+  // ---- device scenes: one per device in the catalog, built from its label
+  var scenes = data("scene-data");
+  var stage = document.getElementById("scenes");
+  if (scenes && stage) {
+    var pills = Array.prototype.slice.call(stage.querySelectorAll("#scene-pills .pill"));
+    var pictures = Array.prototype.slice.call(stage.querySelectorAll(".drawing-wrap"));
+    var el = function (id) { return document.getElementById(id); };
+    var askEl = el("scene-ask"), verdict = el("scene-verdict"), chipEl = el("scene-chip"), doesEl = el("scene-does");
+    var readout = el("scene-readout"), confirm = el("scene-confirm"), statusEl = el("scene-status");
+    var deviceEl = el("scene-device"), dotsEl = el("scene-dots"), toggle = el("scene-toggle");
+    var di = 0, ci = 0, playing = !still, queue = [], decide = null;
+
+    function wait(ms, fn) { queue.push(setTimeout(fn, still ? 0 : ms)); }
+    function stopAll() { queue.forEach(clearTimeout); queue = []; decide = null; }
+    function lampOf() { return pictures[di].querySelector(".lamp"); }
+
+    function showValue(cap, value, before) {
+      readout.innerHTML = "";
+      var add = function (tag, cls, text) {
+        var node = document.createElement(tag); node.className = cls || ""; if (text) { node.textContent = text; }
+        readout.appendChild(node); return node;
+      };
+      if (cap.show === "meter") {
+        var bar = add("span", "bar2"); var fill = document.createElement("i"); bar.appendChild(fill);
+        fill.style.width = (parseInt(before || "0", 10) || 0) + "%";
+        requestAnimationFrame(function () { requestAnimationFrame(function () { fill.style.width = (parseInt(value, 10) || 0) + "%"; }); });
+      } else if (cap.show === "swatch") {
+        add("span", "dotc").style.background = value === cap.after ? cap.swatch : "transparent";
+      } else if (cap.show === "pulse") {
+        var ticks = add("span", "ticks3"); for (var n = 0; n < 3; n++) { ticks.appendChild(document.createElement("i")); }
+      }
+      add("span", "", value);
+      if (before && before !== value) { add("span", "was", "was " + before); }
+      var lamp = lampOf();
+      if (lamp) { lamp.style.fill = cap.show === "swatch" && value === cap.after ? cap.swatch : "var(--c)"; }
+      readout.classList.add("show");
+    }
+
+    function settle(cap, kept) {
+      decide = null;
+      confirm.classList.remove("on", "show", "counting");
+      showValue(cap, kept ? cap.after : cap.before, kept ? cap.before : "");
+      var note = document.createElement("span");
+      note.className = "was";
+      note.textContent = kept ? scenes.words.kept : scenes.words.undone;
+      readout.appendChild(note);
+      finish(cap, 2200);
+    }
+
+    function finish(cap, hold) {
+      statusEl.textContent = cap.checked;
+      statusEl.className = "checked show " + cap.status;
+      if (playing) { wait(hold, next); }
+    }
+
+    function result(cap) {
+      if (cap.risk === "gated") {
+        readout.innerHTML = "";
+        var why = document.createElement("span"); why.className = "why"; why.textContent = cap.harm; readout.appendChild(why);
+        readout.classList.add("show");
+        return finish(cap, 3600);
+      }
+      showValue(cap, cap.after, cap.before);
+      if (cap.risk !== "guarded") { return finish(cap, 2600); }
+      // The change is made, then held open: keep it, or it goes back by itself.
+      confirm.classList.add("on");
+      confirm.style.setProperty("--secs", "5s");
+      requestAnimationFrame(function () { requestAnimationFrame(function () { confirm.classList.add("show", "counting"); }); });
+      decide = function (kept) { queue.forEach(clearTimeout); queue = []; settle(cap, kept); };
+      if (playing) { queue.push(setTimeout(function () { if (decide) { decide(false); } }, 5000)); }
+    }
+
+    function play() {
+      stopAll();
+      var device = scenes.devices[di], cap = device.caps[ci];
+      pills.forEach(function (pill, n) { pill.setAttribute("aria-selected", n === di ? "true" : "false"); });
+      pictures.forEach(function (pic, n) { pic.hidden = n !== di; pic.classList.remove("asking"); });
+      var lamp = lampOf(); if (lamp) { lamp.style.fill = ""; }
+      stage.style.setProperty("--c", "var(--" + cap.risk + ")");
+      deviceEl.textContent = device.name;
+      dotsEl.innerHTML = "";
+      device.caps.forEach(function (_, n) { var dot = document.createElement("i"); if (n === ci) { dot.className = "on"; } dotsEl.appendChild(dot); });
+      [verdict, readout, statusEl].forEach(function (node) { node.classList.remove("show"); });
+      confirm.classList.remove("on", "show", "counting");
+      askEl.classList.remove("done");
+      askEl.textContent = "";
+      var typed = 0, speed = still ? 0 : 20;
+      (function type() {
+        if (typed < cap.ask.length && !still) {
+          askEl.textContent = cap.ask.slice(0, ++typed);
+          queue.push(setTimeout(type, speed));
+          return;
+        }
+        askEl.textContent = cap.ask;
+        askEl.classList.add("done");
+        wait(350, function () {
+          chipEl.textContent = cap.plain;
+          doesEl.textContent = cap.does;
+          verdict.classList.add("show");
+          pictures[di].classList.add("asking");
+          wait(900, function () { result(cap); });
+        });
+      })();
+    }
+
+    function next() {
+      ci += 1;
+      if (ci >= scenes.devices[di].caps.length) { ci = 0; di = (di + 1) % scenes.devices.length; }
+      play();
+    }
+
+    function setPlaying(on) {
+      playing = on && !still;
+      toggle.textContent = playing ? scenes.words.pause : scenes.words.play;
+      if (playing) { play(); } else { queue.forEach(clearTimeout); queue = []; }
+    }
+
+    pills.forEach(function (pill, n) { pill.addEventListener("click", function () { di = n; ci = 0; play(); }); });
+    el("scene-next").addEventListener("click", next);
+    el("scene-keep").addEventListener("click", function () { if (decide) { decide(true); } });
+    el("scene-undo").addEventListener("click", function () { if (decide) { decide(false); } });
+    toggle.addEventListener("click", function () { setPlaying(!playing); });
+    if (still) { toggle.hidden = true; }
+    document.addEventListener("visibilitychange", function () { if (document.hidden && playing) { setPlaying(false); } });
+    play();
+  }
+
+  // ---- the same request, with and without a label
+  var whys = data("why-data");
+  var whyPills = Array.prototype.slice.call(document.querySelectorAll("#why-pills .pill"));
+  if (whys && whyPills.length) {
+    var bad = document.getElementById("why-bad"), good = document.getElementById("why-good");
+    var bar = document.getElementById("why-bar");
+    function compare(i) {
+      var item = whys.items[i];
+      whyPills.forEach(function (pill, n) { pill.setAttribute("aria-pressed", n === i ? "true" : "false"); });
+      document.getElementById("why-harm").textContent = item.harm;
+      document.getElementById("why-chip").textContent = item.plain;
+      document.getElementById("why-does").textContent = item.does;
+      good.style.setProperty("--c", "var(--" + item.risk + ")");
+      bad.classList.remove("jolt"); bar.classList.remove("on", "counting");
+      if (still) { return; }
+      void bad.offsetWidth;
+      bad.classList.add("jolt");
+      if (item.risk === "guarded") {
+        bar.classList.add("on");
+        bar.style.setProperty("--secs", "4s");
+        requestAnimationFrame(function () { requestAnimationFrame(function () { bar.classList.add("counting"); }); });
+      }
+    }
+    whyPills.forEach(function (pill, i) { pill.addEventListener("click", function () { compare(i); }); });
+    compare(0);
+  }
+
   // ---- the board replay
   var demo = data("demo-data");
   var board = document.querySelector(".board.replay");

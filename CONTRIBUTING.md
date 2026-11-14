@@ -1,13 +1,13 @@
 # Adding a device
 
-A device's label is one small file, called a card. Adding one needs no code
-and changes nothing on your device.
+A device's card is one small file. Adding one needs no code and changes
+nothing on your device.
 
 ## The quick way
 
 Open the [Add a device](https://dotcipher.github.io/hardpoint/add.html) page,
-press **Copy**, and paste the prompt into the AI coding assistant you already
-use. It looks at what is plugged in, asks which device you mean, and writes
+press **Copy**, and paste the prompt into Claude Code, Codex or whichever
+coding agent you use. It looks at what is plugged in, asks which device you mean, and writes
 the card with you. The prompt itself is in
 [`site-src/add-device-prompt.md`](site-src/add-device-prompt.md).
 

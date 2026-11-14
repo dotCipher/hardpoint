@@ -2,7 +2,7 @@
 name = "hardpoint"
 version = "0.1.0"
 edition = "2021"
-description = "Labels that tell an AI what each of your devices can do, and what it must leave to you."
+description = "Cards that tell agents like Claude Code and Codex what each of your devices can do, and what stays with you."
 license = "Apache-2.0"
 readme = "README.md"
 keywords = ["hardware", "agents", "keyboard", "hid", "catalog"]

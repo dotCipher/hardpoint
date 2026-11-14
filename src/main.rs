@@ -26,7 +26,7 @@ use telemetry::Telemetry;
 const KEYBOARD_ADAPTER: &str = "oryx-hid";
 
 #[derive(Parser)]
-#[command(name = "hardpoint", version, about = "Labels that tell an AI what each of your devices can do, and what it must leave to you")]
+#[command(name = "hardpoint", version, about = "Cards that tell agents like Claude Code and Codex what each of your devices can do, and what stays with you")]
 struct Cli {
     /// The catalog directory. Defaults to HARDPOINT_CATALOG, then the user
     /// data directory, then a `catalog` directory beside the program.

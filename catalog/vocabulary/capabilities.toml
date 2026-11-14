@@ -1,5 +1,5 @@
 # The shared vocabulary. A capability id means the same thing on every device,
-# so a rule or an AI can ask for "battery.level" without knowing the hardware.
+# so a rule or an agent can ask for "battery.level" without knowing the hardware.
 #
 # kind:     reading (a value you can read), event (a stream), control (a value
 #           you can set), action (something you can trigger once)
@@ -11,7 +11,7 @@
 #
 # For the examples people see on the site. Leave these out for abilities
 # nobody would ask for in everyday words.
-# ask:      something a person would really say to an AI
+# ask:      something a person would really say to an agent
 # example:  an illustrative answer. Not a reading
 # example_before: for something you can change, an illustrative value before
 # swatch:   for colours, the colour the example names
@@ -28,7 +28,7 @@ value = "key position, down or up"
 summary = "Every key press and release, by physical position."
 min_risk = "read"
 privacy = "aggregate"
-ask = "Let me answer my AI by pressing a spare key."
+ask = "Let me answer my agent by pressing a spare key."
 example = "spare key pressed"
 
 [capability."keys.layer"]
@@ -49,7 +49,7 @@ kind = "control"
 value = "rgb per key"
 summary = "Set the colour of an individual key."
 min_risk = "reversible"
-ask = "Light up a key when my AI needs me."
+ask = "Light up a key when my agent needs me."
 example = "amber"
 example_before = "off"
 swatch = "#ffa000"

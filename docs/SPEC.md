@@ -100,7 +100,7 @@ Each word in `catalog/vocabulary/capabilities.toml` has:
 | `summary` | The exact definition |
 | `min_risk` | The lowest risk a card may claim for it |
 | `privacy` | Optional. The least a card must promise |
-| `ask` | Optional. Something a person would really say to an AI. Leave it out for abilities nobody asks for in everyday words |
+| `ask` | Optional. Something a person would really say to an agent. Leave it out for abilities nobody asks for in everyday words |
 | `example` | Required with `ask`: an illustrative answer. Not a reading |
 | `example_before` | Optional. For something you can change, an illustrative value before |
 | `swatch` | Optional. For colours, the colour the example names |

@@ -35,14 +35,91 @@
     return box.appendChild(make("span", "live"));
   }
 
-  // ---- filter the device list
-  var q = document.getElementById("q");
-  if (q) {
-    var rows = Array.prototype.slice.call(document.querySelectorAll("[data-search]"));
-    q.addEventListener("input", function () {
-      var term = q.value.trim().toLowerCase();
-      rows.forEach(function (row) { row.style.display = row.dataset.search.indexOf(term) >= 0 ? "" : "none"; });
+  // ---- the catalog: search, facets and order. Within a facet the choices
+  // widen the list; across facets they narrow it. Each choice shows how many
+  // devices it would give, and the whole state lives in the address so a
+  // filtered list can be linked to.
+  var catalog = document.getElementById("catalog");
+  if (catalog) {
+    var q = document.getElementById("q"), order = document.getElementById("sort"), panel = document.getElementById("facets");
+    var grid = document.getElementById("cards"), found = document.getElementById("found");
+    var clear = document.getElementById("clear"), none = document.getElementById("none");
+    var tiles = Array.prototype.slice.call(grid.children).map(function (node) {
+      return { node: node, facets: JSON.parse(node.dataset.facets), text: node.dataset.search, name: node.dataset.name.toLowerCase(),
+               abilities: Number(node.dataset.abilities), rank: Number(node.dataset.rank) };
     });
+    var groups = Array.prototype.slice.call(panel.querySelectorAll(".facet")).map(function (box) {
+      return { key: box.dataset.facet, inputs: Array.prototype.slice.call(box.querySelectorAll("input")) };
+    });
+    var orders = {
+      checked: function (a, b) { return a.rank - b.rank; },
+      name: function (a, b) { return a.name.localeCompare(b.name); },
+      abilities: function (a, b) { return b.abilities - a.abilities || a.rank - b.rank; }
+    };
+
+    var fits = function (tile, terms, picks, except) {
+      if (!terms.every(function (term) { return tile.text.indexOf(term) >= 0; })) { return false; }
+      return groups.every(function (group) {
+        var want = picks[group.key];
+        return group.key === except || !want.length || want.some(function (value) { return tile.facets[group.key].indexOf(value) >= 0; });
+      });
+    };
+
+    var apply = function () {
+      var terms = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+      var picks = {}, address = new URLSearchParams(), shown = 0;
+      groups.forEach(function (group) {
+        picks[group.key] = group.inputs.filter(function (input) { return input.checked; }).map(function (input) { return input.value; });
+        picks[group.key].forEach(function (value) { address.append(group.key, value); });
+      });
+      tiles.slice().sort(orders[order.value] || orders.checked).forEach(function (tile) {
+        var on = fits(tile, terms, picks);
+        tile.node.hidden = !on;
+        if (on) { shown += 1; }
+        grid.appendChild(tile.node);
+      });
+      groups.forEach(function (group) {
+        group.inputs.forEach(function (input) {
+          var count = tiles.filter(function (tile) {
+            return tile.facets[group.key].indexOf(input.value) >= 0 && fits(tile, terms, picks, group.key);
+          }).length;
+          var empty = !count && !input.checked;
+          input.parentNode.querySelector("b").textContent = count;
+          input.disabled = empty;
+          input.parentNode.classList.toggle("off", empty);
+        });
+      });
+      found.textContent = catalog.dataset.found.replace("{n}", shown).replace("{total}", tiles.length);
+      clear.hidden = !terms.length && !address.toString();
+      none.hidden = shown > 0;
+      if (terms.length) { address.set("q", q.value.trim()); }
+      if (order.selectedIndex > 0) { address.set("sort", order.value); }
+      var query = address.toString();
+      history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));
+    };
+
+    var asked = new URLSearchParams(location.search);
+    q.value = asked.get("q") || "";
+    if (orders[asked.get("sort")]) { order.value = asked.get("sort"); }
+    groups.forEach(function (group) {
+      var want = asked.getAll(group.key);
+      group.inputs.forEach(function (input) { input.checked = want.indexOf(input.value) >= 0; });
+    });
+    q.addEventListener("input", apply);
+    order.addEventListener("change", apply);
+    panel.addEventListener("change", apply);
+    clear.addEventListener("click", function () {
+      q.value = "";
+      groups.forEach(function (group) { group.inputs.forEach(function (input) { input.checked = false; }); });
+      apply();
+    });
+    // Beside the list on a wide screen; folded away above it on a narrow one.
+    var wide = window.matchMedia("(min-width: 900px)");
+    var place = function () { panel.open = wide.matches || groups.some(function (group) { return group.inputs.some(function (input) { return input.checked; }); }); };
+    if (wide.addEventListener) { wide.addEventListener("change", place); }
+    panel.hidden = false;
+    place();
+    apply();
   }
 
   // ---- copy the prompt

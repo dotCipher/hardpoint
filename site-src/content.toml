@@ -1,11 +1,15 @@
 # The words and the demo scripts on the site. Everything a visitor reads
 # comes from here or from the catalog; nothing is written into the build
 # script.
+#
+# Two words are kept apart throughout. A device has a card: everything known
+# about it. Each ability on a card has a label: read, reversible, guarded or
+# gated.
 
 name = "Hardpoint"
-tagline = "Your AI knows the internet. It doesn't know your desk."
-eyebrow = "Open catalog · runs on your own computer"
-lede = "Ask an AI to dim your screen and it has to guess how. Hardpoint hands it a label for that exact device: what it can read, what it may change, and what it must leave to you."
+tagline = "Let Claude Code and Codex control your devices. You stay in charge."
+eyebrow = "Open source · runs on your own computer"
+lede = "Agents like Claude Code and Codex already work in your files and your terminal. Hardpoint adds your devices: a checked card for each one says what an agent can read, what it may change, and what stays with you."
 cta = "See the difference"
 
 [nav]
@@ -18,7 +22,7 @@ builders = "For builders"
 # catalog, from the cards of that kind; nothing here names a device.
 [scenes]
 title = "Ask about a device"
-caption = "Made from the labels in the catalog. The answers are examples, not readings from your computer."
+caption = "Made from the cards in the catalog. The answers are examples, not readings from your computer."
 you = "You ask"
 next = "Next"
 pause = "Pause"
@@ -36,16 +40,18 @@ display = "screen"
 audio = "headphones"
 storage = "external drive"
 
-# What changes when an AI has a label to read. Each row is true of the
-# labels themselves, whatever program reads them.
+# What changes when an agent has a card to read. Each row is true of the
+# cards themselves, whatever program reads them.
 [why]
 eyebrow = "The difference"
-title = "Why not just ask an AI?"
-lede = "An AI that can run commands on your computer can already try to control your devices. This is what changes when it reads a label first."
+title = "Why not let the agent work it out?"
+lede = "Claude Code, Codex or any LLM with a terminal can already try to control a device: it searches, writes a command and runs it. This is what changes with Hardpoint."
 topic = "What matters"
-without = "A standard AI"
-with = "With Hardpoint"
+without = "Claude Code, Codex or any LLM agent"
+with = "The same agent, with Hardpoint"
 try = "Try a risky request"
+without_short = "On its own"
+with_short = "With Hardpoint"
 without_does = "It does it straight away."
 proof = "It happens. One person asked a voice assistant to \"turn off the office\", meaning the lights, and it also cut power to his server rack."
 proof_link = "His write-up"
@@ -53,23 +59,23 @@ proof_url = "https://www.joekarlsson.com/blog/local-voice-ai-home-assistant-gpu/
 
 [[why.row]]
 topic = "Knowing your device"
-without = "Searches for how your device works, then guesses. It may find the wrong model."
-with = "Reads a label written for that exact model."
+without = "Has never seen your exact device. It searches, then works from whatever it finds."
+with = "Reads a card written for that exact model."
 
 [[why.row]]
 topic = "Knowing the risk"
 without = "Reading a battery and replacing firmware look the same to it: a command to run."
-with = "Every ability is rated before anyone asks, with one of the four labels below."
+with = "Every ability on a card has one of four labels, set before anyone asks."
 
 [[why.row]]
 topic = "Proof"
-without = "Tells you it worked. You cannot check."
-with = "Each claim says whether a person tested it on a real device, and links to the record."
+without = "Reports what it did. Nothing says whether that was ever checked on your model."
+with = "Each claim on a card says whether a person tested it on a real device, and links to the record."
 
 [[why.row]]
 topic = "Touching the device"
-without = "Runs whatever commands it came up with, with your permissions."
-with = "A label holds no commands. Only Hardpoint's own program ever touches a device."
+without = "Writes its own commands and runs them as you."
+with = "A card holds no commands. Only Hardpoint's own program ever touches a device."
 
 [[why.row]]
 topic = "When it goes wrong"
@@ -78,8 +84,8 @@ with = "A risky change is labelled to go back by itself unless you keep it. The 
 
 [[why.row]]
 topic = "What it learns"
-without = "Gone when the chat ends. The next AI works it out again."
-with = "A label is checked once and shared. Everyone with that device gets it, for any AI."
+without = "Gone when the session ends. The next agent works it out again."
+with = "A card is checked once and shared. Everyone with that device gets it, in any agent."
 
 [labels]
 eyebrow = "How it works"
@@ -94,26 +100,26 @@ card = "zsa/moonlander-mk1"
 config = "examples/moonlander.toml"
 eyebrow = "More than answers"
 title = "Your devices can reach you, too"
-lede = "A label works both ways. Here each AI helper gets a spare key: it lights up when the helper needs you, and a press is your answer."
-caption = "A replay of Hardpoint running a real keyboard from its label. You can click a lit key."
+lede = "A card works both ways. Here every agent session gets a spare key: it lights up when the session needs you, and a press is your answer."
+caption = "A replay of Hardpoint running a real keyboard from its card. You can click a lit key."
 loop_secs = 25
-pressed = "You pressed the key. That helper has its answer."
+pressed = "You pressed the key. That session has its answer."
 
 [[demo.step]]
 at = 0.8
-session = "First helper"
+session = "First session"
 state = "running"
-say = "A helper starts work. Its key turns blue."
+say = "A session starts work. Its key turns blue."
 
 [[demo.step]]
 at = 3.0
-session = "Second helper"
+session = "Second session"
 state = "running"
-say = "A second helper takes the next key."
+say = "A second session takes the next key."
 
 [[demo.step]]
 at = 5.4
-session = "Second helper"
+session = "Second session"
 state = "needs-you"
 say = "It needs an answer. Its key pulses amber."
 
@@ -124,13 +130,13 @@ say = "You press the key. It carries on."
 
 [[demo.step]]
 at = 12.4
-session = "Second helper"
+session = "Second session"
 state = "done"
 say = "It finishes. Green, then it fades."
 
 [[demo.step]]
 at = 15.2
-session = "First helper"
+session = "First session"
 state = "failed"
 say = "The other hits a problem. Red, until you have seen it."
 
@@ -146,9 +152,10 @@ say = "Nothing is waiting, so the keyboard goes back to normal."
 
 [sections]
 devices_eyebrow = "The catalog"
-devices_title = "Devices with a label"
-devices_lede = "The bar shows how much of each label has been checked on a real device."
-devices_more = "All devices"
+devices_title = "Devices with a card"
+devices_lede = "The bar shows how much of each card has been checked on a real device."
+devices_more = "Browse all {count}"
+devices_shown = 8
 devices_add = "Add yours"
 questions_eyebrow = "Questions"
 questions_title = "Fair things to ask"
@@ -157,37 +164,98 @@ start_lede = "It builds with Rust and needs no account. The first command works 
 replay = "Replay"
 
 [[question]]
-ask = "Does this let an AI control my computer?"
-answer = "It lets an AI ask. A small program on your own computer decides, using each device's label. Some things it will only ever explain how to do yourself."
+ask = "Does this let Claude Code or Codex control my computer?"
+answer = "Yes. That is what it is for: the computer itself and what is attached to it, such as the battery, the screen, the keyboard, the mouse and your drives. What changes is how. The agent does not make up commands; it works from each device's card, where every ability has a label. Reading is always allowed. Small changes can be put back at once. Changes that could get in your way go back unless you keep them. The few that cannot be undone are left to you."
 
 [[question]]
 ask = "What can it do right now?"
-answer = "It finds what is attached to your computer and matches it to a label. It fully runs one keyboard from its label: the lights, the key presses, and AI helpers on spare keys. For the other devices here the labels are written and checked by hand, and the part that acts on them comes next."
+answer = "It finds what is attached to your computer and which card describes it, and any agent can ask with `hardpoint inventory`. It fully runs one keyboard from its card: the lights, the key presses, and agent sessions on spare keys. So far it reads, and makes changes that can be put back. For the other devices the cards are written and checked by hand; acting on them, and the keep-or-go-back step, come next."
+
+[[question]]
+ask = "Which agents does it work with?"
+answer = "Any that can run a command. The cards are plain files an agent can read, and `hardpoint inventory` tells it which ones apply to this computer. Session lights follow OpenCode by themselves. Claude Code, Codex and others can report in from their hooks with `hardpoint emit`; only OpenCode has been tried so far."
+
+[[question]]
+ask = "What stops it doing something I did not want?"
+answer = "Three things. A card holds only information, never a command, so nothing in the catalog can run on your computer. Every ability has a lowest label it can ever be given, so a card cannot pass off a risky change as a harmless one. And anything that cannot be undone is never done by software: Hardpoint explains the steps, and you take them."
 
 [[question]]
 ask = "Is it watching what I type?"
-answer = "To let you answer with a spare key, it sees which key went down. It does not keep what you type."
+answer = "To let you answer with a spare key, it sees which key went down. It does not keep what you type. It keeps a count per key only if you turn that on."
 
 [[question]]
 ask = "Does anything leave my computer?"
-answer = "No. There is no account and no server."
+answer = "No. There is no account and no server. The catalog is a set of files, and the program listens only on your own computer."
 
 [[question]]
 ask = "Will it work with my devices?"
-answer = "Only if they have a label, and few do yet. A label is one small file, and adding one takes a few minutes."
+answer = "If they have a card. A card is one small file: paste one prompt into Claude Code or Codex and it writes the card with you in a few minutes."
+
+# The catalog page. Each facet is worked out from the cards, so a new card,
+# kind or maker appears by itself. A facet with fewer than `min_options`
+# choices is left out.
+[catalog]
+search = "Search devices, makers and abilities"
+filters = "Filters"
+clear = "Clear"
+found = "{n} of {total} devices"
+none = "No device matches."
+none_link = "Add yours"
+sort = "Sort by"
+min_options = 2
+
+[[catalog.sort_by]]
+key = "checked"
+text = "Most checked"
+
+[[catalog.sort_by]]
+key = "name"
+text = "Name"
+
+[[catalog.sort_by]]
+key = "abilities"
+text = "Most abilities"
+
+[[catalog.facet]]
+key = "kind"
+title = "Kind"
+
+[[catalog.facet]]
+key = "can"
+title = "Can do"
+
+[[catalog.facet]]
+key = "label"
+title = "Label"
+
+[[catalog.facet]]
+key = "checked"
+title = "Checked"
+
+[[catalog.facet]]
+key = "maker"
+title = "Maker"
+
+[[catalog.facet]]
+key = "bus"
+title = "Connects by"
+
+[[catalog.facet]]
+key = "platform"
+title = "Checked on"
 
 # The page that asks people to add their own devices.
 [add]
 title = "Add your device"
-lede = "A label is one small file. You do not need to write code, and nothing is changed on your device."
-ai_title = "The quick way: give this to an AI coding assistant"
-ai_lede = "Paste it into the assistant you already use. It will look at what is plugged in, ask which device you mean, and write the label with you."
+lede = "A card is one small file. You do not need to write code, and nothing is changed on your device."
+ai_title = "The quick way: paste this into Claude Code or Codex"
+ai_lede = "Any coding agent will do. It looks at what is plugged in, asks which device you mean, and writes the card with you."
 copy = "Copy"
 copied = "Copied"
 hand_title = "Or by hand"
-rules_title = "What makes a good label"
+rules_title = "What makes a good card"
 issue_title = "Short on time?"
-issue_text = "Tell us what you have and paste what the script printed. Someone else can write the label."
+issue_text = "Tell us what you have and paste what the script printed. Someone else can write the card."
 issue_link = "Open a device request"
 
 [[add.step]]
@@ -195,11 +263,11 @@ say = "Get the files"
 run = "git clone {repo} && cd hardpoint"
 
 [[add.step]]
-say = "See what is plugged in, and what has no label yet"
+say = "See what is plugged in, and what has no card yet"
 run = "python3 tools/observe.py"
 
 [[add.step]]
-say = "Start a label for one of them"
+say = "Start a card for one of them"
 run = "python3 tools/observe.py --draft 3"
 
 [[add.step]]
@@ -217,7 +285,7 @@ text = "Only say `observed` for something you ran and saw work. Otherwise say `u
 text = "Use words from the shared list. If one is missing, add it in the same change."
 
 [[add.rule]]
-text = "A label is information only. It can never contain a command."
+text = "A card is information only. It can never contain a command."
 
 [[add.rule]]
 text = "Write from what you see and from documentation. Do not copy another project's data files."

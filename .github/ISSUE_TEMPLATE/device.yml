@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you. If you would rather add it yourself, CONTRIBUTING.md has a prompt you can paste into an AI coding assistant.
+        Thank you. If you would rather add it yourself, CONTRIBUTING.md has a prompt you can paste into Claude Code, Codex or any coding agent.
   - type: input
     id: device
     attributes:
@@ -25,7 +25,7 @@ body:
   - type: textarea
     id: abilities
     attributes:
-      label: What would you want an AI to read or change on it?
+      label: What would you want an agent to read or change on it?
       description: In everyday words. For example "tell me the battery level" or "dim it".
   - type: input
     id: system

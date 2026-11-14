@@ -7,12 +7,12 @@
 
 <h1 align="center">Hardpoint</h1>
 
-<p align="center"><b>Your AI knows the internet. It doesn't know your desk.</b></p>
+<p align="center"><b>Let Claude Code and Codex control your devices. You stay in charge.</b></p>
 
 <p align="center">
   <a href="https://dotcipher.github.io/hardpoint/">Site</a> ·
   <a href="#what-it-is">What it is</a> ·
-  <a href="#why-not-just-ask-an-ai">Why not just ask an AI?</a> ·
+  <a href="#why-not-let-the-agent-work-it-out">Why not let the agent work it out?</a> ·
   <a href="#the-four-labels">The four labels</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="#add-a-device">Add a device</a> ·
@@ -26,12 +26,12 @@
 
 ## What it is
 
-Ask an AI to dim your screen and it has to guess how. Hardpoint hands it a
-label for that exact device: what it can read, what it may change, and what
-it must leave to you.
+Agents like Claude Code and Codex already work in your files and your
+terminal. Hardpoint adds your devices: a checked card for each one says what
+an agent can read, what it may change, and what stays with you.
 
 The name comes from engineering. A hardpoint is the reinforced, load-rated
-spot on a vehicle where equipment is allowed to attach. A device's label is
+spot on a vehicle where equipment is allowed to attach. A device's card is
 the same idea: the places software may attach, each rated for what it can
 safely carry.
 
@@ -41,37 +41,38 @@ safely carry.
 | **The daemon** | Runs on your computer and is the only thing that touches hardware. Everything it knows about a device comes from that device's card. |
 | **The site** | Generated from the catalog, with a machine-readable feed for any tool. |
 
-A label works both ways. The first thing built on it lets your devices reach
+A card works both ways. The first thing built on it lets your devices reach
 you: agent sessions shown on keyboard keys you never use. Each session gets a
 key, the colour is its state, and pressing the key runs an action of your own
 for that session.
 
-## Why not just ask an AI?
+## Why not let the agent work it out?
 
-An AI that can run commands on your computer can already try to control your
-devices. This is what changes when it reads a label first.
+Claude Code, Codex or any LLM with a terminal can already try to control a
+device: it searches, writes a command and runs it. This is what changes with
+Hardpoint.
 
-| | A standard AI | With Hardpoint |
+| | Claude Code, Codex or any LLM agent | The same agent, with Hardpoint |
 |---|---|---|
-| **Knowing your device** | Searches for how your device works, then guesses. It may find the wrong model. | Reads a label written for that exact model. |
-| **Knowing the risk** | Reading a battery and replacing firmware look the same to it: a command to run. | Every ability is rated before anyone asks, with one of four labels. |
-| **Proof** | Tells you it worked. You cannot check. | Each claim says whether a person tested it on a real device, and links to the record. |
-| **Touching the device** | Runs whatever commands it came up with, with your permissions. | A label holds no commands. Only Hardpoint's own program ever touches a device. |
+| **Knowing your device** | Has never seen your exact device. It searches, then works from whatever it finds. | Reads a card written for that exact model. |
+| **Knowing the risk** | Reading a battery and replacing firmware look the same to it: a command to run. | Every ability on a card has one of four labels, set before anyone asks. |
+| **Proof** | Reports what it did. Nothing says whether that was ever checked on your model. | Each claim on a card says whether a person tested it on a real device, and links to the record. |
+| **Touching the device** | Writes its own commands and runs them as you. | A card holds no commands. Only Hardpoint's own program ever touches a device. |
 | **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. The riskiest are left to you. |
-| **What it learns** | Gone when the chat ends. The next AI works it out again. | A label is checked once and shared. Everyone with that device gets it, for any AI. |
+| **What it learns** | Gone when the session ends. The next agent works it out again. | A card is checked once and shared. Everyone with that device gets it, in any agent. |
 
-That table describes the labels. [What runs today](#what-runs-today) says
-how much of it the program acts on so far.
+That table describes the cards. [What runs today](#what-runs-today) says how
+much of it the program acts on so far.
 
 ## The four labels
 
-Every ability a device has gets one of four labels.
+Every ability on a card gets one of four labels.
 
 <p align="center">
   <img src="assets/ladder.svg" width="820" alt="The four risk levels: read, reversible, guarded and gated, each with its meaning">
 </p>
 
-| Label | What happens when an AI asks |
+| Label | What happens when an agent asks |
 |---|---|
 | `read` | It looks, and tells you. |
 | `reversible` | It makes the change, and can put it back. |
@@ -131,10 +132,10 @@ no keys.
 
 ## Add a device
 
-A label is one small file. Adding one needs no code and changes nothing on
+A card is one small file. Adding one needs no code and changes nothing on
 your device.
 
-**With an AI coding assistant:** open the
+**With Claude Code, Codex or any coding agent:** open the
 [Add a device](https://dotcipher.github.io/hardpoint/add.html) page, press
 Copy, and paste. The prompt has it list what is plugged in, ask which device
 you mean, and write the card with you.

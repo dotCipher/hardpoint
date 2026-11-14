@@ -1,7 +1,8 @@
 /* Hardpoint. One idea runs through everything: a mounting plate. Panels have
    four fixing holes, the page sits on a pegboard, and colour means the four
    labels: green read, blue reversible, amber guarded, red gated. The page
-   follows the visitor's light or dark setting.
+   follows the visitor's light or dark setting. A device has a card; each
+   ability on it has a label.
 
    One rule for anything that moves: it may change colour or fade, but it may
    not change size. Boxes whose words change hold the size of their longest
@@ -294,6 +295,38 @@ pre{background:var(--well);border:1px solid var(--line);border-radius:10px;paddi
 .value{font-family:var(--mono);font-size:.9em;color:var(--muted);min-width:9em;min-height:1.6em}
 .value b{color:var(--text)}
 
+/* the catalog: ways to narrow it beside the devices */
+.catalog{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:28px}
+.facets{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:4px 18px}
+.facets[hidden]{display:none}
+.facets summary{cursor:pointer;padding:10px 0;font-weight:600}
+.facet{padding:12px 0 10px;border-top:1px dashed var(--line)}
+.facet-title{margin:0 0 6px;font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.opt{display:flex;align-items:center;gap:9px;padding:3px 0;cursor:pointer;font-size:.94em}
+.opt input{flex:none;width:16px;height:16px;margin:0;accent-color:var(--accent)}
+.opt span{flex:1;min-width:0}
+.opt span::first-letter{text-transform:uppercase}
+.opt b{font-weight:400;color:var(--muted);font-size:.86em;min-width:1.8em;text-align:right;font-variant-numeric:tabular-nums}
+.opt.off{opacity:.38;cursor:default}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.toolbar input[type=search]{flex:1 1 240px;width:auto;margin:0}
+.sort{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.9em;white-space:nowrap}
+select{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.found{display:flex;align-items:center;gap:10px;min-height:36px;margin:14px 0;color:var(--muted);font-size:.92em}
+.found span{margin-right:auto}
+.found [hidden]{display:none}
+.card[hidden]{display:none}
+.none{margin:6px 0 0;color:var(--muted)}
+.catalog .cards{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.tally a{text-decoration:none;color:inherit}
+.tally a:hover{color:var(--text)}
+@media (min-width:900px){
+  .catalog{grid-template-columns:232px minmax(0,1fr);gap:28px;align-items:start}
+  .facets{position:sticky;top:78px;max-height:calc(100vh - 96px);overflow-y:auto}
+  .facets summary{display:none}
+  .facet:first-of-type{border-top:0}
+}
+
 /* tables and lists on the reference pages */
 input[type=search]{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:11px 14px;border-radius:10px;font:inherit;margin:0 0 14px}
 .tablebox{border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;background:var(--panel)}
@@ -321,6 +354,7 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88em;paddi
   .drawings{height:140px}.drawing{max-height:124px}
   .stage{padding:18px 16px 16px}.stage-top{gap:8px}.stage-top .btn.small{padding:6px 9px}.stage-top .btn.fixed{min-width:4.2em}
   section{padding-top:60px}
+  .facet{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}.facet-title{grid-column:1/-1}
   .versus{padding:4px 22px}.vs-head{display:none}
   .vs-row{grid-template-columns:minmax(0,1fr)}.vs-row:nth-child(2){border-top:0}
   .vs-row p::before{content:attr(data-label);display:block;font-size:.8em;color:var(--muted)}

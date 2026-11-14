@@ -7,11 +7,12 @@
 
 <h1 align="center">Hardpoint</h1>
 
-<p align="center"><b>A safety label for everything your AI can touch.</b></p>
+<p align="center"><b>Your AI knows the internet. It doesn't know your desk.</b></p>
 
 <p align="center">
   <a href="https://dotcipher.github.io/hardpoint/">Site</a> ·
   <a href="#what-it-is">What it is</a> ·
+  <a href="#why-not-just-ask-an-ai">Why not just ask an AI?</a> ·
   <a href="#the-four-labels">The four labels</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="#add-a-device">Add a device</a> ·
@@ -25,9 +26,9 @@
 
 ## What it is
 
-AI helpers are starting to do things, not just answer questions. Hardpoint
-gives each device a label: what an AI may read, what it may change, and what
-only you can do.
+Ask an AI to dim your screen and it has to guess how. Hardpoint hands it a
+label for that exact device: what it can read, what it may change, and what
+it must leave to you.
 
 The name comes from engineering. A hardpoint is the reinforced, load-rated
 spot on a vehicle where equipment is allowed to attach. A device's label is
@@ -40,9 +41,27 @@ safely carry.
 | **The daemon** | Runs on your computer and is the only thing that touches hardware. Everything it knows about a device comes from that device's card. |
 | **The site** | Generated from the catalog, with a machine-readable feed for any tool. |
 
-The first thing built on it: agent sessions shown on keyboard keys you never
-use. Each session gets a key, the colour is its state, and pressing the key
-runs an action of your own for that session.
+A label works both ways. The first thing built on it lets your devices reach
+you: agent sessions shown on keyboard keys you never use. Each session gets a
+key, the colour is its state, and pressing the key runs an action of your own
+for that session.
+
+## Why not just ask an AI?
+
+An AI that can run commands on your computer can already try to control your
+devices. This is what changes when it reads a label first.
+
+| | A standard AI | With Hardpoint |
+|---|---|---|
+| **Knowing your device** | Searches for how your device works, then guesses. It may find the wrong model. | Reads a label written for that exact model. |
+| **Knowing the risk** | Reading a battery and replacing firmware look the same to it: a command to run. | Every ability is rated before anyone asks, with one of four labels. |
+| **Proof** | Tells you it worked. You cannot check. | Each claim says whether a person tested it on a real device, and links to the record. |
+| **Touching the device** | Runs whatever commands it came up with, with your permissions. | A label holds no commands. Only Hardpoint's own program ever touches a device. |
+| **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. The riskiest are left to you. |
+| **What it learns** | Gone when the chat ends. The next AI works it out again. | A label is checked once and shared. Everyone with that device gets it, for any AI. |
+
+That table describes the labels. [What runs today](#what-runs-today) says
+how much of it the program acts on so far.
 
 ## The four labels
 

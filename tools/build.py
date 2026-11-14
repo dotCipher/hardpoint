@@ -482,7 +482,7 @@ def site_mark():
     )
 
 
-def drawing(card):
+def drawing(card, label):
     """A simple picture of a device, chosen by what kind of thing it is.
 
     Every picture has the same two hooks: `glow` outlines light up while
@@ -490,7 +490,8 @@ def drawing(card):
     """
     kind = card["device"]["kind"]
     if card.get("keys"):
-        return board_svg(card, "drawing", lamp=len(card["keys"]["grid"]) // 2)
+        picture = board_svg(card, "drawing", lamp=len(card["keys"]["grid"]) // 2)
+        return re.sub(r'aria-label="[^"]*"', f'aria-label="{e(label)}"', picture, count=1)
     shapes = {
         "mouse": '<rect class="glow" x="110" y="14" width="100" height="172" rx="50"/>'
                  '<line class="glow thin" x1="160" y1="14" x2="160" y2="82"/>'
@@ -513,7 +514,7 @@ def drawing(card):
     body = shapes.get(kind, '<rect class="glow" x="56" y="62" width="208" height="76" rx="14"/>'
                             '<path class="glow thin" d="M82 114 H102 M116 114 H136 M150 114 H170"/>'
                             '<circle class="lamp" cx="238" cy="86" r="5"/>')
-    return f'<svg class="drawing kind-{e(kind)}" viewBox="0 0 320 200" role="img" aria-label="{e(card["device"]["name"])}">{body}</svg>'
+    return f'<svg class="drawing kind-{e(kind)}" viewBox="0 0 320 200" role="img" aria-label="{e(label)}">{body}</svg>'
 
 
 def how_to_show(word):
@@ -574,22 +575,26 @@ Product names belong to their owners; this project is not affiliated with them.<
                 f'<span class="counts">{e(summary)}</span><div class="riskdots">{risks}</div></a>')
 
     def scene_data(self):
-        """One scene per device, made from its card, using only the abilities
-        people would ask for in everyday words. Nothing here knows any device by name."""
-        devices = []
+        """One scene per kind of device, made from the cards of that kind, using
+        only the abilities people would ask for in everyday words. The cards
+        with the most checked are read first, and an ability is shown once.
+        Nothing here knows any device by name."""
+        names = self.t["scenes"].get("kinds", {})
+        kinds = {}
         for card in self.cards:
-            caps = []
+            kind = card["device"]["kind"]
+            scene = kinds.setdefault(kind, {"card": card["device"]["id"], "name": names.get(kind, kind), "caps": [], "ids": set()})
             for cap in card["capability"]:
                 word = self.c.vocabulary[cap["id"]]
-                if not word.get("ask"):
+                if not word.get("ask") or cap["id"] in scene["ids"]:
                     continue
-                caps.append({
+                scene["ids"].add(cap["id"])
+                scene["caps"].append({
                     "ask": word["ask"], "risk": cap["risk"], "does": self.risk[cap["risk"]]["does"],
                     "show": how_to_show(word), "after": word["example"], "before": word.get("example_before", ""),
                     "swatch": word.get("swatch", ""), "harm": word.get("harm", ""), "status": self.c.best_status(cap),
                 })
-            if caps:
-                devices.append({"card": card["device"]["id"], "name": card["device"]["name"], "kind": card["device"]["kind"], "caps": caps})
+        devices = [{k: v for k, v in scene.items() if k != "ids"} for scene in kinds.values() if scene["caps"]]
         s = self.t["scenes"]
         return {"devices": devices, "words": {k: s[k] for k in ("pause", "play", "kept", "undone")}}
 
@@ -638,14 +643,16 @@ Product names belong to their owners; this project is not affiliated with them.<
         scenes, whys = self.scene_data(), self.why_data()
         caps = [cap for card in c.cards for cap in card["capability"]]
         pills = "".join(f'<button class="pill" type="button" role="tab" aria-selected="false">{e(d["name"])}</button>' for d in scenes["devices"])
-        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(c.card(d["card"]))}</div>' for d in scenes["devices"])
+        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(c.card(d["card"]), d["name"])}</div>' for d in scenes["devices"])
         label_cards = "".join(
             f'<div class="plate label" style="--c:var(--{risk})"><span class="swatchbar"></span><h3>{e(risk)}</h3>'
             f'<p class="does">{e(term["does"])}</p><p class="tally"><b>{sum(1 for cap in caps if cap["risk"] == risk)}</b> {e(labels["count"])}</p></div>'
             for risk, term in self.risk.items())
+        versus = "".join(
+            f'<div class="vs-row"><h3>{e(row["topic"])}</h3><p class="without" data-label="{e(why["without"])}">{e(row["without"])}</p>'
+            f'<p class="with" data-label="{e(why["with"])}">{e(row["with"])}</p></div>' for row in why["row"])
         why_pills = "".join(f'<button class="pill" type="button" aria-pressed="false">{e(i["ask"])}</button>' for i in whys["items"])
         questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{e(q["answer"])}</p></details>' for q in t["question"])
-        ticks = lambda items, cls: f'<ul class="ticks {cls}">' + "".join(f"<li>{inline_code(i['text'])}</li>" for i in items) + "</ul>"
         legend = "".join(f'<span><i style="background:var(--{k})"></i>{e(v)}</span>'
                          for k, v in (("reversible", "working"), ("guarded", "needs you"), ("read", "done"), ("gated", "problem")))
         body = f"""
@@ -655,8 +662,7 @@ Product names belong to their owners; this project is not affiliated with them.<
     <p class="eyebrow">{e(t["eyebrow"])}</p>
     <h1>{e(t["tagline"])}</h1>
     <p class="lede">{e(t["lede"])}</p>
-    <div class="cta"><a class="btn primary" href="#why">{e(why["eyebrow"])}</a><a class="btn" href="add.html">{e(t["nav"]["add"])}</a></div>
-    <p class="early"><span class="dot"></span>{e(t["early"])} <a href="#status">{e(t["early_link"])}</a></p>
+    <div class="cta"><a class="btn primary" href="#why">{e(t["cta"])}</a><a class="btn" href="add.html">{e(t["nav"]["add"])}</a></div>
   </div>
   <div class="plate stage scenes" id="scenes">
     <div class="stage-top"><h3>{e(s["title"])}</h3>
@@ -679,6 +685,8 @@ Product names belong to their owners; this project is not affiliated with them.<
 
 <section id="why">
   <div class="sec-head"><p class="eyebrow">{e(why["eyebrow"])}</p><h2>{e(why["title"])}</h2><p class="lede">{e(why["lede"])}</p></div>
+  <div class="plate versus"><div class="vs-row vs-head"><span>{e(why["topic"])}</span><span>{e(why["without"])}</span><span>{e(why["with"])}</span></div>{versus}</div>
+  <h3 class="try">{e(why["try"])}</h3>
   <div class="pills wide" id="why-pills">{why_pills}</div>
   <div class="cols compare">
     <div class="plate pad bad"><h3>{e(why["without"])}</h3><p class="does">{e(why["without_does"])}</p><p class="harm" id="why-harm"></p></div>
@@ -714,13 +722,6 @@ Product names belong to their owners; this project is not affiliated with them.<
   <div class="qs">{questions}</div>
 </section>
 
-<section id="status">
-  <div class="sec-head"><p class="eyebrow">{e(sec["status_eyebrow"])}</p><h2>{e(sec["status_title"])}</h2></div>
-  <div class="cols">
-    <div class="plate pad"><h3>{e(sec["built_label"])}</h3>{ticks(t["status"]["built"], "built")}</div>
-    <div class="plate pad"><h3>{e(sec["next_label"])}</h3>{ticks(t["status"]["next"], "")}</div>
-  </div>
-</section>
 </div>"""
         demo_data = {"slots": demo["slots"], "loop": demo["loop_secs"], "pressed": demo["pressed"], "steps": demo["step"]}
         scripts = "".join(f'<script type="application/json" id="{name}">{json.dumps(value)}</script>'

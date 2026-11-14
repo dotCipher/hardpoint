@@ -3,11 +3,10 @@
 # script.
 
 name = "Hardpoint"
-tagline = "A safety label for everything your AI can touch."
-eyebrow = "Open · runs on your own computer"
-lede = "Each device gets a label: what an AI may read, what it may change, and what only you can do."
-early = "Early project. Today it fully runs one keyboard on a Mac."
-early_link = "What works"
+tagline = "Your AI knows the internet. It doesn't know your desk."
+eyebrow = "Open catalog · runs on your own computer"
+lede = "Ask an AI to dim your screen and it has to guess how. Hardpoint hands it a label for that exact device: what it can read, what it may change, and what it must leave to you."
+cta = "See the difference"
 
 [nav]
 devices = "Devices"
@@ -15,11 +14,11 @@ how = "How it works"
 add = "Add a device"
 builders = "For builders"
 
-# The moving pictures at the top. One is made for every device in the
-# catalog from that device's own card; nothing here names a device.
+# The moving pictures at the top. One is made for each kind of device in the
+# catalog, from the cards of that kind; nothing here names a device.
 [scenes]
 title = "Ask about a device"
-caption = "Made from each device's label. The answers are examples, not readings from your computer."
+caption = "Made from the labels in the catalog. The answers are examples, not readings from your computer."
 you = "You ask"
 next = "Next"
 pause = "Pause"
@@ -30,16 +29,57 @@ kept = "Kept."
 undone = "Put back."
 waiting = "Keep this change?"
 
+# What a kind of device is called in the scenes. A kind that is not listed
+# here is shown under its own name.
+[scenes.kinds]
+display = "screen"
+audio = "headphones"
+storage = "external drive"
+
+# What changes when an AI has a label to read. Each row is true of the
+# labels themselves, whatever program reads them.
 [why]
-eyebrow = "Why it matters"
-title = "The same request, with and without a label"
-lede = "A helpful AI does exactly what it was asked. Sometimes that is the problem."
-without = "Without a label"
-without_does = "The AI does it straight away."
+eyebrow = "The difference"
+title = "Why not just ask an AI?"
+lede = "An AI that can run commands on your computer can already try to control your devices. This is what changes when it reads a label first."
+topic = "What matters"
+without = "A standard AI"
 with = "With Hardpoint"
+try = "Try a risky request"
+without_does = "It does it straight away."
 proof = "It happens. One person asked a voice assistant to \"turn off the office\", meaning the lights, and it also cut power to his server rack."
 proof_link = "His write-up"
 proof_url = "https://www.joekarlsson.com/blog/local-voice-ai-home-assistant-gpu/"
+
+[[why.row]]
+topic = "Knowing your device"
+without = "Searches for how your device works, then guesses. It may find the wrong model."
+with = "Reads a label written for that exact model."
+
+[[why.row]]
+topic = "Knowing the risk"
+without = "Reading a battery and replacing firmware look the same to it: a command to run."
+with = "Every ability is rated before anyone asks, with one of the four labels below."
+
+[[why.row]]
+topic = "Proof"
+without = "Tells you it worked. You cannot check."
+with = "Each claim says whether a person tested it on a real device, and links to the record."
+
+[[why.row]]
+topic = "Touching the device"
+without = "Runs whatever commands it came up with, with your permissions."
+with = "A label holds no commands. Only Hardpoint's own program ever touches a device."
+
+[[why.row]]
+topic = "When it goes wrong"
+without = "If a change locks you out, you are on your own."
+with = "A risky change is labelled to go back by itself unless you keep it. The riskiest are left to you."
+
+[[why.row]]
+topic = "What it learns"
+without = "Gone when the chat ends. The next AI works it out again."
+with = "A label is checked once and shared. Everyone with that device gets it, for any AI."
 
 [labels]
 eyebrow = "How it works"
@@ -52,28 +92,28 @@ count = "in the catalog"
 [demo]
 card = "zsa/moonlander-mk1"
 config = "examples/moonlander.toml"
-eyebrow = "Working today"
-title = "See which AI helper needs you"
-lede = "Each helper gets a spare key on the keyboard. Press the key to answer."
-caption = "A replay of something that runs today on one keyboard. You can click a lit key."
+eyebrow = "More than answers"
+title = "Your devices can reach you, too"
+lede = "A label works both ways. Here each AI helper gets a spare key: it lights up when the helper needs you, and a press is your answer."
+caption = "A replay of Hardpoint running a real keyboard from its label. You can click a lit key."
 loop_secs = 25
 pressed = "You pressed the key. That helper has its answer."
 
 [[demo.step]]
 at = 0.8
-session = "Refactor"
+session = "First helper"
 state = "running"
 say = "A helper starts work. Its key turns blue."
 
 [[demo.step]]
 at = 3.0
-session = "Tests"
+session = "Second helper"
 state = "running"
 say = "A second helper takes the next key."
 
 [[demo.step]]
 at = 5.4
-session = "Tests"
+session = "Second helper"
 state = "needs-you"
 say = "It needs an answer. Its key pulses amber."
 
@@ -84,13 +124,13 @@ say = "You press the key. It carries on."
 
 [[demo.step]]
 at = 12.4
-session = "Tests"
+session = "Second helper"
 state = "done"
 say = "It finishes. Green, then it fades."
 
 [[demo.step]]
 at = 15.2
-session = "Refactor"
+session = "First helper"
 state = "failed"
 say = "The other hits a problem. Red, until you have seen it."
 
@@ -112,10 +152,6 @@ devices_more = "All devices"
 devices_add = "Add yours"
 questions_eyebrow = "Questions"
 questions_title = "Fair things to ask"
-status_eyebrow = "Status"
-status_title = "What works today"
-built_label = "Works"
-next_label = "Planned"
 start_title = "Run it"
 start_lede = "It builds with Rust and needs no account. The first command works with no supported hardware attached."
 replay = "Replay"
@@ -123,6 +159,10 @@ replay = "Replay"
 [[question]]
 ask = "Does this let an AI control my computer?"
 answer = "It lets an AI ask. A small program on your own computer decides, using each device's label. Some things it will only ever explain how to do yourself."
+
+[[question]]
+ask = "What can it do right now?"
+answer = "It finds what is attached to your computer and matches it to a label. It fully runs one keyboard from its label: the lights, the key presses, and AI helpers on spare keys. For the other devices here the labels are written and checked by hand, and the part that acts on them comes next."
 
 [[question]]
 ask = "Is it watching what I type?"
@@ -135,30 +175,6 @@ answer = "No. There is no account and no server."
 [[question]]
 ask = "Will it work with my devices?"
 answer = "Only if they have a label, and few do yet. A label is one small file, and adding one takes a few minutes."
-
-[[status.built]]
-text = "The catalog, and this site made from it"
-
-[[status.built]]
-text = "Finding what is attached and matching it to a label"
-
-[[status.built]]
-text = "One keyboard run entirely from its label"
-
-[[status.built]]
-text = "AI helpers shown on spare keys, answered with a press"
-
-[[status.next]]
-text = "Real answers from the mouse, laptop and screen. So far those were read by hand"
-
-[[status.next]]
-text = "\"Keep this change?\" with an automatic undo"
-
-[[status.next]]
-text = "A standard connection, so any AI assistant can use it"
-
-[[status.next]]
-text = "Linux and Windows"
 
 # The page that asks people to add their own devices.
 [add]

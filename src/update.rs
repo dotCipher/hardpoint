@@ -293,8 +293,28 @@ pub fn service(action: &str) -> Result<String> {
             };
             std::fs::write(&unit, text).with_context(|| format!("writing {}", unit.display()))?;
             let started = if mac {
-                let _ = run("launchctl", &["bootout", &format!("{}/{LABEL}", user()?)]);
-                run("launchctl", &["bootstrap", &user()?, &unit.to_string_lossy()])?
+                // Stop any earlier copy and wait until it is really gone, then start this one.
+                // Whether it started is judged by asking, not by what the command returned.
+                let target = format!("{}/{LABEL}", user()?);
+                let loaded = || run("launchctl", &["print", &target]).unwrap_or(false);
+                let pause = |ms| std::thread::sleep(std::time::Duration::from_millis(ms));
+                let _ = run("launchctl", &["bootout", &target]);
+                for _ in 0..25 {
+                    if !loaded() {
+                        break;
+                    }
+                    pause(200);
+                }
+                let mut started = false;
+                for _ in 0..3 {
+                    let _ = run("launchctl", &["bootstrap", &user()?, &unit.to_string_lossy()]);
+                    pause(600);
+                    if loaded() {
+                        started = true;
+                        break;
+                    }
+                }
+                started
             } else {
                 run("systemctl", &["--user", "daemon-reload"])? && run("systemctl", &["--user", "enable", "--now", "hardpoint"])?
             };

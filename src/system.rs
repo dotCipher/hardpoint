@@ -10,7 +10,8 @@
 
 use crate::catalog::Observation;
 use serde_json::{json, Map, Value};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::Duration;
 
 /// The reports macOS can be asked for, by the name a card uses for them.
 const REPORTS: [(&str, &str); 5] = [
@@ -24,9 +25,36 @@ const REPORTS: [(&str, &str); 5] = [
 /// Fields that would identify one unit or one person. Never passed on.
 const PRIVATE: [&str; 5] = ["serial", "address", "uuid", "lot", "location"];
 
+/// Run one of the system's own tools and return what it printed. If it has
+/// not answered in ten seconds it is stopped: a tool that is waiting for a
+/// permission nobody can see must not hold the daemon up.
 fn output(program: &str, args: &[&str]) -> Result<String, String> {
-    let out = Command::new(program).args(args).output().map_err(|e| format!("could not run {program}: {e}"))?;
-    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    use std::io::Read;
+    let mut child = Command::new(program)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("could not run {program}: {e}"))?;
+    let mut pipe = child.stdout.take().ok_or("could not read from the system tool")?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut text = String::new();
+        let _ = pipe.read_to_string(&mut text);
+        let _ = tx.send(text);
+    });
+    match rx.recv_timeout(Duration::from_secs(10)) {
+        Ok(text) => {
+            let _ = child.wait();
+            Ok(text)
+        }
+        Err(_) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            Err("macOS did not answer in time. When Hardpoint runs as a login service, reading an external drive needs permission for removable volumes: System Settings, Privacy & Security, Files and Folders".to_string())
+        }
+    }
 }
 
 fn report(kinds: &[&str]) -> Result<Value, String> {

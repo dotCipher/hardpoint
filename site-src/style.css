@@ -287,6 +287,13 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 .label .tally{margin:0;color:var(--muted);font-size:.84em}
 .label .tally b{color:var(--text);font-size:1.15em}
 
+/* what people do with it */
+.cards.uses{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.use{padding:26px 24px 22px}
+.use .ico{width:26px;height:26px;color:var(--accent);margin-bottom:12px}
+.use h3{margin:0 0 6px}
+.use p{margin:0;color:var(--muted)}
+
 /* device cards */
 .card{display:block;text-decoration:none;padding:26px 22px 20px;transition:border-color .2s,box-shadow .2s}
 .card:hover{border-color:var(--accent);box-shadow:0 20px 54px -36px var(--accent)}

@@ -55,6 +55,9 @@ pub struct Capability {
     pub risk: Risk,
     #[serde(default)]
     pub note: Option<String>,
+    /// Typed values for the adapter: which report, which field. Never a command.
+    #[serde(default)]
+    pub params: BTreeMap<String, toml::Value>,
     #[serde(default)]
     pub verification: Vec<Verification>,
 }
@@ -147,6 +150,7 @@ impl Card {
     }
 }
 
+#[derive(Clone)]
 pub struct Catalog {
     pub root: PathBuf,
     pub cards: Vec<Card>,
@@ -154,10 +158,32 @@ pub struct Catalog {
 }
 
 impl Catalog {
+    /// The catalog, plus the owner's own cards. A card in the owner's folder
+    /// works at once and is never touched by an update; one with the same id
+    /// as a catalog card takes its place. The vocabulary's floors still apply.
+    pub fn load_with_own(root: &Path) -> Result<Catalog> {
+        let mut catalog = Catalog::load(root)?;
+        let own = crate::config::config_dir().join("cards");
+        if own.is_dir() {
+            let mine = Catalog::cards_in(&own)?;
+            catalog.cards.retain(|card| !mine.iter().any(|m| m.device.id == card.device.id));
+            catalog.cards.extend(mine);
+        }
+        Ok(catalog)
+    }
+
     pub fn load(root: &Path) -> Result<Catalog> {
-        let devices = root.join("devices");
+        let cards = Catalog::cards_in(&root.join("devices"))?;
+        let words = root.join("vocabulary").join("capabilities.toml");
+        let text = std::fs::read_to_string(&words).with_context(|| format!("reading {}", words.display()))?;
+        let vocabulary = toml::from_str::<Vocabulary>(&text).with_context(|| format!("in {}", words.display()))?.capability;
+        Ok(Catalog { root: root.to_path_buf(), cards, vocabulary })
+    }
+
+    /// Every card under a folder laid out as `<maker>/<model>.toml`.
+    fn cards_in(devices: &Path) -> Result<Vec<Card>> {
         let mut paths = Vec::new();
-        for vendor in std::fs::read_dir(&devices).with_context(|| format!("reading {}", devices.display()))? {
+        for vendor in std::fs::read_dir(devices).with_context(|| format!("reading {}", devices.display()))? {
             let vendor = vendor?.path();
             if !vendor.is_dir() {
                 continue;
@@ -181,10 +207,7 @@ impl Catalog {
             }
             cards.push(card);
         }
-        let words = root.join("vocabulary").join("capabilities.toml");
-        let text = std::fs::read_to_string(&words).with_context(|| format!("reading {}", words.display()))?;
-        let vocabulary = toml::from_str::<Vocabulary>(&text).with_context(|| format!("in {}", words.display()))?.capability;
-        Ok(Catalog { root: root.to_path_buf(), cards, vocabulary })
+        Ok(cards)
     }
 
     /// Where the catalog is: an explicit path, then `HARDPOINT_CATALOG`, then
@@ -278,7 +301,7 @@ mod tests {
     #[test]
     fn a_label_can_be_made_stricter_but_never_looser() {
         let mut catalog = repo_catalog();
-        let cap = |id: &str, risk| Capability { id: id.into(), adapter: "x".into(), risk, note: None, verification: vec![] };
+        let cap = |id: &str, risk| Capability { id: id.into(), adapter: "x".into(), risk, note: None, params: Default::default(), verification: vec![] };
         // The owner can raise a label, and asking for a lower one changes nothing.
         assert_eq!(catalog.effective_risk(&cap("light.global", Risk::Reversible), Some(Risk::Gated)), Risk::Gated);
         assert_eq!(catalog.effective_risk(&cap("light.global", Risk::Guarded), Some(Risk::Read)), Risk::Guarded);

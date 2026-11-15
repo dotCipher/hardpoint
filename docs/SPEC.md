@@ -141,6 +141,31 @@ The owner of a device can make a label stricter for that device in their own
 configuration. Nothing can make one looser: the gatekeeper takes the strictest
 of the card's label, the vocabulary's floor and the owner's.
 
+## Abilities that need no code
+
+The `macos-system` adapter finds a named field in what macOS reports about a
+device, so a card for something the system already knows about works without
+any new code.
+
+| `source` | What it reads | Example `field` |
+|---|---|---|
+| `power` | the computer's battery | `state_of_charge`, `is_charging`, `cycle_count`, `maximum_capacity` |
+| `bluetooth` | a paired Bluetooth device | `firmware_version`, `battery_level` |
+| `thunderbolt`, `usb`, `displays` | a device on that bus | `switch_version` |
+| `storage` | a drive's own health verdict | `smart_status` |
+| `thermal` | whether heat is limiting the computer | `warning_level` |
+| `audio` | output volume, which can also be set | `output_volume` |
+
+A `field` matches a name in the system's report whatever its spelling:
+`firmware_version` finds `device_firmwareVersion`. If several parts report
+it, such as each earbud and the case, they come back together. A field that
+would identify one unit or one person, such as a serial number or an
+address, is refused by the validator and by the adapter.
+
+The owner's own cards live in `~/.config/hardpoint/cards`, laid out like the
+catalog. They work at once, replace a catalog card with the same id, and are
+never touched by an update. The vocabulary's floors apply to them too.
+
 ## Other standards
 
 **W3C Web of Things.** The site publishes every card as a Thing Model

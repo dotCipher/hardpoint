@@ -1,13 +1,16 @@
 mod board;
 mod catalog;
 mod config;
+mod ddc;
 mod device;
 mod discover;
 mod engine;
 mod gate;
+mod hidpp;
 mod mcp;
 mod model;
 mod source;
+mod system;
 mod telemetry;
 mod update;
 
@@ -134,11 +137,15 @@ enum Command {
     },
     /// Start Hardpoint at login: install, uninstall, restart or status.
     Service { action: String },
+    /// Read one ability of one device, through the running daemon.
+    Read { device: String, capability: String },
+    /// Have the running daemon read the cards again, after adding or changing one.
+    Reload,
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let catalog = || -> Result<Catalog> { Catalog::load(&Catalog::locate(cli.catalog.as_deref())?) };
+    let catalog = || -> Result<Catalog> { Catalog::load_with_own(&Catalog::locate(cli.catalog.as_deref())?) };
     match cli.command {
         Command::Inventory { json } => inventory(&catalog()?, json),
         Command::Run { config, device } => run(&catalog()?, config, device),
@@ -161,6 +168,8 @@ fn main() -> Result<()> {
             println!("{}", update::service(&action)?);
             Ok(())
         }
+        Command::Read { device, capability } => send(Request::Read { device, capability }),
+        Command::Reload => send(Request::Reload),
         Command::Keep { change } => by_a_person(Request::Keep { change }),
         Command::Approve { change } => by_a_person(Request::Approve { change }),
     }
@@ -222,8 +231,42 @@ struct Lights {
     all: Option<Rgb>,
 }
 
-/// The one device this build can reach: the keyboard it is driving.
+/// Read or change an ability the operating system can reach, away from the
+/// keyboard. `seen` is how the device shows up on this computer right now.
+fn through_system(card: &catalog::Card, cap: &catalog::Capability, seen: &[catalog::Observation], change: Option<&Value>) -> Result<Value, String> {
+    let word = |name: &str| cap.params.get(name).and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let number = |name: &str| cap.params.get(name).and_then(|v| v.as_integer()).unwrap_or(-1);
+    let found = seen.iter().find(|s| card.fits(s)).ok_or_else(|| format!("{} is not attached right now", card.device.id))?;
+    let done = |written: Result<(), String>| written.map(|_| Value::Null);
+    match (cap.adapter.as_str(), change) {
+        ("macos-system", Some(value)) => done(system::write(&word("source"), &word("field"), value)),
+        ("macos-system", None) => system::read(&word("source"), &word("field"), found, &[&card.device.name, &found.name]),
+        ("hidpp", Some(value)) => done(hidpp::write(found, &cap.id, number("feature") as u16, value)),
+        ("hidpp", None) => hidpp::read(found, &cap.id, number("feature") as u16),
+        ("ddc-ci", Some(value)) => done(ddc::write(number("vcp"), value)),
+        ("ddc-ci", None) => ddc::read(number("vcp")),
+        (other, _) => Err(format!("this build cannot reach {} on {} yet: the {other} adapter is not written", cap.id, card.device.id)),
+    }
+}
+
+/// Whether this build can act on an ability at all, on this system.
+fn reachable(card: &catalog::Card, cap: &catalog::Capability, driven: &str) -> bool {
+    if card.device.id == driven {
+        return cap.adapter == KEYBOARD_ADAPTER && REACHABLE.contains(&cap.id.as_str());
+    }
+    match cap.adapter.as_str() {
+        "macos-system" => system::supports(cap.params.get("source").and_then(|v| v.as_str()).unwrap_or("")),
+        "hidpp" => hidpp::supports(&cap.id),
+        "ddc-ci" => ddc::supports(cap.params.get("vcp").and_then(|v| v.as_integer()).unwrap_or(-1)),
+        _ => false,
+    }
+}
+
+/// Everything this build can reach: the keyboard it is driving, and what the
+/// operating system reports about the rest.
 struct Reach<'a> {
+    catalog: &'a Catalog,
+    seen: &'a [catalog::Observation],
     board: &'a Board,
     lights: &'a mut Lights,
     firmware: Option<String>,
@@ -242,7 +285,8 @@ fn colour(value: &Value) -> Result<Option<Rgb>, String> {
 impl Target for Reach<'_> {
     fn read(&mut self, device: &str, capability: &str) -> Result<Value, String> {
         if device != self.board.card {
-            return Err(format!("this build cannot reach {device} yet"));
+            let (card, cap) = lookup(self.catalog, device, capability)?;
+            return through_system(card, cap, self.seen, None);
         }
         match capability {
             "light.per_key" => Ok(json!(self.lights.keys.iter().map(|(key, c)| (key.to_string(), c.hex())).collect::<BTreeMap<_, _>>())),
@@ -257,7 +301,8 @@ impl Target for Reach<'_> {
 
     fn write(&mut self, device: &str, capability: &str, value: &Value) -> Result<(), String> {
         if device != self.board.card {
-            return Err(format!("this build cannot reach {device} yet"));
+            let (card, cap) = lookup(self.catalog, device, capability)?;
+            return through_system(card, cap, self.seen, Some(value)).map(|_| ());
         }
         let key = |text: &str| -> Result<u8, String> {
             text.parse::<u8>().ok().filter(|k| self.board.by_index(*k).is_some()).ok_or_else(|| format!("{device} has no key {text}"))
@@ -288,6 +333,12 @@ impl Target for Reach<'_> {
         }
         Ok(())
     }
+}
+
+fn lookup<'a>(catalog: &'a Catalog, device: &str, capability: &str) -> Result<(&'a catalog::Card, &'a catalog::Capability), String> {
+    let card = catalog.card(device).ok_or_else(|| format!("there is no card for {device}"))?;
+    let cap = card.capabilities.iter().find(|c| c.id == capability).ok_or_else(|| format!("the card for {device} lists no {capability}"))?;
+    Ok((card, cap))
 }
 
 /// Lay what an agent asked for over the slots' frame. Slots always show through.
@@ -344,8 +395,7 @@ fn explain(change: gate::Change) -> Value {
 }
 
 /// Every attached device with a card, described for an agent.
-fn devices(catalog: &Catalog, cfg: &Config, driven: &str) -> Result<Value, String> {
-    let seen = discover::observe().map_err(|e| format!("{e:#}"))?;
+fn devices(catalog: &Catalog, cfg: &Config, driven: &str, seen: &[catalog::Observation]) -> Result<Value, String> {
     let mut cards: Vec<&catalog::Card> = catalog.card(driven).into_iter().collect();
     for card in seen.iter().filter_map(|s| catalog.recognise(s)) {
         if !cards.iter().any(|c| c.device.id == card.device.id) {
@@ -368,7 +418,7 @@ fn devices(catalog: &Catalog, cfg: &Config, driven: &str) -> Result<Value, Strin
                         "if_done_carelessly": word.and_then(|w| w.harm.as_deref()),
                         "checked": cap.checked(),
                         "note": cap.note,
-                        "reachable": card.device.id == driven && cap.adapter == KEYBOARD_ADAPTER && REACHABLE.contains(&cap.id.as_str()),
+                        "reachable": reachable(card, cap, driven),
                     })
                 })
                 .collect();
@@ -380,6 +430,10 @@ fn devices(catalog: &Catalog, cfg: &Config, driven: &str) -> Result<Value, Strin
         "values": {
             "light.global": "\"#rrggbb\", or null to clear",
             "light.per_key": "{\"key\": 12, \"color\": \"#rrggbb\"}, with null for the colour to clear that key",
+            "audio.output_volume": "a number from 0 to 100",
+            "display.brightness": "a whole number from 0 to 100",
+            "pointer.dpi": "dots per inch, for example 1000",
+            "scroll.mode": "\"ratchet\" or \"free-spin\"",
         },
         "note": "Only abilities marked reachable can be read or changed by this build. The rest are described so you know what they are and how risky they would be.",
     }))
@@ -391,13 +445,9 @@ fn stricter(cfg: &Config, device: &str, capability: &str) -> Option<catalog::Ris
 }
 
 fn gatekeeper(request: &Request, catalog: &Catalog, cfg: &Config, gate: &mut Gate, reach: &mut Reach, now: Instant) -> Result<Value, String> {
-    let find = |device: &str, capability: &str| {
-        let card = catalog.card(device).ok_or_else(|| format!("there is no card for {device}"))?;
-        let cap = card.capabilities.iter().find(|c| c.id == capability).ok_or_else(|| format!("the card for {device} lists no {capability}"))?;
-        Ok::<_, String>(cap)
-    };
+    let find = |device: &str, capability: &str| lookup(catalog, device, capability).map(|(_, cap)| cap);
     match request {
-        Request::Devices => devices(catalog, cfg, &reach.board.card),
+        Request::Devices => devices(catalog, cfg, &reach.board.card, reach.seen),
         Request::Changes => Ok(json!(gate.changes(now))),
         Request::Read { device, capability } => {
             let cap = find(device, capability)?;
@@ -625,6 +675,53 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             std::thread::sleep(Duration::from_secs(every * 3600));
         });
     }
+    // What is attached, refreshed in the background so nothing slow runs in the loop.
+    let attached: Arc<Mutex<Vec<catalog::Observation>>> = Arc::new(Mutex::new(Vec::new()));
+    {
+        let attached = attached.clone();
+        std::thread::spawn(move || loop {
+            if let (Ok(found), Ok(mut shared)) = (discover::observe(), attached.lock()) {
+                *shared = found;
+            }
+            std::thread::sleep(Duration::from_secs(60));
+        });
+    }
+    // Readings to keep an eye on. One that crosses its line is raised the way
+    // an agent that needs you is, so it lands on a spare key.
+    for watch in cfg.watch.clone() {
+        let (tx, attached, catalog) = (tx.clone(), attached.clone(), catalog.clone());
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(8));
+            loop {
+                let seen = attached.lock().map(|s| s.clone()).unwrap_or_default();
+                let reading = lookup(&catalog, &watch.device, &watch.capability).and_then(|(card, cap)| through_system(card, cap, &seen, None));
+                let session = format!("{} {}", watch.device, watch.capability);
+                let crossed = reading.as_ref().ok().is_some_and(|value| {
+                    // A reading with several parts, such as each earbud, is judged by its lowest.
+                    let lowest = value.as_f64().or_else(|| value.as_object().and_then(|parts| parts.values().filter_map(Value::as_f64).reduce(f64::min)));
+                    watch.below.zip(lowest).is_some_and(|(line, n)| n < line)
+                        || watch.equals.as_ref().is_some_and(|want| serde_json::to_value(want).ok().as_ref() == Some(value))
+                });
+                let event = if crossed {
+                    let said = watch.say.clone().unwrap_or_else(|| format!("{}: {}", watch.device, watch.capability));
+                    BusEvent::Agent(AgentUpdate {
+                        source: "hardpoint".into(),
+                        session,
+                        state: AgentState::NeedsYou,
+                        title: Some(format!("{said} ({})", reading.map(|v| v.to_string()).unwrap_or_default())),
+                        detail: None,
+                        directory: None,
+                    })
+                } else {
+                    BusEvent::Gone { source: "hardpoint".into(), session }
+                };
+                if tx.send(event).is_err() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_secs(watch.every_secs.max(5)));
+            }
+        });
+    }
     let mut reloaded: Option<Catalog> = None;
     let mut reload = false;
     // Which commits the installed catalog and program came from, for `hardpoint status`.
@@ -653,7 +750,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
 
     while !stop.load(Ordering::SeqCst) {
         if std::mem::take(&mut reload) {
-            match Catalog::load(&catalog.root) {
+            match Catalog::load_with_own(&catalog.root) {
                 Ok(fresh) => {
                     eprintln!("catalog reloaded: {} cards", fresh.cards.len());
                     reloaded = Some(fresh);
@@ -663,6 +760,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             }
         }
         let catalog: &Catalog = reloaded.as_ref().unwrap_or(catalog);
+        let seen_now: Vec<catalog::Observation> = attached.lock().map(|s| s.clone()).unwrap_or_default();
         if dev.is_none() && last_open.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
             last_open = Some(Instant::now());
             match open_device(backend, &board) {
@@ -713,7 +811,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                                 // that came from the keyboard counts: one sent over the socket does not.
                                 if let (Some(key), Some(waiting)) = (answer_key.filter(|k| k.row == row && k.col == col), gate.waiting(now)) {
                                     let _ = key;
-                                    let mut reach = Reach { board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
+                                    let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                                     let answered = match waiting.state {
                                         gate::State::Holding => gate.keep(waiting.id, now),
                                         _ => gate.approve(waiting.id, &mut reach, now),
@@ -748,8 +846,19 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                     reload = true;
                     let _ = reply.send(json!({ "ok": true }));
                 }
+                BusEvent::Gate { request: Request::Read { device, capability }, reply } if device != board.card => {
+                    let (catalog, seen) = (catalog.clone(), seen_now.clone());
+                    std::thread::spawn(move || {
+                        let answer = lookup(&catalog, &device, &capability)
+                            .and_then(|(card, cap)| Ok(json!({ "value": through_system(card, cap, &seen, None)?, "checked": cap.checked() })));
+                        let _ = reply.send(match answer {
+                            Ok(result) => json!({ "ok": true, "result": result }),
+                            Err(error) => json!({ "ok": false, "error": error }),
+                        });
+                    });
+                }
                 BusEvent::Gate { request, reply } => {
-                    let mut reach = Reach { board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
+                    let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                     let answer = match gatekeeper(&request, catalog, &cfg, &mut gate, &mut reach, now) {
                         Ok(result) => json!({ "ok": true, "result": result }),
                         Err(error) => json!({ "ok": false, "error": error }),
@@ -768,7 +877,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             last_frame = Instant::now();
             engine.expire(now);
             {
-                let mut reach = Reach { board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
+                let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                 for change in gate.tick(&mut reach, now) {
                     eprintln!("change {} ({} on {}): {}", change.id, change.capability, change.device, explain(change.clone())["next"].as_str().unwrap_or(""));
                 }

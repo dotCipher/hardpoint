@@ -23,12 +23,12 @@ adapter = "ddc-ci"
 risk = "reversible"
 params = { vcp = 0x10 }
 range = [0, 100]
-verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "Read as 97 of 100 twice with a one-off tool, through a Thunderbolt dock. A third read came back invalid, so reads need retrying. Setting it was not exercised." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", date = 2026-11-15, note = "Read, changed and put back through the gatekeeper, twice, through a Thunderbolt dock. The display sometimes drops a command or answers the previous question, so the adapter reads everything twice and confirms every change." }, { status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "Read as 97 of 100 twice with a one-off tool, through a Thunderbolt dock. A third read came back invalid, so reads need retrying. Setting it was not exercised." }]
 
 [[capability]]
 id = "display.input"
 adapter = "ddc-ci"
-risk = "guarded"
+risk = "gated"
 params = { vcp = 0x60 }
-note = "Switching input takes the picture away from the computer that asked, so it has to be confirmed or reverted."
+note = "Switching input takes the picture away from the computer that asked. Many displays stop listening on the input they have left, so putting it back cannot be relied on: this card asks first instead."
 verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "The current input was read twice with a one-off tool. Switching was not exercised." }]

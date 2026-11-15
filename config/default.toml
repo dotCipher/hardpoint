@@ -71,3 +71,12 @@ approve_secs = 60       # a gated change is dropped after this long unless you a
 # label waits for you. The program never updates itself.
 catalog = false
 every_hours = 24
+
+# Keep an eye on a reading. When it crosses its line it shows up on a spare
+# key the way an agent that needs you does, and clears when it recovers.
+# [[watch]]
+# device = "vendor/model"
+# capability = "battery.level"
+# below = 20                    # or: equals = "Failing"
+# say = "Mouse battery is low"
+# every_secs = 300

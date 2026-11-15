@@ -201,6 +201,10 @@ class Catalog:
             for key in cap.get("params", {}):
                 if key not in adapter.get("params", []):
                     self.errors.append(f"{where}: adapter {cap['adapter']!r} has no parameter {key!r}")
+            # A card may not ask for anything that identifies one unit or one person.
+            asked = str(cap.get("params", {}).get("field", "")).lower().replace("_", "")
+            if any(word in asked for word in ("serial", "address", "uuid", "lot", "location")):
+                self.errors.append(f"{where}: field {cap['params']['field']!r} would identify one particular unit, so a card may not ask for it")
             if ("range" in cap or "choices" in cap) and word["kind"] != "control":
                 self.errors.append(f"{where}: only a control can have a range or choices")
             for record in cap["verification"]:
@@ -872,6 +876,8 @@ Product names belong to their owners; this project is not affiliated with them.<
         why_pills = "".join(f'<button class="pill" type="button" aria-pressed="false">{e(i["ask"])}</button>' for i in whys["items"])
         questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{inline_code(q["answer"])}</p></details>' for q in t["question"])
         more = sec["devices_more"].replace("{count}", str(len(self.cards)))
+        uses = t["uses"]
+        use_cards = "".join(f'<div class="plate use">{art(u["art"])}<h3>{e(u["title"])}</h3><p>{e(u["text"])}</p></div>' for u in uses["item"])
         # A request passes through three hands: the agent, the card, the device.
         flow = '<i class="wire"></i>'.join(f'<span class="node">{art(name)}{e(text)}</span>' for name, text in zip(("agent", "card", "device"), s["flow"]))
         # The last sentence of the headline carries the promise, so it carries the colour.
@@ -922,6 +928,11 @@ Product names belong to their owners; this project is not affiliated with them.<
       <div class="barbox" id="why-bar"><span class="fill"></span></div></div>
   </div>
   <p class="note">{e(why["proof"])} <a href="{e(why["proof_url"])}">{e(why["proof_link"])}</a>.</p>
+</section>
+
+<section class="sec" id="uses">
+  <div class="sec-head"><p class="eyebrow">{e(uses["eyebrow"])}</p><h2>{e(uses["title"])}</h2><p class="lede">{e(uses["lede"])}</p></div>
+  <div class="cards uses">{use_cards}</div>
 </section>
 
 <section class="sec" id="how">

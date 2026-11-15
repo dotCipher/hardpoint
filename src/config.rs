@@ -24,6 +24,32 @@ pub struct Config {
     pub stricter: Vec<Stricter>,
     #[serde(default)]
     pub update: UpdateCfg,
+    /// Readings to keep an eye on. When one crosses its line, it shows up on
+    /// a spare key the same way an agent that needs you does.
+    #[serde(default)]
+    pub watch: Vec<Watch>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Watch {
+    pub device: String,
+    pub capability: String,
+    /// Raise it when the reading is below this number.
+    #[serde(default)]
+    pub below: Option<f64>,
+    /// Or when the reading is exactly this.
+    #[serde(default)]
+    pub equals: Option<toml::Value>,
+    /// What to call it on the key. Defaults to the device and the reading.
+    #[serde(default)]
+    pub say: Option<String>,
+    #[serde(default = "five_minutes")]
+    pub every_secs: u64,
+}
+
+fn five_minutes() -> u64 {
+    300
 }
 
 /// Whether the catalog keeps itself current. The program never updates itself.

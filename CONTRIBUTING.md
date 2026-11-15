@@ -33,6 +33,22 @@ pull request anyway and the check runs there.
 
 Then open a pull request with the new file.
 
+## Try it on your own machine first
+
+A card in `~/.config/hardpoint/cards/<maker>/<model>.toml` works at once,
+and updates never touch it:
+
+```sh
+hardpoint reload                                # read the cards again
+hardpoint read <device id> <ability id>         # does it return the value?
+```
+
+For anything your computer already reports about a device, a card needs no
+code: name the `macos-system` adapter with a `source` and a `field`
+([docs/SPEC.md](docs/SPEC.md) lists them). If `hardpoint read` returns the
+value, you have exercised it through the adapter and may record it as
+`tested`.
+
 ## Short on time?
 
 [Open a device request](../../issues/new?template=device.yml) and paste what

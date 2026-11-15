@@ -96,8 +96,13 @@ impl Gate {
             Risk::Gated => change.deadline = Some(now + self.approval),
             Risk::Reversible | Risk::Guarded => {
                 // Record the old value first: a change that cannot be read back cannot be undone.
-                change.before = Some(target.read(device, capability)?);
-                target.write(device, capability, &change.after)?;
+                let before = target.read(device, capability)?;
+                if let Err(error) = target.write(device, capability, &change.after) {
+                    // A change that could not be confirmed may still have landed. Put the old value back before giving up.
+                    let _ = target.write(device, capability, &before);
+                    return Err(error);
+                }
+                change.before = Some(before);
                 change.state = if risk == Risk::Guarded { State::Holding } else { State::Applied };
                 change.deadline = (risk == Risk::Guarded).then(|| now + self.hold);
             }

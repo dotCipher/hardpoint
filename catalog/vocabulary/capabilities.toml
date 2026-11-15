@@ -158,8 +158,8 @@ harm = "A button stops doing what your hand expects, and it may be the one you w
 kind = "control"
 value = "host number"
 summary = "Move the device to another paired computer."
-min_risk = "guarded"
-harm = "The mouse leaves this computer, so you can no longer use it here to bring it back."
+min_risk = "gated"
+harm = "The device leaves this computer, and nothing here can reach it to bring it back."
 
 [capability."scroll.mode"]
 kind = "control"

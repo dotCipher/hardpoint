@@ -16,23 +16,26 @@ notes = "Only one program can hold the channel, so the vendor's own app must be 
 [adapter.hidpp]
 summary = "Logitech devices over HID++ 2.0."
 platforms = ["macos", "linux", "windows"]
-status = "planned"
+status = "implemented"
+implementation = "src/hidpp.rs"
 params = ["feature"]
-notes = "On macOS the calling process needs Input Monitoring permission before the channel will open. One-off read queries have worked against an MX Master 3; the adapter itself is not written."
+notes = "Reaches devices connected directly over Bluetooth, not ones behind a USB receiver. Works for battery level, pointer speed and scroll-wheel mode; reads which host is in use. On macOS the program needs Input Monitoring permission. Run on macOS only so far."
 
 [adapter.macos-system]
-summary = "Facts macOS already reports: power, storage, audio, thermal state and Bluetooth device details."
+summary = "What macOS already reports about a device: power, storage, audio, thermal state, Bluetooth, Thunderbolt, USB and display details."
 platforms = ["macos"]
-status = "planned"
+status = "implemented"
+implementation = "src/system.rs"
 params = ["source", "field"]
-notes = "Read through system interfaces. No special permission was needed for the readings tried so far."
+notes = "A card names a source (power, bluetooth, thunderbolt, usb, displays, storage, thermal or audio) and a field, and the adapter finds that field in what macOS reports about the device. A new card for something macOS already reports needs no new code. Serial numbers and addresses are never passed on."
 
 [adapter.ddc-ci]
-summary = "Displays over DDC/CI, the control channel carried on the video cable."
+summary = "A display's own controls, over the video cable."
 platforms = ["macos", "linux", "windows"]
-status = "planned"
+status = "implemented"
+implementation = "src/ddc.rs"
 params = ["vcp"]
-notes = "The display must have DDC/CI enabled in its own menu."
+notes = "Uses a tool that already speaks DDC/CI: m1ddc on a Mac, ddcutil on Linux. Displays answer unreliably through docks, so every reading is taken twice and every change is confirmed. Run on macOS only so far."
 
 [adapter.mdns]
 summary = "Facts a device announces about itself on the local network."

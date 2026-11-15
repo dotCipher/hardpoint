@@ -18,7 +18,7 @@ id = "identity.firmware"
 adapter = "macos-system"
 risk = "read"
 params = { source = "bluetooth", field = "firmware_version" }
-verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reports a version for the paired earbuds, even when they are not connected. Read by hand." }]
+verification = [{ status = "tested", platform = "macos", os = "27.2", date = 2026-11-15, note = "Read through the adapter." }, { status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "macOS reports a version for the paired earbuds, even when they are not connected. Read by hand." }]
 
 [[capability]]
 id = "battery.level"

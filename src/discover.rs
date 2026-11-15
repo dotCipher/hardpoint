@@ -59,6 +59,14 @@ pub fn observe() -> Result<Vec<Observation>> {
             model: Some(model),
         });
     }
+    // What the operating system reports beyond input devices: paired
+    // Bluetooth devices, anything on USB, and external displays.
+    for more in crate::system::seen() {
+        let known = seen.iter().any(|s| s.bus == more.bus && s.vendor_id == more.vendor_id && s.product_id == more.product_id);
+        if !known {
+            seen.push(more);
+        }
+    }
     Ok(seen)
 }
 

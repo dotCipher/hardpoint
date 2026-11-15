@@ -108,6 +108,42 @@ topic = "What it learns"
 without = "Gone when the session ends. The next agent works it out again."
 with = "A card is checked once and shared. Everyone with that device gets it, in any agent."
 
+# What people do with it. Every one of these works today.
+[uses]
+eyebrow = "What you can do"
+title = "Six things it is good for"
+lede = "Each of these works today, on a Mac."
+
+[[uses.item]]
+art = "keyboard"
+title = "See which agent needs you"
+text = "Each agent session takes a spare key: blue while it works, amber when it needs an answer. Press the key to answer."
+
+[[uses.item]]
+art = "mouse"
+title = "Let your devices raise their hand"
+text = "A mouse or laptop running low shows up on the same keys as an agent that needs you. One short entry in your settings for each thing to watch."
+
+[[uses.item]]
+art = "storage"
+title = "Ask about your hardware"
+text = "\"Is my drive healthy? How worn is my battery? What firmware is the dock on?\" Your agent reads the answer instead of guessing at a command."
+
+[[uses.item]]
+art = "display"
+title = "Change things, and take them back"
+text = "\"Turn it down.\" \"Dim the screen.\" \"Let the wheel spin freely.\" Each is made at once and undone with a word."
+
+[[uses.item]]
+art = "lock"
+title = "Try a risky change safely"
+text = "Speed the pointer up and it goes back by itself unless you keep it. A change that cannot be undone waits for your yes, on a key or in a terminal."
+
+[[uses.item]]
+art = "card"
+title = "Add a device in minutes"
+text = "If your computer already reports it, a card is all it takes: no code. Paste one prompt and your agent writes the card with you."
+
 [labels]
 eyebrow = "How it works"
 title = "Four labels"
@@ -190,7 +226,11 @@ answer = "Yes. That is what it is for: the computer itself and what is attached 
 
 [[question]]
 ask = "What can it do right now?"
-answer = "An agent can connect to it with `hardpoint mcp`, see what is attached and how each ability is labelled, read, propose changes and undo them. Today the one device it can act on is a keyboard: its lights, its key presses, and agent sessions on spare keys. All three kinds of change work there: made at once, kept or put back, and held until you approve. For every other device the cards are written and checked by hand, and acting on them comes next, through Home Assistant and the other tools that already talk to that hardware."
+answer = "On a Mac, an agent connected with `hardpoint mcp` can reach the computer itself (battery, wear, heat, drive health, volume), a Logitech mouse over Bluetooth (battery, pointer speed, scroll wheel), a display (brightness), headphones, docks and drives (firmware and health), and a keyboard (lights, key presses, agent sessions on spare keys). Changes are made at once and can be undone, or kept or put back, or held until you approve, according to each label. Smart-home devices come next, through Home Assistant. Linux and Windows are not tried yet."
+
+[[question]]
+ask = "Does it need any special permission?"
+answer = "Mostly not: no sudo, no account. Two things on a Mac do. Talking to a Logitech mouse needs Input Monitoring permission for Hardpoint, which macOS asks you to grant in System Settings. Reaching a display uses a small tool called `m1ddc`, which you install yourself. Without either, those devices are still described to your agent; they just cannot be acted on."
 
 [[question]]
 ask = "Which agents does it work with?"
@@ -214,7 +254,7 @@ answer = "Yes, by working with Home Assistant rather than replacing it. Home Ass
 
 [[question]]
 ask = "Will it work with my devices?"
-answer = "If they have a card. A card is one small file: paste one prompt into Claude Code or Codex and it writes the card with you in a few minutes."
+answer = "If they have a card. A card is one small file, and for anything your computer already reports, such as a battery level, a firmware version or a health verdict, it needs no code at all. Paste one prompt into Claude Code or Codex and it writes the card with you. A card in your own `~/.config/hardpoint/cards` folder works straight away, before anyone else has seen it."
 
 # The catalog page. Each facet is worked out from the cards, so a new card,
 # kind or maker appears by itself. A facet with fewer than `min_options`

@@ -94,7 +94,9 @@ goes wrong if it is done carelessly.
 | A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs, on the keyboard's lights. Used from OpenCode; not yet tried inside Claude Code or Codex |
 | Keep-or-revert, and approve-first, with "no answer means no" | Runs in the gatekeeper |
 | Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
-| Reading a mouse and the computer through adapters | Designed. Read by hand so far |
+| Reaching the computer itself, a Logitech mouse over Bluetooth, a display, headphones, docks and drives | Runs on macOS |
+| A device that needs you (a low battery, a failing drive) raised on a spare key | Runs |
+| Your own cards in `~/.config/hardpoint/cards`, working at once; no code for anything the system already reports | Runs |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
 | Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |
 | A journal that outlives the daemon | Designed |

@@ -203,7 +203,8 @@ impl Catalog {
             candidates.push(PathBuf::from(path));
         }
         candidates.push(crate::config::data_dir().join("catalog"));
-        if let Ok(exe) = std::env::current_exe() {
+        // Follow a link to the real program, so a checkout is found from wherever it is run.
+        if let Ok(exe) = std::env::current_exe().and_then(|exe| exe.canonicalize()) {
             candidates.extend(exe.ancestors().skip(1).map(|dir| dir.join("catalog")));
         }
         if let Ok(cwd) = std::env::current_dir() {

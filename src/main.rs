@@ -9,6 +9,7 @@ mod mcp;
 mod model;
 mod source;
 mod telemetry;
+mod update;
 
 use anyhow::{anyhow, bail, Result};
 use board::Board;
@@ -118,6 +119,21 @@ enum Command {
     Approve { change: u64 },
     /// Say no to a change that is waiting for an answer.
     Decline { change: u64 },
+    /// Bring an installed copy up to date. The catalog is updated; the
+    /// program is only rebuilt with --program.
+    Update {
+        /// Only say what an update would do.
+        #[arg(long)]
+        check: bool,
+        /// Also rebuild the program itself from the newest source.
+        #[arg(long)]
+        program: bool,
+        /// Accept a catalog update that makes some label less strict. For a person to type.
+        #[arg(long)]
+        allow_looser: bool,
+    },
+    /// Start Hardpoint at login: install, uninstall, restart or status.
+    Service { action: String },
 }
 
 fn main() -> Result<()> {
@@ -140,6 +156,11 @@ fn main() -> Result<()> {
         Command::Changes => send(Request::Changes),
         Command::Undo { change } => send(Request::Undo { change }),
         Command::Decline { change } => send(Request::Decline { change }),
+        Command::Update { check, program, allow_looser } => update_now(&catalog()?, check, program, allow_looser),
+        Command::Service { action } => {
+            println!("{}", update::service(&action)?);
+            Ok(())
+        }
         Command::Keep { change } => by_a_person(Request::Keep { change }),
         Command::Approve { change } => by_a_person(Request::Approve { change }),
     }
@@ -150,11 +171,36 @@ fn main() -> Result<()> {
 /// bump and not a wall: anything running as you could reach the daemon's
 /// socket directly. The key on the keyboard is the answer that cannot be faked.
 fn by_a_person(request: Request) -> Result<()> {
+    at_a_terminal()?;
+    send(request)
+}
+
+fn at_a_terminal() -> Result<()> {
     use std::io::IsTerminal;
     if !std::io::stdin().is_terminal() {
         bail!("this is a person's answer, so it has to be typed at a terminal");
     }
-    send(request)
+    Ok(())
+}
+
+fn update_now(catalog: &Catalog, check: bool, program: bool, allow_looser: bool) -> Result<()> {
+    if allow_looser {
+        at_a_terminal()?;
+    }
+    let outcome = update::catalog(&catalog.root, allow_looser, !check)?;
+    println!("{}", outcome.said);
+    if outcome.changed {
+        // A running daemon picks the new catalog up without a restart.
+        let _ = source::socket::request(&config::socket_path(), &Request::Reload);
+    }
+    if program && !check {
+        println!("{}", update::program()?);
+    } else if update::program_is_behind()? {
+        println!("the program itself has a newer version. It never updates by itself: run `hardpoint update --program` when you want it.");
+    } else {
+        println!("the program is up to date");
+    }
+    Ok(())
 }
 
 fn send(request: Request) -> Result<()> {
@@ -556,6 +602,32 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
         ctrlc::set_handler(move || stop.store(true, Ordering::SeqCst))?;
     }
 
+    // Cards can keep themselves current. The program never does.
+    let update_note = Arc::new(Mutex::new(String::new()));
+    if cfg.update.catalog {
+        let (root, every, tx, note) = (catalog.root.clone(), cfg.update.every_hours.max(1), tx.clone(), update_note.clone());
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_secs(20));
+            let said = match update::catalog(&root, false, true) {
+                Ok(outcome) => {
+                    if outcome.changed {
+                        let _ = tx.send(BusEvent::CatalogChanged);
+                    }
+                    let behind = update::program_is_behind().unwrap_or(false);
+                    format!("{}{}", outcome.said, if behind { "; a newer program is available (`hardpoint update --program`)" } else { "" })
+                }
+                Err(e) => format!("could not check for updates: {e:#}"),
+            };
+            eprintln!("update: {said}");
+            if let Ok(mut shared) = note.lock() {
+                *shared = said;
+            }
+            std::thread::sleep(Duration::from_secs(every * 3600));
+        });
+    }
+    let mut reloaded: Option<Catalog> = None;
+    let mut reload = false;
+
     let mut engine = Engine::new(cfg.clone(), board.clone());
     let mut gate = Gate::new(Duration::from_secs(cfg.gate.hold_secs), Duration::from_secs(cfg.gate.approve_secs));
     let mut lights = Lights::default();
@@ -578,6 +650,16 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
     let started = Instant::now();
 
     while !stop.load(Ordering::SeqCst) {
+        if std::mem::take(&mut reload) {
+            match Catalog::load(&catalog.root) {
+                Ok(fresh) => {
+                    eprintln!("catalog reloaded: {} cards", fresh.cards.len());
+                    reloaded = Some(fresh);
+                }
+                Err(e) => eprintln!("the updated catalog could not be read, so the old one stays in use: {e:#}"),
+            }
+        }
+        let catalog: &Catalog = reloaded.as_ref().unwrap_or(catalog);
         if dev.is_none() && last_open.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
             last_open = Some(Instant::now());
             match open_device(backend, &board) {
@@ -658,6 +740,11 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                         run_action(action);
                     }
                 }
+                BusEvent::CatalogChanged => reload = true,
+                BusEvent::Gate { request: Request::Reload, reply } => {
+                    reload = true;
+                    let _ = reply.send(json!({ "ok": true }));
+                }
                 BusEvent::Gate { request, reply } => {
                     let mut reach = Reach { board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                     let answer = match gatekeeper(&request, catalog, &cfg, &mut gate, &mut reach, now) {
@@ -705,6 +792,8 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             status["sources"] = serde_json::json!(source_ok);
             status["telemetry_today"] = serde_json::json!(telemetry.as_ref().map(|t| t.total()));
             status["waiting_for_an_answer"] = json!(waiting.map(explain));
+            status["catalog"] = json!({ "cards": catalog.cards.len(), "from": catalog.root });
+            status["update"] = json!(update_note.lock().map(|note| note.clone()).unwrap_or_default());
             if let Ok(mut shared) = snapshot.lock() {
                 *shared = status;
             }

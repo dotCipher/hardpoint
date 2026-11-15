@@ -10,7 +10,8 @@ name = "Hardpoint"
 tagline = "Let your agent manage your devices. You stay in charge."
 eyebrow = "Open source · runs on your own computer"
 lede = "Your agent already works in your files and your terminal. Hardpoint adds your devices: a checked card for each one says what it can read, what it may change, and what needs your yes first."
-cta = "See the difference"
+cta = "Install with your agent"
+cta_second = "See the difference"
 
 # Under the buttons at the top: the agents people already use.
 [byo]
@@ -18,6 +19,7 @@ title = "Bring your own agent"
 agents = ["Claude Code", "Codex", "OpenCode", "any LLM with a terminal"]
 
 [nav]
+install = "Install"
 devices = "Devices"
 how = "How it works"
 add = "Add a device"
@@ -204,7 +206,7 @@ answer = "To let you answer with a spare key, it sees which key went down. It do
 
 [[question]]
 ask = "Does anything leave my computer?"
-answer = "No. There is no account and no server. The catalog is a set of files, and the program listens only on your own computer."
+answer = "Nothing about you or your devices. There is no account and no server, and the program listens only on your own computer. If you turn on automatic updates, it fetches the catalog from the project once a day, the same way `git` fetches any public repository; that is the only thing it ever asks the network for."
 
 [[question]]
 ask = "Does it cover smart-home devices?"
@@ -266,6 +268,56 @@ title = "Connects by"
 [[catalog.facet]]
 key = "platform"
 title = "Checked on"
+
+# The page with the prompt that has an agent install Hardpoint.
+[install]
+title = "Install Hardpoint"
+lede = "Paste one prompt into your agent. It checks what is needed, builds Hardpoint from source, connects itself to it, and asks you before each choice that is yours."
+ai_title = "Paste this into Claude Code, Codex or OpenCode"
+ai_lede = "Any agent that can run commands will do. Nothing here needs sudo, and nothing is changed on your devices."
+copy = "Copy"
+copied = "Copied"
+does_title = "What it puts on your computer"
+updates_title = "How it stays current"
+hand_title = "Or by hand"
+
+[[install.does]]
+text = "The program, at `~/.local/bin/hardpoint`, built from source on your own machine"
+
+[[install.does]]
+text = "The source and the catalog of device cards, in `~/.local/share/hardpoint`"
+
+[[install.does]]
+text = "If you say yes: a login item that keeps it running, and one entry in your agent's own settings so it can use Hardpoint as a tool"
+
+[[install.updates]]
+text = "Cards can update themselves once a day, if you turn that on. They are data, never code."
+
+[[install.updates]]
+text = "By itself the catalog can only stay as strict or get stricter. An update that would loosen any label waits until you accept it."
+
+[[install.updates]]
+text = "The program never updates on its own. `hardpoint update --program` rebuilds it from source when you ask."
+
+[[install.step]]
+say = "Get the source"
+run = "git clone {repo} ~/.local/share/hardpoint/src && cd ~/.local/share/hardpoint/src"
+
+[[install.step]]
+say = "Build it and put it in place"
+run = "sh tools/install.sh"
+
+[[install.step]]
+say = "Start it now and at every login"
+run = "hardpoint service install"
+
+[[install.step]]
+say = "Connect your agent (Claude Code shown)"
+run = "claude mcp add --scope user hardpoint -- \"$HOME/.local/bin/hardpoint\" mcp"
+
+[[install.step]]
+say = "Later: bring the cards up to date"
+run = "hardpoint update"
 
 # The page that asks people to add their own devices.
 [add]

@@ -22,6 +22,23 @@ pub struct Config {
     /// Labels the owner has made stricter for their own devices.
     #[serde(default)]
     pub stricter: Vec<Stricter>,
+    #[serde(default)]
+    pub update: UpdateCfg,
+}
+
+/// Whether the catalog keeps itself current. The program never updates itself.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct UpdateCfg {
+    /// Fetch new and corrected cards from the project while the daemon runs.
+    pub catalog: bool,
+    pub every_hours: u64,
+}
+
+impl Default for UpdateCfg {
+    fn default() -> UpdateCfg {
+        UpdateCfg { catalog: false, every_hours: 24 }
+    }
 }
 
 /// How changes proposed by an agent are held and approved.
@@ -173,8 +190,27 @@ pub struct Telemetry {
 }
 
 impl Config {
+    /// A config file only has to say what differs from the built-in
+    /// settings: it is laid over them, table by table.
     pub fn parse(text: &str) -> Result<Config> {
-        let cfg: Config = toml::from_str(text)?;
+        fn lay(under: &mut toml::Value, over: toml::Value) {
+            match (under, over) {
+                (toml::Value::Table(under), toml::Value::Table(over)) => {
+                    for (key, value) in over {
+                        match under.get_mut(&key) {
+                            Some(slot) => lay(slot, value),
+                            None => {
+                                under.insert(key, value);
+                            }
+                        }
+                    }
+                }
+                (slot, value) => *slot = value,
+            }
+        }
+        let mut merged: toml::Value = toml::from_str(DEFAULT_CONFIG)?;
+        lay(&mut merged, toml::from_str(text)?);
+        let cfg: Config = merged.try_into()?;
         let mut seen = std::collections::HashSet::new();
         for slot in &cfg.slots {
             if !seen.insert(slot.key) {
@@ -243,6 +279,15 @@ mod tests {
     use super::*;
 
     const EXAMPLE: &str = include_str!("../examples/moonlander.toml");
+
+    #[test]
+    fn a_config_file_only_has_to_say_what_differs() {
+        let cfg = Config::parse("[update]\ncatalog = true\n").unwrap();
+        assert!(cfg.update.catalog);
+        assert_eq!(cfg.update.every_hours, 24, "what it does not mention keeps the built-in setting");
+        assert_eq!(cfg.gate.hold_secs, 10);
+        assert!(Config::parse("[update]\nnonsense = 1\n").is_err(), "an unknown setting is still an error");
+    }
 
     #[test]
     fn built_in_defaults_name_no_device_and_no_keys() {

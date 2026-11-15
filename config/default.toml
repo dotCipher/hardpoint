@@ -64,3 +64,10 @@ approve_secs = 60       # a gated change is dropped after this long unless you a
 # device = "vendor/model"
 # capability = "light.global"
 # risk = "gated"
+
+[update]
+# Fetch new and corrected cards from the project while the daemon runs. By
+# itself the catalog can only get stricter: an update that would loosen a
+# label waits for you. The program never updates itself.
+catalog = false
+every_hours = 24

@@ -88,6 +88,17 @@ tools, not against one determined to get round it.
 Routine changes come from rules, not from a model deciding live: by app, by
 computer, by time of day. An agent's job is to write and revise the rules.
 
+## Staying current
+
+An installed copy has two parts that change, and they are treated
+differently. The catalog is data: it can update by itself, and by itself it
+can only stay as strict or get stricter. Before a new catalog is taken it is
+read by the running program, and every label is compared with the one in
+use; if any would become less strict, the update waits for a person. The
+program is code: it never updates by itself, and is rebuilt from source when
+a person asks. Both come over git from the project's repository, so every
+change is a commit that can be read.
+
 ## Asking things
 
 Three read tools are enough to start:

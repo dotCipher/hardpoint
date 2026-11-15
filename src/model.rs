@@ -96,6 +96,8 @@ pub enum BusEvent {
     /// A key press injected over the socket, by vendor key index.
     Press(u8),
     Source { name: String, ok: bool, message: String },
+    /// The catalog on disk was replaced by an update.
+    CatalogChanged,
     /// Something for the gatekeeper, and where to send its answer.
     Gate { request: Request, reply: std::sync::mpsc::Sender<serde_json::Value> },
 }
@@ -118,6 +120,8 @@ pub enum Request {
     Keep { change: u64 },
     Approve { change: u64 },
     Decline { change: u64 },
+    /// The catalog on disk has changed; read it again.
+    Reload,
 }
 
 #[cfg(test)]

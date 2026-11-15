@@ -13,7 +13,7 @@
   <a href="#what-it-is">What it is</a> ·
   <a href="#why-not-let-the-agent-work-it-out">Why not let the agent work it out?</a> ·
   <a href="#the-four-labels">The four labels</a> ·
-  <a href="#try-it">Try it</a> ·
+  <a href="#install">Install</a> ·
   <a href="#add-a-device">Add a device</a> ·
   <a href="docs/DESIGN.md">Design</a> ·
   <a href="docs/SPEC.md">Card format</a>
@@ -96,6 +96,7 @@ goes wrong if it is done carelessly.
 | Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
 | Reading a mouse and the computer through adapters | Designed. Read by hand so far |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
+| Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS. The Linux service is written and untried |
 | A journal that outlives the daemon | Designed |
 | Home Assistant, fwupd and the other tools that already reach hardware | Designed. See [docs/STRATEGY.md](docs/STRATEGY.md) |
 | Linux | Not tried |
@@ -104,7 +105,37 @@ Each device's page on [the site](https://dotcipher.github.io/hardpoint/devices.h
 shows, capability by capability, what has been tested and what has only been
 read about.
 
-## Try it
+## Install
+
+**With your agent:** open the [Install](https://dotcipher.github.io/hardpoint/install.html)
+page, press Copy, and paste the prompt into Claude Code, Codex or OpenCode.
+It checks what is needed, builds Hardpoint from source, connects itself to
+it, and asks you before each choice that is yours.
+
+**By hand:**
+
+```sh
+git clone https://github.com/dotCipher/hardpoint ~/.local/share/hardpoint/src
+cd ~/.local/share/hardpoint/src
+sh tools/install.sh           # builds it, puts it at ~/.local/bin/hardpoint
+hardpoint service install     # start it now and at every login
+hardpoint update              # later: bring the cards up to date
+```
+
+How it stays current:
+
+- **Cards** can update themselves once a day if you turn that on
+  (`[update] catalog = true`). They are data, never code.
+- By itself the catalog can only stay as strict or get stricter. An update
+  that would loosen any label waits until you run
+  `hardpoint update --allow-looser` yourself.
+- **The program** never updates on its own. `hardpoint update --program`
+  rebuilds it from source when you ask.
+
+A config file only has to say what differs from the
+[built-in settings](config/default.toml).
+
+## Try it from a checkout
 
 It needs Rust to build the daemon, and Python 3.11 or newer to build the site.
 

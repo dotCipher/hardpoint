@@ -707,7 +707,7 @@ class Site:
 
     def page(self, title, body, root, active, scripts=""):
         n = self.t["nav"]
-        links = [(n["devices"], "devices.html"), (n["how"], "index.html#how"), (n["add"], "add.html"), (n["builders"], "format.html")]
+        links = [(n["install"], "install.html"), (n["devices"], "devices.html"), (n["how"], "index.html#how"), (n["add"], "add.html"), (n["builders"], "format.html")]
         nav = ""
         for label, href in links:
             current = ' class="on"' if label == active else ""
@@ -888,7 +888,7 @@ Product names belong to their owners; this project is not affiliated with them.<
     <p class="eyebrow">{e(t["eyebrow"])}</p>
     <h1>{headline}</h1>
     <p class="lede">{e(t["lede"])}</p>
-    <div class="cta"><a class="btn primary" href="#why">{e(t["cta"])}</a><a class="btn" href="add.html">{e(t["nav"]["add"])}</a></div>
+    <div class="cta"><a class="btn primary" href="install.html">{e(t["cta"])}</a><a class="btn" href="#why">{e(t["cta_second"])}</a></div>
     {byo}
   </div>
   <div class="plate stage scenes" id="scenes">
@@ -973,6 +973,23 @@ Product names belong to their owners; this project is not affiliated with them.<
 <div class="plate pad">{rules}</div>
 {issue}</div>"""
         return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["add"])
+
+    def install(self):
+        a = self.t["install"]
+        prompt = (SOURCE / "install-prompt.md").read_text().strip().replace("{repo}", self.repo or "(the Hardpoint repository)")
+        listed = lambda items: '<ul class="ticks built">' + "".join(f"<li>{inline_code(i['text'])}</li>" for i in items) + "</ul>"
+        body = f"""<div class="wrap narrow"><div class="page-head"><p class="eyebrow">{e(self.t["eyebrow"])}</p><h1>{e(a["title"])}</h1>
+<p class="lede">{e(a["lede"])}</p></div>
+<h2 class="small">{e(a["ai_title"])}</h2><p class="lede">{e(a["ai_lede"])}</p>
+<div class="plate prompt"><button class="btn small fixed" id="copy" type="button" data-done="{e(a["copied"])}">{e(a["copy"])}</button>
+<pre id="prompt">{e(prompt)}</pre></div>
+<h2 class="small">{e(a["does_title"])}</h2>
+<div class="plate pad">{listed(a["does"])}</div>
+<h2 class="small">{e(a["updates_title"])}</h2>
+<div class="plate pad">{listed(a["updates"])}</div>
+<h2 class="small">{e(a["hand_title"])}</h2>
+<div class="plate pad">{self.steps(a["step"])}</div></div>"""
+        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["install"])
 
     def devices(self):
         c, sec, words = self.c, self.t["sections"], self.t["catalog"]
@@ -1152,7 +1169,7 @@ A device card can only name an adapter and give it typed values; it can never ca
             "background_color": INK, "theme_color": INK,
             "icons": [{"src": f"icon-{size}.png", "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any maskable"} for size in (192, 512)],
         }, indent=2) + "\n")
-        pages = {"index": self.landing, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
+        pages = {"index": self.landing, "install": self.install, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
                  "adapters": self.adapters, "format": self.format, "ns": self.namespace_page}
         (SITE / "models").mkdir()
         for card in c.cards:

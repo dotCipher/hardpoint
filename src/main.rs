@@ -627,6 +627,8 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
     }
     let mut reloaded: Option<Catalog> = None;
     let mut reload = false;
+    // Which commits the installed catalog and program came from, for `hardpoint status`.
+    let mut installed = update::stamp();
 
     let mut engine = Engine::new(cfg.clone(), board.clone());
     let mut gate = Gate::new(Duration::from_secs(cfg.gate.hold_secs), Duration::from_secs(cfg.gate.approve_secs));
@@ -655,6 +657,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                 Ok(fresh) => {
                     eprintln!("catalog reloaded: {} cards", fresh.cards.len());
                     reloaded = Some(fresh);
+                    installed = update::stamp();
                 }
                 Err(e) => eprintln!("the updated catalog could not be read, so the old one stays in use: {e:#}"),
             }
@@ -793,6 +796,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             status["telemetry_today"] = serde_json::json!(telemetry.as_ref().map(|t| t.total()));
             status["waiting_for_an_answer"] = json!(waiting.map(explain));
             status["catalog"] = json!({ "cards": catalog.cards.len(), "from": catalog.root });
+            status["installed"] = json!(installed);
             status["update"] = json!(update_note.lock().map(|note| note.clone()).unwrap_or_default());
             if let Ok(mut shared) = snapshot.lock() {
                 *shared = status;

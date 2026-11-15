@@ -194,7 +194,7 @@ answer = "An agent can connect to it with `hardpoint mcp`, see what is attached 
 
 [[question]]
 ask = "Which agents does it work with?"
-answer = "Bring your own. `hardpoint mcp` speaks the Model Context Protocol, which Claude Code, Codex, OpenCode and most other agents can connect to. It has been checked with a scripted client; it has not been tried inside each of those yet. Session lights follow OpenCode by themselves, and any agent can report in from its hooks with `hardpoint emit`."
+answer = "Bring your own. `hardpoint mcp` speaks the Model Context Protocol, which Claude Code, Codex, OpenCode and most other agents can connect to. It is used from OpenCode; it has not been tried inside Claude Code or Codex yet. Session lights follow OpenCode by themselves, and any agent can report in from its hooks with `hardpoint emit`."
 
 [[question]]
 ask = "What stops it doing something I did not want?"

@@ -91,12 +91,12 @@ goes wrong if it is done carelessly.
 | A keyboard driven entirely from its card: lights, key presses, layers | Runs on macOS, on one keyboard |
 | Agent sessions on keys, and a press that runs your own action | Runs, with OpenCode and any script |
 | Brightness that follows the clock; per-key press counts | Runs |
-| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs, on the keyboard's lights. Checked with a scripted client, not yet inside Claude Code or Codex |
+| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs, on the keyboard's lights. Used from OpenCode; not yet tried inside Claude Code or Codex |
 | Keep-or-revert, and approve-first, with "no answer means no" | Runs in the gatekeeper |
 | Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
 | Reading a mouse and the computer through adapters | Designed. Read by hand so far |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
-| Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS. The Linux service is written and untried |
+| Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |
 | A journal that outlives the daemon | Designed |
 | Home Assistant, fwupd and the other tools that already reach hardware | Designed. See [docs/STRATEGY.md](docs/STRATEGY.md) |
 | Linux | Not tried |

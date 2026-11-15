@@ -96,6 +96,8 @@ goes wrong if it is done carelessly.
 | Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
 | Reaching the computer itself, a Logitech mouse over Bluetooth, a display, headphones, docks and drives | Runs on macOS |
 | A device that needs you (a low battery, a failing drive) raised on a spare key | Runs |
+| Rules: set something at a time of day, or for as long as an agent is in some state | Runs |
+| Its own app on a Mac, so the system's permission lists show Hardpoint's name and mark | Written. Whether macOS shows the mark there is for a person to confirm |
 | Your own cards in `~/.config/hardpoint/cards`, working at once; no code for anything the system already reports | Runs |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
 | Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |

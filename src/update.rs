@@ -173,12 +173,70 @@ pub fn program() -> Result<String> {
     let mut installed = stamp();
     installed.program = newest;
     save(&installed)?;
-    Ok(format!("the program was rebuilt and put at {}. Restart the daemon to use it: `hardpoint service restart`.", here.display()))
+    let mut said = format!("the program was rebuilt and put at {}. Restart the daemon to use it: `hardpoint service restart`.", here.display());
+    if let Some(app) = app_of(&here) {
+        sign(app);
+        said += " macOS ties permissions to the exact program, so it may ask you to grant them again.";
+    }
+    Ok(said)
 }
 
 // ---- running at login
 
 const LABEL: &str = "hardpoint.daemon";
+
+/// The mark, as macOS wants it. Drawn by tools/build.py from the same shapes as the site's.
+const ICON: &[u8] = include_bytes!("../packaging/Hardpoint.icns");
+
+fn sign(app: &Path) {
+    // Signed for this machine only. macOS ties a permission to the signature,
+    // so it may ask again after the program is rebuilt.
+    let _ = run("codesign", &["--force", "--sign", "-", &app.to_string_lossy()]);
+}
+
+/// The app the program lives in, if it lives in one.
+fn app_of(exe: &Path) -> Option<&Path> {
+    exe.ancestors().nth(3).filter(|app| app.extension().is_some_and(|e| e == "app"))
+}
+
+/// macOS lists a program in its permission settings by the app it belongs
+/// to. A bare program shows up as a nameless terminal icon, so the program
+/// is given a small app of its own, with Hardpoint's name and mark. The
+/// command people type becomes a link to the program inside it.
+fn bundle(exe: &Path) -> Result<PathBuf> {
+    let app = data_dir().join("Hardpoint.app");
+    let inside = app.join("Contents/MacOS/hardpoint");
+    std::fs::create_dir_all(app.join("Contents/MacOS"))?;
+    std::fs::create_dir_all(app.join("Contents/Resources"))?;
+    std::fs::write(app.join("Contents/Resources/Hardpoint.icns"), ICON)?;
+    let version = env!("CARGO_PKG_VERSION");
+    std::fs::write(
+        app.join("Contents/Info.plist"),
+        format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>Hardpoint</string>
+<key>CFBundleDisplayName</key><string>Hardpoint</string>
+<key>CFBundleIdentifier</key><string>{LABEL}</string>
+<key>CFBundleExecutable</key><string>hardpoint</string>
+<key>CFBundleIconFile</key><string>Hardpoint</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>{version}</string>
+<key>CFBundleVersion</key><string>{version}</string>
+<key>LSUIElement</key><true/>
+</dict></plist>
+"#
+        ),
+    )?;
+    if exe != inside {
+        std::fs::copy(exe, &inside).with_context(|| format!("copying the program into {}", app.display()))?;
+        std::fs::remove_file(exe)?;
+        std::os::unix::fs::symlink(&inside, exe).with_context(|| format!("linking {} to the app", exe.display()))?;
+    }
+    sign(&app);
+    Ok(inside)
+}
 
 fn unit() -> Result<PathBuf> {
     let home = PathBuf::from(std::env::var_os("HOME").ok_or_else(|| anyhow!("HOME is not set"))?);
@@ -209,6 +267,7 @@ pub fn service(action: &str) -> Result<String> {
             for dir in [unit.parent(), log.parent()].into_iter().flatten() {
                 std::fs::create_dir_all(dir)?;
             }
+            let exe = if mac { bundle(&exe)? } else { exe };
             let text = if mac {
                 format!(
                     r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -216,6 +275,7 @@ pub fn service(action: &str) -> Result<String> {
 <plist version="1.0"><dict>
 <key>Label</key><string>{LABEL}</string>
 <key>ProgramArguments</key><array><string>{}</string><string>run</string></array>
+<key>AssociatedBundleIdentifiers</key><array><string>{LABEL}</string></array>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><true/>
 <key>StandardOutPath</key><string>{log}</string>

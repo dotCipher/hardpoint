@@ -26,8 +26,17 @@ echo "Building Hardpoint (a few minutes the first time)..."
 (cd "$here" && cargo build --release --locked)
 
 mkdir -p "$bin" "$data"
-cp "$here/target/release/hardpoint" "$bin/hardpoint.new"
-mv "$bin/hardpoint.new" "$bin/hardpoint"
+# Once the login service is installed on a Mac, the command is a link to the
+# program inside Hardpoint's own app. Replace the program, not the link.
+dest="$bin/hardpoint"
+if [ -L "$dest" ]; then
+    dest=$(readlink "$dest")
+fi
+cp "$here/target/release/hardpoint" "$dest.new"
+mv "$dest.new" "$dest"
+case "$dest" in
+    *.app/Contents/MacOS/*) codesign --force --sign - "${dest%/Contents/MacOS/*}" >/dev/null 2>&1 || true ;;
+esac
 
 # Put the catalog in place in one move, keeping the one before it.
 rm -rf "$data/catalog.incoming" "$data/catalog.previous"

@@ -738,6 +738,10 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             }
         });
     }
+    // Standing instructions. For each: the change it made that is still in
+    // effect, and the last day a timed one ran.
+    let mut rule_change: Vec<Option<u64>> = vec![None; cfg.rule.len()];
+    let mut rule_ran: Vec<String> = vec![String::new(); cfg.rule.len()];
     let mut reloaded: Option<Catalog> = None;
     let mut reload = false;
     // Which commits the installed catalog and program came from, for `hardpoint status`.
@@ -896,6 +900,51 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                 let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                 for change in gate.tick(&mut reach, now) {
                     eprintln!("change {} ({} on {}): {}", change.id, change.capability, change.device, explain(change.clone())["next"].as_str().unwrap_or(""));
+                }
+            }
+            // Standing instructions: "at this time, set that" and "while an agent is in this state, set that".
+            for (n, rule) in cfg.rule.iter().enumerate() {
+                let clock = chrono::Local::now().format("%H:%M").to_string();
+                let due = match (&rule.at, rule.during) {
+                    (Some(at), _) => *at == clock && rule_ran[n] != today(),
+                    (None, Some(state)) => engine.any(state) && rule_change[n].is_none(),
+                    _ => false,
+                };
+                let over = rule.during.is_some_and(|state| !engine.any(state)) && rule_change[n].is_some();
+                if !due && !over {
+                    continue;
+                }
+                let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
+                if over {
+                    let id = rule_change[n].take().unwrap_or(0);
+                    if let Err(error) = gate.undo(id, &mut reach, now) {
+                        eprintln!("rule {}: could not put {} back: {error}", n + 1, rule.capability);
+                    }
+                    continue;
+                }
+                rule_ran[n] = today();
+                let made = lookup(catalog, &rule.device, &rule.capability).and_then(|(card, cap)| {
+                    let risk = catalog.effective_risk(cap, stricter(&cfg, &rule.device, &rule.capability));
+                    // A rule is written once and runs unattended, so it never makes a change that needs a yes each time.
+                    if risk == catalog::Risk::Gated {
+                        return Err("it is gated, and a rule never makes a gated change".to_string());
+                    }
+                    if !changeable(card, cap, &board.card) {
+                        return Err("this build has no way to change it yet".to_string());
+                    }
+                    let value = serde_json::to_value(&rule.value).map_err(|e| e.to_string())?;
+                    gate.propose(&rule.device, &rule.capability, risk, value, &mut reach, now)
+                });
+                match made {
+                    Ok(change) => {
+                        eprintln!("rule {}: {} on {} set to {}", n + 1, rule.capability, rule.device, change.after);
+                        rule_change[n] = rule.during.map(|_| change.id);
+                    }
+                    Err(error) => {
+                        eprintln!("rule {}: {} on {} was not changed: {error}", n + 1, rule.capability, rule.device);
+                        // Do not try again every frame: wait for the state to pass.
+                        rule_change[n] = rule.during.map(|_| 0);
+                    }
                 }
             }
             // While an answer is wanted, the answer key pulses: amber to keep a change, red to approve one.

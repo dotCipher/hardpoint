@@ -111,7 +111,7 @@ with = "A card is checked once and shared. Everyone with that device gets it, in
 # What people do with it. Every one of these works today.
 [uses]
 eyebrow = "What you can do"
-title = "Six things it is good for"
+title = "What it is good for"
 lede = "Each of these works today, on a Mac."
 
 [[uses.item]]
@@ -133,6 +133,11 @@ text = "\"Is my drive healthy? How worn is my battery? What firmware is the dock
 art = "display"
 title = "Change things, and take them back"
 text = "\"Turn it down.\" \"Dim the screen.\" \"Let the wheel spin freely.\" Each is made at once and undone with a word."
+
+[[uses.item]]
+art = "lighting"
+title = "Set it once, as a rule"
+text = "\"Dim the screen at eight.\" \"Glow amber while an agent is waiting on me.\" A rule is two lines in your settings, runs through the same labels, and puts things back when the moment has passed."
 
 [[uses.item]]
 art = "lock"
@@ -231,6 +236,10 @@ answer = "On a Mac, an agent connected with `hardpoint mcp` can reach the comput
 [[question]]
 ask = "Does it need any special permission?"
 answer = "Mostly not: no sudo, no account. Two things on a Mac do. Talking to a Logitech mouse needs Input Monitoring permission for Hardpoint, which macOS asks you to grant in System Settings. Reaching a display uses a small tool called `m1ddc`, which you install yourself. Without either, those devices are still described to your agent; they just cannot be acted on."
+
+[[question]]
+ask = "Does it replace f.lux, Night Shift or my smart-home app?"
+answer = "No, and it should not. Those already do their one job well, and Hardpoint works beside them. What it adds is rules for the things only it reaches, such as a display's own backlight, a keyboard's lights or a mouse's speed, and one set of labels over all of it. For the smart home it is built to sit in front of Home Assistant, not to stand in for it."
 
 [[question]]
 ask = "Which agents does it work with?"

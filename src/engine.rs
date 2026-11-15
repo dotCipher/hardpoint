@@ -69,6 +69,11 @@ impl Engine {
         self.reassign();
     }
 
+    /// Whether any session is in this state right now.
+    pub fn any(&self, state: AgentState) -> bool {
+        self.sessions.iter().any(|s| s.state == state)
+    }
+
     pub fn gone(&mut self, source: &str, session: &str) {
         self.sessions.retain(|s| !(s.source == source && s.id == session));
         self.reassign();

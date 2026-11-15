@@ -404,6 +404,16 @@ def mark_png(size, bleed=False):
             + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))
 
 
+def icns():
+    """The mark as a macOS icon file, so the program shows the same face in
+    the system's permission lists as on the site. It is a plain container of
+    PNGs, written directly."""
+    kinds = (("icp4", 16), ("icp5", 32), ("ic07", 128), ("ic08", 256), ("ic09", 512), ("ic11", 32), ("ic12", 64), ("ic13", 256), ("ic14", 512))
+    drawn = {size: mark_png(size) for size in sorted({size for _, size in kinds})}
+    body = b"".join(kind.encode() + struct.pack(">I", len(drawn[size]) + 8) + drawn[size] for kind, size in kinds)
+    return b"icns" + struct.pack(">I", len(body) + 8) + body
+
+
 def ico(sizes):
     """A .ico file holding the mark at each size, for browsers that ask for one."""
     images = [mark_png(size) for size in sizes]
@@ -540,6 +550,9 @@ def write_assets(catalog, content):
     }
     for name, body in files.items():
         (ASSETS / name).write_text(body + "\n")
+    # The icon the program wears on a Mac is built into the program, so it lives with the packaging.
+    (ROOT / "packaging").mkdir(exist_ok=True)
+    (ROOT / "packaging" / "Hardpoint.icns").write_bytes(icns())
     return len(files)
 
 

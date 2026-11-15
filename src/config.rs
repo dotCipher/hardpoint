@@ -28,6 +28,27 @@ pub struct Config {
     /// a spare key the same way an agent that needs you does.
     #[serde(default)]
     pub watch: Vec<Watch>,
+    /// "When this, set that." The owner's standing instructions.
+    #[serde(default)]
+    pub rule: Vec<Rule>,
+}
+
+/// One standing instruction: set an ability to a value at a time of day, or
+/// for as long as an agent is in some state. A rule goes through the
+/// gatekeeper like any other change, and can never make a gated one.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Rule {
+    /// A time of day, as "20:00". The change is made once, when the clock gets there.
+    #[serde(default)]
+    pub at: Option<String>,
+    /// An agent state. The change is made when any session enters it, and
+    /// put back when none is in it any more.
+    #[serde(default, rename = "while")]
+    pub during: Option<crate::model::AgentState>,
+    pub device: String,
+    pub capability: String,
+    pub value: toml::Value,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -237,6 +258,14 @@ impl Config {
         let mut merged: toml::Value = toml::from_str(DEFAULT_CONFIG)?;
         lay(&mut merged, toml::from_str(text)?);
         let cfg: Config = merged.try_into()?;
+        for rule in &cfg.rule {
+            let timed = rule.at.as_deref().map(|at| at.len() == 5 && at.as_bytes()[2] == b':' && at.split(':').all(|n| n.parse::<u8>().is_ok()));
+            match (timed, rule.during) {
+                (Some(true), None) | (None, Some(_)) => {}
+                (Some(false), _) => bail!("a rule's time is written like \"20:00\""),
+                _ => bail!("a rule needs either `at` or `while`, and not both"),
+            }
+        }
         let mut seen = std::collections::HashSet::new();
         for slot in &cfg.slots {
             if !seen.insert(slot.key) {
@@ -305,6 +334,16 @@ mod tests {
     use super::*;
 
     const EXAMPLE: &str = include_str!("../examples/moonlander.toml");
+
+    #[test]
+    fn a_rule_has_a_time_or_a_state() {
+        let rule = |when: &str| format!("[[rule]]\n{when}\ndevice = \"a/b\"\ncapability = \"light.global\"\nvalue = \"#402000\"\n");
+        assert!(Config::parse(&rule("at = \"20:00\"")).is_ok());
+        assert_eq!(Config::parse(&rule("while = \"needs-you\"")).unwrap().rule[0].during, Some(crate::model::AgentState::NeedsYou));
+        assert!(Config::parse(&rule("at = \"8pm\"")).is_err());
+        assert!(Config::parse(&rule("")).is_err(), "a rule with no trigger never fires, so it is an error");
+        assert!(Config::parse(&rule("at = \"20:00\"\nwhile = \"running\"")).is_err());
+    }
 
     #[test]
     fn a_config_file_only_has_to_say_what_differs() {

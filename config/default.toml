@@ -80,3 +80,18 @@ every_hours = 24
 # below = 20                    # or: equals = "Failing"
 # say = "Mouse battery is low"
 # every_secs = 300
+
+# "When this, set that." A rule goes through the gatekeeper like any change,
+# and never makes a gated one. Use `at` for a time of day, or `while` for as
+# long as any agent session is in a state (the change is put back afterwards).
+# [[rule]]
+# at = "20:00"
+# device = "vendor/model"
+# capability = "display.brightness"
+# value = 40
+#
+# [[rule]]
+# while = "needs-you"
+# device = "vendor/model"
+# capability = "light.global"
+# value = "#402000"

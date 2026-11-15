@@ -166,6 +166,30 @@ The owner's own cards live in `~/.config/hardpoint/cards`, laid out like the
 catalog. They work at once, replace a catalog card with the same id, and are
 never touched by an update. The vocabulary's floors apply to them too.
 
+## Rules
+
+A rule in the owner's settings is a standing instruction: "when this, set
+that".
+
+```toml
+[[rule]]
+at = "20:00"                     # once, when the clock gets there
+device = "lg/ultrawide-76fe"
+capability = "display.brightness"
+value = 40
+
+[[rule]]
+while = "needs-you"              # for as long as any agent session is in this state
+device = "zsa/moonlander-mk1"
+capability = "light.global"
+value = "#402000"
+```
+
+A rule is not a way round the labels. Its change goes through the gatekeeper
+like any other: a reversible one is made, a guarded one is held until a
+person keeps it, and a gated one is never made by a rule at all. A `while`
+rule puts its change back when no session is in that state any more.
+
 ## Other standards
 
 **W3C Web of Things.** The site publishes every card as a Thing Model

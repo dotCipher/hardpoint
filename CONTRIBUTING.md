@@ -25,7 +25,10 @@ python3 tools/build.py --check
 ```
 
 `observe.py` runs on the Python that ships with macOS, and on Linux. It only
-reads. `build.py` needs Python 3.11 or newer; if you do not have it, open the
+reads. It also finds things on your home network, such as a television or a
+smart plug, by listening for a few seconds to what they announce; it sends
+them nothing, and reports the model they announce, never an address or the
+name you gave them. `--no-network` skips that. `build.py` needs Python 3.11 or newer; if you do not have it, open the
 pull request anyway and the check runs there.
 
 Then open a pull request with the new file.

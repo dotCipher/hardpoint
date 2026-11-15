@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img src="assets/logo-light.svg" width="84" height="84" alt="The Hardpoint mark: a mounting plate with four fixing holes and one attach point">
-  </picture>
+  <img src="assets/logo.svg" width="84" height="84" alt="The Hardpoint mark: a mounting plate with four fixing holes and one attach point, ringed in the four label colours">
 </p>
 
 <h1 align="center">Hardpoint</h1>
@@ -39,7 +36,7 @@ safely carry.
 
 | Part | What it does |
 |---|---|
-| **The catalog** | One card per device model: how to recognise it, what it can do, how risky each change is, and how much of that a person has checked. Data only. |
+| **The catalog** | One card per device model: how to recognise it, what it can do, how risky each change is, and how much of that a person has checked. Data only. It covers what is plugged into the computer and what is on the home network: a television, a streaming stick, an air conditioner. |
 | **The daemon** | Runs on your computer and is the only thing that touches hardware. Everything it knows about a device comes from that device's card. |
 | **The site** | Generated from the catalog, with a machine-readable feed for any tool. |
 
@@ -95,6 +92,7 @@ goes wrong if it is done carelessly.
 | Agent sessions on keys, and a press that runs your own action | Runs, with OpenCode and any script |
 | Brightness that follows the clock; per-key press counts | Runs |
 | Reading a mouse and the computer through adapters | Designed. Read by hand so far |
+| Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
 | Confirm-or-revert, and a journal of every change | Designed |
 | Approve-first changes, such as firmware updates | Designed |
 | An MCP server for any agent and model provider | Designed |
@@ -176,7 +174,7 @@ catalog/        device cards, the vocabulary, the adapter list, the schema
 src/            the daemon
 config/         built-in settings
 examples/       complete setups to copy
-site-src/       the site's words, styles and scripts
+site-src/       the site's words, styles, scripts and heading typeface
 tools/build.py  validates the catalog; builds the site, the feed and assets/
 tools/observe.py  lists attached devices and drafts a card for one
 docs/           the design and the card format
@@ -187,6 +185,8 @@ docs/           the design and the card format
 - **Catalog data** in `catalog/`: CC0 1.0, in [LICENSE-DATA](LICENSE-DATA).
   No attribution is required, so any tool can ship it.
 - **Everything else**: Apache 2.0, in [LICENSE](LICENSE).
+- **The heading typeface** on the site is Space Grotesk, under the SIL Open
+  Font License, in [site-src/fonts/OFL.txt](site-src/fonts/OFL.txt).
 
 By contributing a card you agree to release it under CC0. Write cards from
 your own observation and from documentation; do not copy data files from

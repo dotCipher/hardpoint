@@ -150,7 +150,7 @@ fn inventory(catalog: &Catalog, json: bool) -> Result<()> {
     for f in found.iter().filter(|f| f.card.is_none()) {
         println!("  {}  {}", ids(f), f.seen.name);
     }
-    println!("\nDisplays and audio devices are not looked for yet.");
+    println!("\nDisplays, audio devices and things on the home network are not looked for yet.");
     Ok(())
 }
 

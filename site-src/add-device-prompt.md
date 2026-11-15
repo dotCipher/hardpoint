@@ -3,13 +3,13 @@ I want to add one of my devices to the Hardpoint catalog: {repo}
 Please do this with me, one step at a time.
 
 1. Clone that repository and read README.md, docs/SPEC.md and catalog/vocabulary/capabilities.toml.
-2. Run `python3 tools/observe.py`. Show me the devices it lists that have no card yet, and ask me which one to add.
+2. Run `python3 tools/observe.py`. It lists what is plugged in and what is on my home network. Show me the devices that have no card yet, and ask me which one to add.
 3. Run `python3 tools/observe.py --draft <number>` and save the draft at the path it names.
 4. Fill in the card:
    - Use only capability ids from the vocabulary. If one is truly missing, propose adding it and ask me first.
    - Use only adapters listed in catalog/adapters/adapters.toml.
    - Never give a capability a lower risk than the vocabulary's min_risk.
-   - Never put a command, a script or a file path in a card.
+   - Never put a command, a script or a file path in a card. For something on the network, never put an address, a host name or the name I gave the device in a card either.
 5. Be exact about what has been checked:
    - Use "observed", with today's date, only for something you ran on this computer and saw work. Say what you ran in the note.
    - Use "unverified" for anything you only read about, and say where.

@@ -1,0 +1,35 @@
+card = 1
+
+[device]
+id = "google/chromecast"
+vendor = "Google"
+name = "Chromecast"
+kind = "media"
+summary = "Streaming stick that plugs into a television. This card is for the model that announces itself as Chromecast."
+links = ["https://store.google.com/"]
+
+[[match]]
+bus = "network"
+service = "_googlecast._tcp"
+model = "Chromecast"
+
+# A Chromecast tells the whole local network what it is playing. The card
+# lets only "something is playing" through, never the title.
+[[capability]]
+id = "media.playing"
+adapter = "mdns"
+risk = "read"
+privacy = "presence"
+params = { service = "_googlecast._tcp", field = "rs" }
+note = "The device announces what it is playing to everyone on the network. Only whether something is playing may be passed on."
+verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2026-11-14, note = "The announcement changed with what was playing. Read by listening once; the adapter is not written yet." }]
+
+[[capability]]
+id = "audio.output_volume"
+adapter = "cast"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "The Cast protocol has a volume message. Not tried." }]
+
+[[sources]]
+title = "Google Cast: receiver volume in the Web Sender API"
+url = "https://developers.google.com/cast/docs/reference/web_sender/cast.framework.RemotePlayerController"

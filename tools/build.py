@@ -13,13 +13,16 @@ words and demo scripts from site-src/content.toml.
 import datetime
 import html
 import json
+import math
 import os
 import pathlib
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.parse
+import zlib
 
 if sys.version_info < (3, 11):
     sys.exit(f"tools/build.py needs Python 3.11 or newer, and this is {sys.version.split()[0]}. "
@@ -35,6 +38,8 @@ ASSETS = ROOT / "assets"
 
 # Brand colours. The site's stylesheet declares the same four risk colours.
 INK, PANEL, LINE, TEXT, MUTED, DIM = "#0a0c0f", "#11151a", "#232b35", "#dde3ea", "#8792a2", "#5b6675"
+PAPER = "#f6f4ef"  # the page in a light setting
+FONT = "space-grotesk-latin.woff2"  # the heading typeface, kept in site-src/fonts with its licence
 RISK_COLOR = {"read": "#00d060", "reversible": "#0090ff", "guarded": "#ffa000", "gated": "#ff3b3b"}
 STATE_COLOR = {"running": RISK_COLOR["reversible"], "needs-you": RISK_COLOR["guarded"],
                "done": RISK_COLOR["read"], "failed": RISK_COLOR["gated"]}
@@ -302,6 +307,15 @@ def load_content(catalog):
     return content
 
 
+def site_url(repo):
+    """Where the built site will be served from, when that can be known. Used for links that must be absolute."""
+    explicit = os.environ.get("HARDPOINT_SITE_URL")
+    if explicit:
+        return explicit.rstrip("/") + "/"
+    found = re.match(r"https://github\.com/([^/]+)/([^/]+)$", repo or "")
+    return f"https://{found.group(1).lower()}.github.io/{found.group(2)}/" if found else None
+
+
 def repo_url():
     """Where this copy of the project lives, worked out at build time."""
     explicit = os.environ.get("HARDPOINT_REPO_URL")
@@ -320,15 +334,80 @@ def repo_url():
 
 # -------------------------------------------------------------------- images
 
-def mark(plate, ring, size=32):
-    """The Hardpoint mark: a mounting plate, four fixing holes, one attach point."""
+# The mark: a mounting plate, four fixing holes, and one attach point whose
+# ring runs through the four label colours. It is drawn the same way
+# everywhere: page header, favicon, app icons and the README.
+MARK_TILE, MARK_EDGE, MARK_HOLE = "#0d1116", "#2f3945", "#8d98a8"
+# The four label colours as one band, in the order of the colour wheel so that
+# every blend between neighbours stays vivid. The stylesheet's --band is the same.
+MARK_STOPS = list(zip((0, 0.34, 0.68, 1), (RISK_COLOR[risk] for risk in ("reversible", "read", "guarded", "gated"))))
+
+
+def mark(size=32, ring_class=""):
+    stops = "".join(f'<stop offset="{at}" stop-color="{colour}"/>' for at, colour in MARK_STOPS)
+    cls = f' class="{ring_class}"' if ring_class else ""
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="{size}" height="{size}" aria-hidden="true">'
-        f'<rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="{plate}" stroke-width="2"/>'
-        f'<circle class="ring" cx="16" cy="16" r="5.5" fill="none" stroke="{ring}" stroke-width="2.5"/>'
-        + "".join(f'<circle cx="{x}" cy="{y}" r="1.6" fill="{plate}"/>' for x in (9, 23) for y in (9, 23))
-        + "</svg>"
+        f'<defs><linearGradient id="hp-ring" x1="0" y1="0" x2="1" y2="1">{stops}</linearGradient></defs>'
+        f'<rect x="1" y="1" width="30" height="30" rx="7.5" fill="{MARK_TILE}" stroke="{MARK_EDGE}"/>'
+        + "".join(f'<circle cx="{x}" cy="{y}" r="1.5" fill="{MARK_HOLE}"/>' for x in (8.5, 23.5) for y in (8.5, 23.5))
+        + f'<circle{cls} cx="16" cy="16" r="5.6" fill="none" stroke="url(#hp-ring)" stroke-width="3"/></svg>'
     )
+
+
+def mark_png(size, bleed=False):
+    """The same mark as a PNG, drawn pixel by pixel so the build needs no image library.
+
+    `bleed` fills the whole square, for the icons a phone crops to its own shape.
+    """
+    rgb = lambda colour: tuple(int(colour[n:n + 2], 16) for n in (1, 3, 5))
+    tile, edge, hole = rgb(MARK_TILE), rgb(MARK_EDGE), rgb(MARK_HOLE)
+    stops = [(at, rgb(colour)) for at, colour in MARK_STOPS]
+    scale = size / 32
+    cover = lambda distance: min(1.0, max(0.0, 0.5 - distance * scale))  # how much of a pixel a shape covers
+    mix = lambda a, b, t: tuple(a[n] + (b[n] - a[n]) * t for n in range(3))
+
+    def ring_colour(x, y):
+        t = min(1.0, max(0.0, (x + y - 20.8) / 22.4))
+        for (a_at, a), (b_at, b) in zip(stops, stops[1:]):
+            if t <= b_at:
+                return mix(a, b, (t - a_at) / (b_at - a_at))
+        return stops[-1][1]
+
+    raw = bytearray()
+    for py in range(size):
+        raw.append(0)
+        y = (py + 0.5) / scale
+        for px in range(size):
+            x = (px + 0.5) / scale
+            colour, alpha = tile, 1.0
+            if not bleed:
+                qx, qy = abs(x - 16) - 7.5, abs(y - 16) - 7.5
+                outside = math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - 7.5
+                alpha = cover(outside - 0.5)
+                colour = mix(colour, edge, cover(abs(outside) - 0.5))
+            if 5 < x < 27 and 5 < y < 27:
+                for cx in (8.5, 23.5):
+                    for cy in (8.5, 23.5):
+                        colour = mix(colour, hole, cover(math.hypot(x - cx, y - cy) - 1.5))
+                colour = mix(colour, ring_colour(x, y), cover(abs(math.hypot(x - 16, y - 16) - 5.6) - 1.5))
+            raw += bytes((round(colour[0]), round(colour[1]), round(colour[2]), round(alpha * 255)))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))
+
+
+def ico(sizes):
+    """A .ico file holding the mark at each size, for browsers that ask for one."""
+    images = [mark_png(size) for size in sizes]
+    offset, entries = 6 + 16 * len(images), b""
+    for size, image in zip(sizes, images):
+        entries += struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(image), offset)
+        offset += len(image)
+    return struct.pack("<HHH", 0, 1, len(images)) + entries + b"".join(images)
 
 
 UNIT, KEY, PAD = 46, 40, 16
@@ -451,8 +530,7 @@ def write_assets(catalog, content):
     ASSETS.mkdir(exist_ok=True)
     card = catalog.card(content["demo"]["card"])
     files = {
-        "logo-dark.svg": mark(TEXT, RISK_COLOR["guarded"], 96),
-        "logo-light.svg": mark("#1c2430", "#d98600", 96),
+        "logo.svg": mark(96),
         "hero.svg": hero_image(card, content["demo"]["slots"], content),
         "ladder.svg": ladder_image(catalog),
     }
@@ -484,50 +562,51 @@ def inline_code(text):
     return re.sub(r"`([^`]+)`", r"<code>\1</code>", e(text))
 
 
-def site_mark():
-    """The mark for pages: it takes its colours from the page, so it suits light and dark."""
-    return (
-        '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="6" fill="none" '
-        'stroke="currentColor" stroke-width="2"/><circle class="ring" cx="16" cy="16" r="5.5" fill="none" '
-        'stroke="var(--accent)" stroke-width="2.5"/>'
-        + "".join(f'<circle cx="{x}" cy="{y}" r="1.6" fill="currentColor"/>' for x in (9, 23) for y in (9, 23))
-        + "</svg>"
-    )
+# One family of pictures, all drawn on the same 24-unit grid with the same
+# line. Each has two hooks: `glow` outlines light up while something is being
+# asked, and one `lamp` shows the result. They are used small beside a
+# device's name and large in the scenes.
+G, T, L = 'class="glow"', 'class="glow thin"', 'class="lamp"'
+ART = {
+    "keyboard": f'<rect {G} x="2" y="6" width="20" height="12" rx="2.5"/><path {T} d="M6 10h.01M10 10h.01M14 10h.01M6 14h.01M9.5 14h5"/><circle {L} cx="18" cy="10" r="1.1"/>',
+    "mouse": f'<rect {G} x="7" y="2" width="10" height="20" rx="5"/><path {T} d="M7 10.5h10"/><rect {L} x="11" y="4.8" width="2" height="3.8" rx="1"/>',
+    "laptop": f'<rect {G} x="4" y="4.5" width="16" height="11" rx="2"/><path {G} d="M2 19.5h20"/><circle {L} cx="12" cy="7" r=".9"/>',
+    "desktop": f'<rect {G} x="7" y="2.5" width="10" height="19" rx="2.5"/><path {T} d="M10 6.5h4M10 9.5h4"/><circle {L} cx="12" cy="17" r="1.2"/>',
+    "display": f'<rect {G} x="2" y="4" width="20" height="13" rx="2.5"/><path {G} d="M12 17v3.5M8 20.5h8"/><circle {L} cx="19" cy="14" r=".9"/>',
+    "television": f'<rect {G} x="2" y="6" width="20" height="12.5" rx="2.5"/><path {G} d="M7 21.5h10"/><path {T} d="M9 2.5l3 3 3-3"/><circle {L} cx="19" cy="15.5" r=".9"/>',
+    "media": f'<circle {G} cx="12" cy="10" r="7"/><path {T} d="M10.5 7.6v4.8l3.8-2.4z"/><path {G} d="M12 17v2"/><circle {L} cx="12" cy="21" r="1.1"/>',
+    "dock": f'<rect {G} x="3" y="9" width="18" height="7" rx="2.5"/><path {T} d="M7 12.5h2M11.5 12.5h2"/><circle {L} cx="17.5" cy="12.5" r="1"/>',
+    "audio": f'<path {G} d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect {G} x="2.5" y="13.5" width="4.5" height="7" rx="2"/><rect {G} x="17" y="13.5" width="4.5" height="7" rx="2"/><circle {L} cx="19.25" cy="18.4" r=".9"/>',
+    "speaker": f'<rect {G} x="6" y="2" width="12" height="20" rx="3"/><circle {G} cx="12" cy="14" r="3.5"/><circle {L} cx="12" cy="6.5" r="1.2"/>',
+    "storage": f'<rect {G} x="5" y="3" width="14" height="18" rx="2.5"/><path {T} d="M8.5 17h4.5"/><circle {L} cx="16" cy="17" r="1.1"/>',
+    "lighting": f'<path {G} d="M12 2.5a6.5 6.5 0 0 0-4.2 11.4c.8.7 1.2 1.6 1.2 2.6h6c0-1 .4-1.9 1.2-2.6A6.5 6.5 0 0 0 12 2.5z"/><path {T} d="M9.5 19h5M10.5 21.5h3"/><circle {L} cx="12" cy="9" r="2"/>',
+    "plug": f'<rect {G} x="5" y="4" width="14" height="13" rx="3.5"/><path {G} d="M10 9v3M14 9v3M12 17v4.5"/><circle {L} cx="12" cy="14.3" r=".9"/>',
+    "climate": f'<rect {G} x="2.5" y="5" width="19" height="9" rx="2.5"/><path {T} d="M6 11h8M7 17.5v2.5M12 17.5v3.5M17 17.5v2.5"/><circle {L} cx="18" cy="8.6" r="1"/>',
+    "cooling": f'<circle {G} cx="12" cy="12" r="9"/><path {T} d="M12 12c0-4 1-6 3-6s2 3-3 6c4 0 6 1 6 3s-3 2-6-3c0 4-1 6-3 6s-2-3 3-6c-4 0-6-1-6-3s3-2 6 3z"/><circle {L} cx="12" cy="12" r="1.1"/>',
+    "hub": f'<rect {G} x="3" y="13" width="18" height="7" rx="2.5"/><path {T} d="M8.5 9.5a5 5 0 0 1 7 0M6 7a8.5 8.5 0 0 1 12 0"/><circle {L} cx="7.2" cy="16.5" r="1"/>',
+    "sensor": f'<circle {G} cx="12" cy="12" r="3.2"/><path {T} d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/><circle {L} cx="12" cy="12" r="1.1"/>',
+    "lock": f'<rect {G} x="5" y="10.5" width="14" height="10.5" rx="2.5"/><path {G} d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><circle {L} cx="12" cy="15.7" r="1.3"/>',
+    "camera": f'<rect {G} x="3" y="6.5" width="13" height="11" rx="2.5"/><path {G} d="M16 10.5l5-2.5v8l-5-2.5"/><circle {L} cx="6.4" cy="9.8" r=".9"/>',
+    "other": f'<rect {G} x="4" y="7" width="16" height="10" rx="2.5"/><path {T} d="M8 12h4"/><circle {L} cx="16" cy="12" r="1.1"/>',
+    # the three steps a request passes through
+    "agent": f'<rect {G} x="3" y="4.5" width="18" height="15" rx="2.5"/><path {G} d="M7.5 9.5l3 2.5-3 2.5M13 14.5h3.5"/>',
+    "card": f'<rect {G} x="3" y="5" width="18" height="14" rx="2.5"/><path {T} d="M7 10h6M7 14h4"/><circle {L} cx="16.6" cy="13.6" r="1.3"/>',
+    "device": f'<rect {G} x="6.5" y="6.5" width="11" height="11" rx="2"/><path {T} d="M10 3.5v3M14 3.5v3M10 17.5v3M14 17.5v3M3.5 10h3M3.5 14h3M17.5 10h3M17.5 14h3"/>',
+}
+
+
+def art(name, classes="ico", label=""):
+    """One picture from the family. Small ones are decoration; a labelled one is an image."""
+    role = f'role="img" aria-label="{e(label)}"' if label else 'aria-hidden="true"'
+    return f'<svg class="{classes}" viewBox="0 0 24 24" {role}>{ART.get(name, ART["other"])}</svg>'
 
 
 def drawing(card, label):
-    """A simple picture of a device, chosen by what kind of thing it is.
-
-    Every picture has the same two hooks: `glow` outlines light up while
-    something is being asked, and one `lamp` shows the result.
-    """
-    kind = card["device"]["kind"]
+    """A picture of a device for the scenes: its own key layout if the card has one, or its kind."""
     if card.get("keys"):
         picture = board_svg(card, "drawing", lamp=len(card["keys"]["grid"]) // 2)
         return re.sub(r'aria-label="[^"]*"', f'aria-label="{e(label)}"', picture, count=1)
-    shapes = {
-        "mouse": '<rect class="glow" x="110" y="14" width="100" height="172" rx="50"/>'
-                 '<line class="glow thin" x1="160" y1="14" x2="160" y2="82"/>'
-                 '<line class="glow thin" x1="110" y1="88" x2="210" y2="88"/>'
-                 '<rect class="lamp" x="152" y="34" width="16" height="34" rx="8"/>',
-        "laptop": '<rect class="glow" x="70" y="22" width="180" height="116" rx="10"/>'
-                  '<path class="glow" d="M40 160 L70 138 H250 L280 160 Q282 172 268 172 H52 Q38 172 40 160 Z"/>'
-                  '<circle class="lamp" cx="160" cy="32" r="4"/>',
-        "display": '<rect class="glow" x="24" y="26" width="272" height="122" rx="12"/>'
-                   '<path class="glow thin" d="M160 148 V172 M112 174 H208"/>'
-                   '<circle class="lamp" cx="280" cy="134" r="4"/>',
-        "audio": '<path class="glow" d="M92 120 V96 a68 68 0 0 1 136 0 V120"/>'
-                 '<rect class="glow" x="76" y="112" width="34" height="62" rx="14"/>'
-                 '<rect class="glow" x="210" y="112" width="34" height="62" rx="14"/>'
-                 '<circle class="lamp" cx="227" cy="160" r="4"/>',
-        "storage": '<rect class="glow" x="96" y="26" width="128" height="148" rx="14"/>'
-                   '<path class="glow thin" d="M120 146 H170"/>'
-                   '<circle class="lamp" cx="200" cy="146" r="5"/>',
-    }
-    body = shapes.get(kind, '<rect class="glow" x="56" y="62" width="208" height="76" rx="14"/>'
-                            '<path class="glow thin" d="M82 114 H102 M116 114 H136 M150 114 H170"/>'
-                            '<circle class="lamp" cx="238" cy="86" r="5"/>')
-    return f'<svg class="drawing kind-{e(kind)}" viewBox="0 0 320 200" role="img" aria-label="{e(label)}">{body}</svg>'
+    return art(card["device"]["kind"], "drawing art", label)
 
 
 def how_to_show(word):
@@ -557,14 +636,22 @@ class Site:
             nav += f'<a href="{root}{href}"{current}>{e(label)}</a>'
         if self.repo:
             nav += f'<a href="{e(self.repo)}">GitHub</a>'
+        home = site_url(self.repo)
+        picture = f'<meta property="og:image" content="{e(home)}icon-512.png">' if home else ""
         return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(title)}</title><meta name="description" content="{e(self.t["lede"])}">
-<meta name="color-scheme" content="dark light"><link rel="icon" href="{root}logo.svg" type="image/svg+xml">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="{INK}" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="{PAPER}" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website"><meta property="og:title" content="{e(title)}"><meta property="og:description" content="{e(self.t["lede"])}">{picture}
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="{root}favicon.ico" sizes="32x32"><link rel="icon" href="{root}favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{root}apple-touch-icon.png"><link rel="manifest" href="{root}site.webmanifest">
+<link rel="preload" href="{root}fonts/{FONT}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{root}style.css">
 <script>if ("IntersectionObserver" in window) document.documentElement.className = "js"</script></head><body>
 <div class="sky" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-<header><div class="wrap bar"><a class="brand" href="{root}index.html">{site_mark()}<span>{e(self.name)}</span></a><nav>{nav}</nav></div>
+<header><div class="wrap bar"><a class="brand" href="{root}index.html">{mark(32, "ring")}<span>{e(self.name)}</span></a><nav>{nav}</nav></div>
 <div class="progress" aria-hidden="true"></div></header>
 <main>{body}</main>
 <footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.
@@ -621,7 +708,7 @@ Product names belong to their owners; this project is not affiliated with them.<
             extra = (f' data-search="{e(" ".join(words).lower())}" data-facets="{e(json.dumps(self.facet_values(card)))}"'
                      f' data-name="{e(d["name"])}" data-abilities="{len(caps)}" data-rank="{rank}"')
         return (f'<a class="card plate" href="{root}devices/{slug(card)}.html"{extra}>'
-                f'<span class="kind">{e(d["kind"])}</span><span class="name">{e(d["name"])}</span>'
+                f'<span class="kind">{art(d["kind"])}{e(d["kind"])}</span><span class="name">{e(d["name"])}</span>'
                 f'<span class="vendor">{e(d["vendor"])}</span><div class="meter">{meter}</div>'
                 f'<span class="counts">{e(summary)}</span><div class="riskdots">{risks}</div></a>')
 
@@ -707,6 +794,8 @@ Product names belong to their owners; this project is not affiliated with them.<
         why_pills = "".join(f'<button class="pill" type="button" aria-pressed="false">{e(i["ask"])}</button>' for i in whys["items"])
         questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{inline_code(q["answer"])}</p></details>' for q in t["question"])
         more = sec["devices_more"].replace("{count}", str(len(self.cards)))
+        # A request passes through three hands: the agent, the card, the device.
+        flow = '<i class="wire"></i>'.join(f'<span class="node">{art(name)}{e(text)}</span>' for name, text in zip(("agent", "card", "device"), s["flow"]))
         # The last sentence of the headline carries the promise, so it carries the colour.
         first, stop, last = t["tagline"].rstrip(".").rpartition(". ")
         headline = f'{e(first)}. <span class="grad">{e(last)}.</span>' if stop else e(t["tagline"])
@@ -729,6 +818,7 @@ Product names belong to their owners; this project is not affiliated with them.<
       <button class="btn small fixed" id="scene-toggle" type="button">{e(s["pause"])}</button>
       <button class="btn small" id="scene-next" type="button">{e(s["next"])}</button></div>
     <div class="pills scroll" role="tablist" id="scene-pills">{pills}</div>
+    <div class="flow" aria-hidden="true">{flow}</div>
     <div class="drawings">{drawings}</div>
     <div class="talk" aria-live="polite">
       <p class="bubble" id="scene-ask">&nbsp;</p>
@@ -956,7 +1046,18 @@ A device card can only name an adapter and give it typed values; it can never ca
         (SITE / "devices").mkdir(parents=True)
         for name in ("style.css", "app.js"):
             shutil.copy(SOURCE / name, SITE / name)
-        (SITE / "logo.svg").write_text(mark(MUTED, RISK_COLOR["guarded"]))
+        (SITE / "fonts").mkdir()
+        shutil.copy(SOURCE / "fonts" / FONT, SITE / "fonts" / FONT)
+        # One mark, in every form a browser or a phone asks for.
+        (SITE / "favicon.svg").write_text(mark())
+        (SITE / "favicon.ico").write_bytes(ico((16, 32, 48)))
+        for name, size in (("apple-touch-icon.png", 180), ("icon-192.png", 192), ("icon-512.png", 512)):
+            (SITE / name).write_bytes(mark_png(size, bleed=True))
+        (SITE / "site.webmanifest").write_text(json.dumps({
+            "name": self.name, "short_name": self.name, "description": self.t["tagline"], "start_url": ".", "display": "minimal-ui",
+            "background_color": INK, "theme_color": INK,
+            "icons": [{"src": f"icon-{size}.png", "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any maskable"} for size in (192, 512)],
+        }, indent=2) + "\n")
         pages = {"index": self.landing, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
                  "adapters": self.adapters, "format": self.format}
         for name, render in pages.items():

@@ -30,16 +30,21 @@ The format version. Always `1`.
 |---|---|
 | `id` | `<vendor>/<model>`, lower case, matching the file path |
 | `vendor`, `name` | As the maker writes them |
-| `kind` | `keyboard`, `mouse`, `laptop`, `desktop`, `display`, `dock`, `audio`, `cooling`, `lighting`, `storage` or `other` |
+| `kind` | `keyboard`, `mouse`, `laptop`, `desktop`, `display`, `dock`, `audio`, `cooling`, `lighting`, `storage`, `television`, `media`, `speaker`, `plug`, `climate`, `hub`, `sensor`, `lock`, `camera` or `other` |
 | `summary` | One sentence |
 | `links` | Optional `https` links |
 
 ### `[[match]]`
 
 How software recognises the device. At least one. `bus` is `usb`,
-`bluetooth`, `builtin`, `display` or `audio`. The other fields narrow it:
-`vendor_id`, `product_id`, `usage_page`, `model` (for built-in hardware, the
-computer's model identifier) and `name`.
+`bluetooth`, `builtin`, `display`, `audio` or `network`. The other fields
+narrow it: `vendor_id`, `product_id`, `usage_page`, `model` (for built-in
+hardware, the computer's model identifier) and `name`.
+
+A device on the home network is recognised by what it announces there:
+`service` is the kind of announcement, such as `_hap._tcp`, and `model` is the
+model it names. A card never holds an address, a host name or the name
+someone gave the device.
 
 ### `[keys]`
 

@@ -47,6 +47,15 @@
             "cooling",
             "lighting",
             "storage",
+            "television",
+            "media",
+            "speaker",
+            "plug",
+            "climate",
+            "hub",
+            "sensor",
+            "lock",
+            "camera",
             "other"
           ]
         },
@@ -78,7 +87,8 @@
               "bluetooth",
               "builtin",
               "display",
-              "audio"
+              "audio",
+              "network"
             ]
           },
           "vendor_id": {
@@ -94,6 +104,9 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "service": {
             "type": "string"
           }
         }

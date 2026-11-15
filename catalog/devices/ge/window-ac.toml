@@ -1,0 +1,41 @@
+card = 1
+
+[device]
+id = "ge/window-ac"
+vendor = "GE Appliances"
+name = "Window air conditioner"
+kind = "climate"
+summary = "Window air conditioner that joins the home network as a HomeKit accessory. Nobody has paired one with Hardpoint yet."
+links = ["https://www.geappliances.com/"]
+
+[[match]]
+bus = "network"
+service = "_hap._tcp"
+model = "Window AC"
+
+[[requires]]
+platform = "any"
+what = "The air conditioner paired with this computer"
+note = "HomeKit accessories answer only to a controller they have been paired with, using the setup code on the unit."
+
+[[capability]]
+id = "climate.temperature"
+adapter = "homekit"
+risk = "read"
+verification = [{ status = "unverified", platform = "macos", note = "HomeKit defines this for an air conditioner. The unit was seen on the network but not paired, so nothing was read." }]
+
+[[capability]]
+id = "climate.target"
+adapter = "homekit"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "HomeKit defines this for an air conditioner. Not paired, not tried." }]
+
+[[capability]]
+id = "power.switch"
+adapter = "homekit"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "HomeKit defines this for an air conditioner. Not paired, not tried." }]
+
+[[sources]]
+title = "Apple's accessory documentation, including the HomeKit Accessory Protocol"
+url = "https://developer.apple.com/apple-home/"

@@ -43,6 +43,8 @@ approve = "Go ahead"
 decline = "Not now"
 done = "Done."
 declined = "Not done. Nothing changed."
+# The three hands a request passes through, drawn above each scene.
+flow = ["Agent", "Card", "Device"]
 
 # What a kind of device is called in the scenes. A kind that is not listed
 # here is shown under its own name.
@@ -50,6 +52,9 @@ declined = "Not done. Nothing changed."
 display = "screen"
 audio = "headphones"
 storage = "external drive"
+television = "TV"
+media = "streaming stick"
+climate = "air conditioner"
 
 # What changes when an agent has a card to read. Each row is true of the
 # cards themselves, whatever program reads them.
@@ -199,6 +204,10 @@ ask = "Does anything leave my computer?"
 answer = "No. There is no account and no server. The catalog is a set of files, and the program listens only on your own computer."
 
 [[question]]
+ask = "Does it cover smart-home devices?"
+answer = "Yes. A television, a streaming stick and an air conditioner already have cards, found by listening to what they announce on the home network. Nothing is sent to them to find them. A card never holds an address or the name you gave a device, and when a device announces what it is doing, such as what is playing, the card lets only \"something is playing\" through."
+
+[[question]]
 ask = "Will it work with my devices?"
 answer = "If they have a card. A card is one small file: paste one prompt into Claude Code or Codex and it writes the card with you in a few minutes."
 
@@ -260,7 +269,7 @@ title = "Checked on"
 title = "Add your device"
 lede = "A card is one small file. You do not need to write code, and nothing is changed on your device."
 ai_title = "The quick way: paste this into Claude Code or Codex"
-ai_lede = "Any coding agent will do. It looks at what is plugged in, asks which device you mean, and writes the card with you."
+ai_lede = "Any coding agent will do. It looks at what is plugged in and what is on your home network, asks which device you mean, and writes the card with you."
 copy = "Copy"
 copied = "Copied"
 hand_title = "Or by hand"
@@ -274,7 +283,7 @@ say = "Get the files"
 run = "git clone {repo} && cd hardpoint"
 
 [[add.step]]
-say = "See what is plugged in, and what has no card yet"
+say = "See what is plugged in or on your home network, and what has no card yet"
 run = "python3 tools/observe.py"
 
 [[add.step]]

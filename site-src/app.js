@@ -218,6 +218,14 @@
     var dotsEl = el("scene-dots"), toggle = el("scene-toggle");
     var words = scenes.words;
     var di = 0, ci = 0, playing = !still, queue = [], decide = null;
+    // The diagram above the picture: how far this request has got, from agent to card to device.
+    var nodes = Array.prototype.slice.call(stage.querySelectorAll(".flow .node"));
+    var wires = Array.prototype.slice.call(stage.querySelectorAll(".flow .wire"));
+    var ring = document.querySelector(".brand .ring");
+    var reached = function (step) {
+      nodes.forEach(function (node, n) { node.classList.toggle("on", n <= step); });
+      wires.forEach(function (wire, n) { wire.classList.toggle("on", n < step); });
+    };
 
     // One line showing a value: a meter, a colour or a pulse, then the words.
     function row(cap, from, value, note) {
@@ -288,6 +296,7 @@
       confirm.classList.remove("on", "show", "counting");
       if (cap.risk === "gated") {
         showValue(cap, "", agreed ? cap.after : "", agreed ? words.done : words.declined);
+        if (agreed) { reached(2); }
       } else {
         showValue(cap, cap.after, agreed ? cap.after : cap.before, agreed ? words.kept : words.undone);
       }
@@ -297,6 +306,7 @@
     function result(cap) {
       var first = cap.risk === "gated";
       showValue(cap, cap.before, first ? "" : cap.after, "");
+      if (!first) { reached(2); }
       if (!first && cap.risk !== "guarded") { return finish(2600); }
       // A guarded change is made, then held open: keep it, or it goes back by
       // itself. A gated one is asked about first: nothing happens without a yes.
@@ -319,7 +329,8 @@
       pictures.forEach(function (pic, n) { pic.hidden = n !== di; pic.classList.remove("asking"); });
       var lamp = lampOf(); if (lamp) { lamp.style.fill = ""; }
       stage.style.setProperty("--c", "var(--" + cap.risk + ")");
-      root.style.setProperty("--now", "var(--" + cap.risk + ")");
+      if (ring) { ring.style.stroke = "var(--" + cap.risk + ")"; }
+      reached(0);
       dotsEl.textContent = "";
       device.caps.forEach(function (_, n) { dotsEl.appendChild(make("i", n === ci ? "on" : "")); });
       [verdict, readout, statusEl].forEach(function (node) { node.classList.remove("show"); });
@@ -341,6 +352,7 @@
           statusEl.textContent = cap.status;
           statusEl.className = "check show " + cap.status;
           verdict.classList.add("show");
+          reached(1);
           pictures[di].classList.add("asking");
           wait(900, function () { result(cap); });
         });

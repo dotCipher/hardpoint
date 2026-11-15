@@ -185,3 +185,50 @@ min_risk = "reversible"
 ask = "The screen is too bright. Dim it."
 example = "40%"
 example_before = "80%"
+
+# Things on the home network.
+
+[capability."media.playing"]
+kind = "reading"
+value = "playing or idle"
+summary = "Whether something is playing."
+min_risk = "read"
+privacy = "presence"
+ask = "Is something playing on it?"
+example = "yes"
+
+[capability."climate.temperature"]
+kind = "reading"
+value = "degrees"
+summary = "The temperature the device measures."
+min_risk = "read"
+ask = "How warm is it in here?"
+example = "24°"
+
+[capability."climate.target"]
+kind = "control"
+value = "degrees"
+summary = "The temperature the device aims for."
+min_risk = "reversible"
+ask = "Make it cooler in here."
+example = "21°"
+example_before = "24°"
+
+[capability."power.switch"]
+kind = "control"
+value = "on or off"
+summary = "Switch the device itself on or off."
+min_risk = "reversible"
+ask = "Turn it off."
+example = "off"
+example_before = "on"
+
+[capability."power.outlet"]
+kind = "control"
+value = "on or off"
+summary = "Switch power to whatever is plugged into the device."
+min_risk = "guarded"
+ask = "Turn off the plug by my desk."
+example = "off"
+example_before = "on"
+harm = "Whatever is plugged in loses power at once. It may be a lamp. It may be a computer, a fridge or a server."

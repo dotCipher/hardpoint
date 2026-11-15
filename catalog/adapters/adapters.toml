@@ -34,9 +34,16 @@ status = "planned"
 params = ["vcp"]
 notes = "The display must have DDC/CI enabled in its own menu."
 
+[adapter.usb-dfu]
+summary = "Writes firmware to a device that is in USB DFU update mode."
+platforms = ["macos", "linux", "windows"]
+status = "planned"
+params = []
+notes = "The device has to be put into update mode first, usually with a button on it. Every write waits for a person's approval."
+
 [adapter.manual]
 summary = "A person performs the step. The daemon only explains what to do."
 platforms = ["macos", "linux", "windows"]
 status = "implemented"
 params = []
-notes = "Used for anything software must not do alone, such as flashing firmware."
+notes = "Used where only a person can do it, such as an update that only the maker's own app can write."

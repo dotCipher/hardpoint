@@ -20,7 +20,7 @@
     --bg:#f6f4ef;--panel:#ffffff;--panel-2:#f3f1ec;--line:#e2ded5;--line-2:#cfcabf;--peg:#e6e2d9;
     --text:#1b2027;--muted:#5d6672;--dim:#8a919b;--key:#eeebe4;--key-line:#d3cec3;--well:#f3f1ec;
     --read:#0a8a45;--reversible:#0a6fd8;--guarded:#b96a00;--gated:#d22f2f;
-    --on-accent:#ffffff;--head:rgba(246,244,239,.88);
+    --on-accent:#ffffff;--head:rgba(246,244,239,.88);--wash:.13;
   }
 }
 *{box-sizing:border-box}
@@ -32,6 +32,33 @@ a:hover{text-decoration-color:var(--accent)}
 code,pre,.mono{font-family:var(--mono);font-size:.84em}
 code,.mono{overflow-wrap:anywhere}
 .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* Behind everything: three slow washes of the label colours, and the pegs
+   nearest the pointer lit up. Nothing here takes up room. */
+.sky{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.sky i{position:absolute;width:64vmax;height:64vmax;border-radius:50%;opacity:var(--wash,.17);will-change:transform}
+.sky i:nth-child(1){left:-20vmax;top:-28vmax;background:radial-gradient(closest-side,var(--reversible),transparent);animation:drift-a 38s ease-in-out infinite alternate}
+.sky i:nth-child(2){right:-24vmax;top:-14vmax;background:radial-gradient(closest-side,var(--guarded),transparent);animation:drift-b 46s ease-in-out infinite alternate}
+.sky i:nth-child(3){left:16vmax;top:40vmax;background:radial-gradient(closest-side,var(--read),transparent);animation:drift-c 54s ease-in-out infinite alternate}
+.sky b{position:absolute;inset:0;opacity:0;transition:opacity .4s;
+  background-image:radial-gradient(circle at 1px 1px,var(--accent) 1.3px,transparent 1.8px);background-size:28px 28px;background-position:0 var(--sy,0px);
+  -webkit-mask-image:radial-gradient(210px circle at var(--mx,-999px) var(--my,-999px),#000,transparent);
+  mask-image:radial-gradient(210px circle at var(--mx,-999px) var(--my,-999px),#000,transparent)}
+.sky.lit b{opacity:.95}
+@keyframes drift-a{to{transform:translate3d(10vmax,8vmax,0) scale(1.14)}}
+@keyframes drift-b{to{transform:translate3d(-9vmax,10vmax,0) scale(.9)}}
+@keyframes drift-c{to{transform:translate3d(12vmax,-9vmax,0) scale(1.1)}}
+
+/* How far down the page, as a line that passes through the four labels. */
+.progress{position:absolute;left:0;right:0;bottom:-2px;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,var(--read),var(--reversible),var(--guarded),var(--gated));
+  clip-path:inset(0 calc(100% - var(--scroll,0) * 100%) 0 0)}
+
+/* Sections below the top fade in as they are reached. Only with scripts on. */
+.js .sec{opacity:0;transition:opacity .8s ease-out}
+.js .sec.in{opacity:1}
+.js .sec .meter i{transform-origin:left;transform:scaleX(0);transition:transform .9s cubic-bezier(.2,.7,.2,1) .2s}
+.js .sec.in .meter i{transform:none}
 .wrap.narrow{max-width:820px}
 button{font:inherit;color:inherit}
 
@@ -40,6 +67,7 @@ header{position:sticky;top:0;z-index:20;background:var(--head);backdrop-filter:b
 .bar{display:flex;align-items:center;gap:28px;height:62px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:680;letter-spacing:.01em;text-decoration:none}
 .brand svg{width:26px;height:26px}
+.brand .ring{stroke:var(--now,var(--accent));transition:stroke .5s}
 nav{display:flex;gap:22px;margin-left:auto;font-size:.92em}
 nav a{text-decoration:none;color:var(--muted);padding:6px 0;border-bottom:2px solid transparent;white-space:nowrap}
 nav a.on{color:var(--text);border-bottom-color:var(--accent)}
@@ -48,6 +76,10 @@ nav a:hover{color:var(--text)}
 /* type */
 main{padding:0 0 88px}
 .eyebrow{font-size:.84rem;font-weight:620;letter-spacing:.04em;color:var(--accent);margin:0 0 12px}
+.eyebrow::before{content:"";display:inline-block;width:18px;height:2px;margin-right:10px;vertical-align:middle;border-radius:2px;
+  background:linear-gradient(90deg,var(--read),var(--reversible),var(--guarded),var(--gated))}
+.grad{background:linear-gradient(92deg,var(--read),var(--reversible) 50%,var(--guarded));-webkit-background-clip:text;background-clip:text;
+  color:transparent;-webkit-text-fill-color:transparent;display:inline-block}
 h1{font-size:clamp(2.1rem,4.8vw,3.2rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.022em;font-weight:720;text-wrap:balance}
 h2{font-size:clamp(1.5rem,2.8vw,2rem);line-height:1.18;margin:0 0 10px;letter-spacing:-.014em;text-wrap:balance}
 h3{font-size:1.05rem;margin:0 0 6px}
@@ -81,7 +113,8 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:10px;border:1px solid var(--line-2);
   background:var(--panel-2);color:var(--text);text-decoration:none;font-size:.95em;cursor:pointer;transition:border-color .15s}
 .btn:hover{border-color:var(--accent)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:620}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:620;box-shadow:0 10px 28px -14px var(--accent);transition:box-shadow .2s}
+.btn.primary:hover{box-shadow:0 12px 34px -10px var(--accent)}
 .btn.small{padding:6px 12px;font-size:.84em}
 .btn.fixed{min-width:4.8em}
 .btn.stack{display:inline-grid;justify-items:center}
@@ -116,12 +149,17 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 /* hero */
 .hero{padding:56px 0 0;display:grid;gap:40px;grid-template-columns:minmax(0,1fr);align-items:center}
 .cta{display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 0}
+.byo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:24px 0 0;color:var(--muted);font-size:.88em}
+.byo span{margin-right:4px}
+.byo i{font-style:normal;padding:3px 11px;border:1px solid var(--line-2);border-radius:99px;color:var(--text);background:var(--panel)}
 
 /* scenes: one for every device in the catalog */
 .stage{padding:22px 22px 18px;overflow:hidden}
 .stage-top{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
 .stage-top h3{margin:0 auto 0 0}
-.scenes{--c:var(--read)}
+.scenes{--c:var(--read);border-color:color-mix(in srgb,var(--c) 40%,var(--line));
+  box-shadow:0 26px 90px -40px color-mix(in srgb,var(--c) 60%,transparent);transition:border-color .5s,box-shadow .5s}
+.scenes .barbox .fill{background:var(--c)}
 .drawings{display:flex;align-items:center;justify-content:center;height:168px;padding:6px 0;border-radius:12px;background:var(--well);border:1px solid var(--line)}
 .drawing-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
 .drawing-wrap[hidden]{display:none}
@@ -130,6 +168,7 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 .drawing .glow.thin{stroke-width:2}
 .drawing .lamp{fill:var(--line-2);transition:fill .35s}
 .asking .drawing .glow,.asking .drawing .half{stroke:var(--c)}
+.asking .drawing{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--c) 45%,transparent))}
 .talk{display:grid;gap:10px;margin:14px 0 0}
 .talk>*{margin:0}
 .bubble{padding:11px 15px;border-radius:14px 14px 14px 4px;background:var(--panel-2);border:1px solid var(--line);font-size:1.04rem}
@@ -155,6 +194,7 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 @keyframes tick{0%,60%,100%{opacity:.25}30%{opacity:1}}
 .confirm{display:flex;visibility:hidden;align-items:center;gap:8px 10px;flex-wrap:wrap;font-size:.92em}
 .confirm.on{visibility:visible}
+.choices{display:flex;gap:8px}
 .barbox{display:block;width:96px;height:8px;border-radius:9px;background:var(--line);overflow:hidden}
 .barbox .fill{display:block;height:100%;width:100%;background:var(--guarded);transform-origin:left;transform:scaleX(1)}
 .counting .fill{transition:transform var(--secs,5s) linear;transform:scaleX(0)}
@@ -214,7 +254,9 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 /* the four labels */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:16px}
 .cards.four{grid-template-columns:repeat(auto-fit,minmax(228px,1fr))}
-.label{padding:30px 22px 20px;overflow:hidden}
+.label{padding:30px 22px 20px;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 11%,var(--panel)),var(--panel) 62%);
+  transition:border-color .25s,box-shadow .25s}
+.label:hover{border-color:color-mix(in srgb,var(--c) 55%,var(--line));box-shadow:0 20px 54px -34px var(--c)}
 .label .swatchbar{position:absolute;left:0;right:0;top:0;height:6px;background:var(--c);border-radius:var(--radius) var(--radius) 0 0}
 .label h3{font-size:1.25rem;color:var(--c);margin-bottom:6px;text-transform:capitalize}
 .label .does{margin:0 0 14px}
@@ -222,8 +264,8 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 .label .tally b{color:var(--text);font-size:1.15em}
 
 /* device cards */
-.card{display:block;text-decoration:none;padding:26px 22px 20px;transition:border-color .2s}
-.card:hover{border-color:var(--accent)}
+.card{display:block;text-decoration:none;padding:26px 22px 20px;transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:var(--accent);box-shadow:0 20px 54px -36px var(--accent)}
 .card .kind{font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .card .name{display:block;font-weight:640;font-size:1.08rem;margin:4px 0 2px}
 .card .vendor{color:var(--muted);font-size:.9em}
@@ -280,7 +322,6 @@ pre{background:var(--well);border:1px solid var(--line);border-radius:10px;paddi
 .stop>span{color:var(--muted);font-size:.82em;line-height:1.4;margin-top:3px}
 .stop>span:not(.stack){display:block}
 .stop.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,var(--panel-2))}
-.stop.blocked{border-color:var(--gated);background:color-mix(in srgb,var(--gated) 12%,var(--panel-2))}
 .stop.skip{opacity:.35}
 .token{position:absolute;top:0;left:0;width:14px;height:14px;border-radius:50%;background:var(--c);box-shadow:0 0 14px var(--c);
   transition:transform .7s cubic-bezier(.5,0,.2,1),opacity .3s;opacity:0}
@@ -292,6 +333,7 @@ pre{background:var(--well);border:1px solid var(--line);border-radius:10px;paddi
 .timer.show{visibility:visible}
 .timer .barbox{width:140px}
 .timer.run .fill{transition:transform 5s linear;transform:scaleX(0)}
+.timer.approve .barbox{visibility:hidden}
 .value{font-family:var(--mono);font-size:.9em;color:var(--muted);min-width:9em;min-height:1.6em}
 .value b{color:var(--text)}
 
@@ -360,8 +402,10 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:.88em;paddi
   .vs-row p::before{content:attr(data-label);display:block;font-size:.8em;color:var(--muted)}
   .vs-row p::after{top:1.3em}
 }
+@media print{.js .sec{opacity:1}.sky{display:none}}
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
+  .sky i{animation:none}.js .sec{opacity:1;transition:none}.js .sec .meter i{transform:none;transition:none}
   .key[data-state=needs-you] rect,.key[data-state=done] rect,.bubble .live::after,.ticks3 i{animation:none}
   .token,.timer.run .fill,.counting .fill,.btn,.card,.key rect,.tab,.stop,.pill,.verdict,.readout,.confirm,.scene-foot .check,.bar2 i,.drawing .glow,.drawing .lamp{transition:none}
 }

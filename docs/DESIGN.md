@@ -62,14 +62,18 @@ A client never writes to a device. It proposes a change, and the daemon:
 3. For `reversible`: reads the current value, applies the change, records both.
 4. For `guarded`: does the same, then waits for a confirmation. Without one
    within a few seconds it restores the previous value.
-5. For `gated`: does nothing to the device. It returns the steps a person
-   has to take.
+5. For `gated`: prepares the change and shows exactly what will happen.
+   Nothing is sent to the device until a person approves that exact action;
+   an approval is never remembered for next time. A step that needs hands,
+   such as a button on the device, stays with the person, and the daemon
+   says when. Where only a person can do the whole thing, the card names
+   the `manual` adapter and the daemon explains the steps.
 
 Every change is written to a local journal: who asked, what changed, the
 previous value, and whether it was confirmed or reverted.
 
 Routine changes come from rules, not from a model deciding live: by app, by
-computer, by time of day. An AI's job is to write and revise the rules.
+computer, by time of day. An agent's job is to write and revise the rules.
 
 ## Asking things
 

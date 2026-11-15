@@ -17,8 +17,8 @@ meaning = "Could get in the way of using the machine, so the change is reverted 
 does = "It makes the change, then asks you to keep it."
 
 [risk.gated]
-meaning = "Cannot be undone by software, or needs a physical step. Software never does this alone; it only explains what to do."
-does = "It will not. It tells you how to do it yourself."
+meaning = "Cannot be undone, or needs a physical step. Nothing happens until you approve that exact action, and a step that needs your hands stays yours."
+does = "It gets everything ready and asks first. Nothing happens until you say yes."
 
 [status.tested]
 meaning = "Someone exercised this through the named adapter on that platform."

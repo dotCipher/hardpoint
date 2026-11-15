@@ -188,8 +188,8 @@ class Catalog:
                 self.errors.append(f"{where}: risk {cap['risk']!r} is below the vocabulary minimum {word['min_risk']!r}")
             if word["kind"] in ("reading", "event") and cap["risk"] != "read":
                 self.errors.append(f"{where}: a {word['kind']} can only be 'read'")
-            if cap["risk"] == "gated" and cap["adapter"] != "manual":
-                self.errors.append(f"{where}: gated capabilities must use the 'manual' adapter")
+            if cap["adapter"] == "manual" and cap["risk"] != "gated":
+                self.errors.append(f"{where}: the 'manual' adapter is for gated capabilities only")
             if "privacy" in word:
                 if self.rank("privacy", cap.get("privacy", "open")) < self.rank("privacy", word["privacy"]):
                     self.errors.append(f"{where}: must declare privacy {word['privacy']!r} or stricter")
@@ -296,7 +296,7 @@ def load_content(catalog):
             item["device_name"] = f'{target["device"]["vendor"]} {target["device"]["name"]}'
             item["ask"] = word.get("ask") or word["summary"]
             item["before"] = word.get("example_before", "")
-            item["after"] = "" if item["risk"] == "gated" else word["example"]
+            item["after"] = word["example"]
     if [item["risk"] for item in content["ladder"]] != list(catalog.risks):
         errors.append("content.toml: the ladder needs one example per risk level, in order")
     return content
@@ -561,8 +561,11 @@ class Site:
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(title)}</title><meta name="description" content="{e(self.t["lede"])}">
 <meta name="color-scheme" content="dark light"><link rel="icon" href="{root}logo.svg" type="image/svg+xml">
-<link rel="stylesheet" href="{root}style.css"></head><body>
-<header><div class="wrap bar"><a class="brand" href="{root}index.html">{site_mark()}<span>{e(self.name)}</span></a><nav>{nav}</nav></div></header>
+<link rel="stylesheet" href="{root}style.css">
+<script>if ("IntersectionObserver" in window) document.documentElement.className = "js"</script></head><body>
+<div class="sky" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+<header><div class="wrap bar"><a class="brand" href="{root}index.html">{site_mark()}<span>{e(self.name)}</span></a><nav>{nav}</nav></div>
+<div class="progress" aria-hidden="true"></div></header>
 <main>{body}</main>
 <footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.
 Product names belong to their owners; this project is not affiliated with them.</div></footer>
@@ -644,7 +647,8 @@ Product names belong to their owners; this project is not affiliated with them.<
                 })
         devices = [{k: v for k, v in scene.items() if k != "ids"} for scene in kinds.values() if scene["caps"]]
         s = self.t["scenes"]
-        return {"devices": devices, "words": {k: s[k] for k in ("pause", "play", "kept", "undone")}}
+        words = ("pause", "play", "kept", "undone", "waiting", "keep", "undo", "asking", "approve", "decline", "done", "declined")
+        return {"devices": devices, "words": {k: s[k] for k in words}}
 
     def why_data(self):
         """Every everyday request in the catalog that can go wrong, with what goes wrong."""
@@ -663,8 +667,9 @@ Product names belong to their owners; this project is not affiliated with them.<
                        for i in t["ladder"])
         stops = "".join(f'<div class="stop"><b>{e(name)}</b><span>{e(note)}</span></div>'
                         for name, note in zip(travel["stops"], [travel["asked"], travel["checked"], "", ""]))
-        data = {"items": [{k: i.get(k, "") for k in ("risk", "ask", "capability", "gate", "reach", "outcome", "before", "after", "kept", "reverted")}
-                          | {"device": i["device_name"]} for i in t["ladder"]]}
+        fields = ("risk", "ask", "capability", "gate", "reach", "outcome", "before", "after", "kept", "reverted", "approved")
+        data = {"items": [{k: i.get(k, "") for k in fields} | {"device": i["device_name"]} for i in t["ladder"]],
+                "words": {k: travel[k] for k in ("confirm", "approve")}}
         block = f"""<div id="travel" class="travel plate pad">
     <div class="tabs" role="tablist">{tabs}</div>
     <p class="ask" id="ask">{e(t["ladder"][0]["ask"])}</p>
@@ -702,6 +707,11 @@ Product names belong to their owners; this project is not affiliated with them.<
         why_pills = "".join(f'<button class="pill" type="button" aria-pressed="false">{e(i["ask"])}</button>' for i in whys["items"])
         questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{inline_code(q["answer"])}</p></details>' for q in t["question"])
         more = sec["devices_more"].replace("{count}", str(len(self.cards)))
+        # The last sentence of the headline carries the promise, so it carries the colour.
+        first, stop, last = t["tagline"].rstrip(".").rpartition(". ")
+        headline = f'{e(first)}. <span class="grad">{e(last)}.</span>' if stop else e(t["tagline"])
+        byo = (f'<p class="byo"><span>{e(t["byo"]["title"])}</span>'
+               + "".join(f"<i>{e(agent)}</i>" for agent in t["byo"]["agents"]) + "</p>")
         legend = "".join(f'<span><i style="background:var(--{k})"></i>{e(v)}</span>'
                          for k, v in (("reversible", "working"), ("guarded", "needs you"), ("read", "done"), ("gated", "problem")))
         body = f"""
@@ -709,9 +719,10 @@ Product names belong to their owners; this project is not affiliated with them.<
 <div class="hero">
   <div>
     <p class="eyebrow">{e(t["eyebrow"])}</p>
-    <h1>{e(t["tagline"])}</h1>
+    <h1>{headline}</h1>
     <p class="lede">{e(t["lede"])}</p>
     <div class="cta"><a class="btn primary" href="#why">{e(t["cta"])}</a><a class="btn" href="add.html">{e(t["nav"]["add"])}</a></div>
+    {byo}
   </div>
   <div class="plate stage scenes" id="scenes">
     <div class="stage-top"><h3>{e(s["title"])}</h3>
@@ -723,16 +734,16 @@ Product names belong to their owners; this project is not affiliated with them.<
       <p class="bubble" id="scene-ask">&nbsp;</p>
       <p class="verdict" id="scene-verdict"><span class="chip fixed" id="scene-chip"></span><span id="scene-does"></span></p>
       <p class="readout" id="scene-readout"></p>
-      <p class="confirm" id="scene-confirm"><span>{e(s["waiting"])}</span><span class="barbox"><span class="fill"></span></span>
-        <button class="btn small" id="scene-keep" type="button">{e(s["keep"])}</button>
-        <button class="btn small" id="scene-undo" type="button">{e(s["undo"])}</button></p>
+      <p class="confirm" id="scene-confirm"><span id="scene-question">{e(s["waiting"])}</span><span class="barbox"><span class="fill"></span></span>
+        <span class="choices"><button class="btn small" id="scene-keep" type="button">{e(s["keep"])}</button>
+        <button class="btn small" id="scene-undo" type="button">{e(s["undo"])}</button></span></p>
     </div>
     <p class="scene-foot"><span class="check" id="scene-status">&nbsp;</span><span class="dots" id="scene-dots"></span></p>
     <p class="caption">{e(s["caption"])}</p>
   </div>
 </div>
 
-<section id="why">
+<section class="sec" id="why">
   <div class="sec-head"><p class="eyebrow">{e(why["eyebrow"])}</p><h2>{e(why["title"])}</h2><p class="lede">{e(why["lede"])}</p></div>
   <div class="plate versus"><div class="vs-row vs-head"><span>{e(why["topic"])}</span><span>{e(why["without"])}</span><span>{e(why["with"])}</span></div>{versus}</div>
   <h3 class="try">{e(why["try"])}</h3>
@@ -745,12 +756,12 @@ Product names belong to their owners; this project is not affiliated with them.<
   <p class="note">{e(why["proof"])} <a href="{e(why["proof_url"])}">{e(why["proof_link"])}</a>.</p>
 </section>
 
-<section id="how">
+<section class="sec" id="how">
   <div class="sec-head"><p class="eyebrow">{e(labels["eyebrow"])}</p><h2>{e(labels["title"])}</h2><p class="lede">{e(labels["lede"])}</p></div>
   <div class="cards four">{label_cards}</div>
 </section>
 
-<section id="today">
+<section class="sec" id="today">
   <div class="sec-head"><p class="eyebrow">{e(demo["eyebrow"])}</p><h2>{e(demo["title"])}</h2><p class="lede">{e(demo["lede"])}</p></div>
   <div class="plate stage">
     <div class="stage-top"><span class="legend">{legend}</span><button class="btn small" id="replay" type="button">{e(sec["replay"])}</button></div>
@@ -760,13 +771,13 @@ Product names belong to their owners; this project is not affiliated with them.<
   </div>
 </section>
 
-<section id="devices">
+<section class="sec" id="devices">
   <div class="sec-head"><p class="eyebrow">{e(sec["devices_eyebrow"])}</p><h2>{e(sec["devices_title"])}</h2><p class="lede">{e(sec["devices_lede"])}</p></div>
   <div class="cards">{''.join(self.device_tile(card) for card in self.cards[:sec["devices_shown"]])}</div>
   <p class="after"><a class="btn primary" href="devices.html">{e(more)}</a> <a class="btn" href="add.html">{e(sec["devices_add"])}</a></p>
 </section>
 
-<section id="questions">
+<section class="sec" id="questions">
   <div class="sec-head"><p class="eyebrow">{e(sec["questions_eyebrow"])}</p><h2>{e(sec["questions_title"])}</h2></div>
   <div class="qs">{questions}</div>
 </section>

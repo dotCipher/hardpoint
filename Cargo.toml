@@ -2,7 +2,7 @@
 name = "hardpoint"
 version = "0.1.0"
 edition = "2021"
-description = "Cards that tell agents like Claude Code and Codex what each of your devices can do, and what stays with you."
+description = "Cards that tell your agent what each of your devices can do, what it may change, and what needs your yes first."
 license = "Apache-2.0"
 readme = "README.md"
 keywords = ["hardware", "agents", "keyboard", "hid", "catalog"]

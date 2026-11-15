@@ -7,10 +7,15 @@
 # gated.
 
 name = "Hardpoint"
-tagline = "Let Claude Code and Codex control your devices. You stay in charge."
+tagline = "Let your agent manage your devices. You stay in charge."
 eyebrow = "Open source · runs on your own computer"
-lede = "Agents like Claude Code and Codex already work in your files and your terminal. Hardpoint adds your devices: a checked card for each one says what an agent can read, what it may change, and what stays with you."
+lede = "Your agent already works in your files and your terminal. Hardpoint adds your devices: a checked card for each one says what it can read, what it may change, and what needs your yes first."
 cta = "See the difference"
+
+# Under the buttons at the top: the agents people already use.
+[byo]
+title = "Bring your own agent"
+agents = ["Claude Code", "Codex", "OpenCode", "any LLM with a terminal"]
 
 [nav]
 devices = "Devices"
@@ -32,6 +37,12 @@ undo = "Put it back"
 kept = "Kept."
 undone = "Put back."
 waiting = "Keep this change?"
+# For a change that cannot be undone: asked before, not after.
+asking = "This cannot be undone. Go ahead?"
+approve = "Go ahead"
+decline = "Not now"
+done = "Done."
+declined = "Not done. Nothing changed."
 
 # What a kind of device is called in the scenes. A kind that is not listed
 # here is shown under its own name.
@@ -80,7 +91,7 @@ with = "A card holds no commands. Only Hardpoint's own program ever touches a de
 [[why.row]]
 topic = "When it goes wrong"
 without = "If a change locks you out, you are on your own."
-with = "A risky change is labelled to go back by itself unless you keep it. The riskiest are left to you."
+with = "A risky change is labelled to go back by itself unless you keep it. One that cannot be undone waits for your yes."
 
 [[why.row]]
 topic = "What it learns"
@@ -164,20 +175,20 @@ start_lede = "It builds with Rust and needs no account. The first command works 
 replay = "Replay"
 
 [[question]]
-ask = "Does this let Claude Code or Codex control my computer?"
-answer = "Yes. That is what it is for: the computer itself and what is attached to it, such as the battery, the screen, the keyboard, the mouse and your drives. What changes is how. The agent does not make up commands; it works from each device's card, where every ability has a label. Reading is always allowed. Small changes can be put back at once. Changes that could get in your way go back unless you keep them. The few that cannot be undone are left to you."
+ask = "Does this let an agent control my computer?"
+answer = "Yes. That is what it is for: the computer itself and what is attached to it, such as the battery, the screen, the keyboard, the mouse and your drives. What changes is how. Your agent does not make up commands; it works from each device's card, where every ability has a label. Reading is always allowed. Small changes can be put back at once. Changes that could get in your way go back unless you keep them. Changes that cannot be undone, such as a firmware update, wait for your yes."
 
 [[question]]
 ask = "What can it do right now?"
-answer = "It finds what is attached to your computer and which card describes it, and any agent can ask with `hardpoint inventory`. It fully runs one keyboard from its card: the lights, the key presses, and agent sessions on spare keys. So far it reads, and makes changes that can be put back. For the other devices the cards are written and checked by hand; acting on them, and the keep-or-go-back step, come next."
+answer = "It finds what is attached to your computer and which card describes it, and any agent can ask with `hardpoint inventory`. It fully runs one keyboard from its card: the lights, the key presses, and agent sessions on spare keys. So far it reads, and makes changes that can be put back. For the other devices the cards are written and checked by hand; acting on them, the keep-or-go-back step and approve-first changes such as firmware updates come next."
 
 [[question]]
 ask = "Which agents does it work with?"
-answer = "Any that can run a command. The cards are plain files an agent can read, and `hardpoint inventory` tells it which ones apply to this computer. Session lights follow OpenCode by themselves. Claude Code, Codex and others can report in from their hooks with `hardpoint emit`; only OpenCode has been tried so far."
+answer = "Bring your own. Any agent that can run a command will do. The cards are plain files an agent can read, and `hardpoint inventory` tells it which ones apply to this computer. Session lights follow OpenCode by themselves. Claude Code, Codex and others can report in from their hooks with `hardpoint emit`; only OpenCode has been tried so far."
 
 [[question]]
 ask = "What stops it doing something I did not want?"
-answer = "Three things. A card holds only information, never a command, so nothing in the catalog can run on your computer. Every ability has a lowest label it can ever be given, so a card cannot pass off a risky change as a harmless one. And anything that cannot be undone is never done by software: Hardpoint explains the steps, and you take them."
+answer = "Three things. A card holds only information, never a command, so nothing in the catalog can run on your computer. Every ability has a lowest label it can ever be given, so a card cannot pass off a risky change as a harmless one. And anything that cannot be undone waits for you: your agent gets it ready and shows what will happen, and nothing is done until you say yes to that exact action."
 
 [[question]]
 ask = "Is it watching what I type?"
@@ -299,6 +310,7 @@ stops = ["Asked", "Card check", "Risk gate", "Device"]
 asked = "A client proposes it"
 checked = "The card lists it, and the value fits"
 confirm = "Keep it"
+approve = "Approve"
 
 [[ladder]]
 risk = "read"
@@ -330,12 +342,13 @@ reverted = "No answer, so it went back."
 risk = "gated"
 device = "zsa/moonlander-mk1"
 capability = "firmware.flash"
-gate = "Stops here"
-reach = "Never reached"
-outcome = "Refused. Hardpoint explains the steps; a person presses the reset button."
+gate = "Waits for your yes"
+reach = "Done once approved"
+outcome = "Made ready, then held. Nothing is sent to the device until you approve this exact action."
+approved = "Approved, so it was done. You are told what to press, and when."
 
 [ladder_note]
-text = "Reading and reversible lighting run today. Confirm-or-revert and the change journal are designed and not built yet."
+text = "Reading and reversible lighting run today. Confirm-or-revert, approve-first and the change journal are designed and not built yet."
 
 [[start]]
 say = "Build it"
@@ -350,5 +363,5 @@ say = "Try it with no hardware: it prints which keys would be lit"
 run = "./target/release/hardpoint run --device dry --config examples/moonlander.toml"
 
 [[start]]
-say = "Report a helper's state from any script or hook"
+say = "Report an agent session's state from any script or hook"
 run = "./target/release/hardpoint emit --source my-tool --session 1 --state needs-you"

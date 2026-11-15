@@ -227,11 +227,11 @@ mod tests {
     }
 
     #[test]
-    fn gated_capabilities_are_never_given_to_a_hardware_adapter() {
+    fn a_step_only_a_person_can_take_is_always_gated() {
         for card in &repo_catalog().cards {
             for cap in &card.capabilities {
-                if cap.risk == Risk::Gated {
-                    assert_eq!(cap.adapter, "manual", "{} {}", card.device.id, cap.id);
+                if cap.adapter == "manual" {
+                    assert_eq!(cap.risk, Risk::Gated, "{} {}", card.device.id, cap.id);
                 }
             }
         }

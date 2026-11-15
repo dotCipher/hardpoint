@@ -93,10 +93,10 @@ verification = [{ status = "unverified", platform = "macos", note = "In the publ
 
 [[capability]]
 id = "firmware.flash"
-adapter = "manual"
+adapter = "usb-dfu"
 risk = "gated"
-note = "Needs the physical reset button on the keyboard, so software cannot do it alone."
-verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation. Not tried." }]
+note = "You put the keyboard into update mode with its reset button. Software can write the firmware from there, once you approve."
+verification = [{ status = "unverified", platform = "macos", note = "The keyboard's QMK definition names the standard STM32 DFU update mode. Not tried." }]
 
 [[sources]]
 title = "Oryx raw-HID protocol (zsa/qmk_modules)"

@@ -35,6 +35,44 @@
     return box.appendChild(make("span", "live"));
   }
 
+  // ---- sections fade in as they are reached. They only fade: nothing moves.
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".sec"));
+  if ("IntersectionObserver" in window && !still) {
+    var arrive = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add("in"); arrive.unobserve(entry.target); }
+      });
+    }, { rootMargin: "0px 0px -8% 0px" });
+    sections.forEach(function (section) { arrive.observe(section); });
+  } else {
+    sections.forEach(function (section) { section.classList.add("in"); });
+  }
+
+  // ---- how far down the page, drawn as a line in the four label colours
+  var root = document.documentElement, measuring = false;
+  var measure = function () {
+    measuring = false;
+    var span = root.scrollHeight - window.innerHeight;
+    root.style.setProperty("--scroll", span > 0 ? Math.min(1, window.scrollY / span).toFixed(4) : "0");
+    root.style.setProperty("--sy", -window.scrollY + "px");
+  };
+  window.addEventListener("scroll", function () {
+    if (!measuring) { measuring = true; requestAnimationFrame(measure); }
+  }, { passive: true });
+  window.addEventListener("resize", measure);
+  measure();
+
+  // ---- the pegs nearest the pointer light up
+  var sky = document.querySelector(".sky");
+  if (sky && !still && window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    window.addEventListener("pointermove", function (event) {
+      sky.style.setProperty("--mx", event.clientX + "px");
+      sky.style.setProperty("--my", event.clientY + "px");
+      sky.classList.add("lit");
+    }, { passive: true });
+    document.documentElement.addEventListener("pointerleave", function () { sky.classList.remove("lit"); });
+  }
+
   // ---- the catalog: search, facets and order. Within a facet the choices
   // widen the list; across facets they narrow it. Each choice shows how many
   // devices it would give, and the whole state lives in the address so a
@@ -184,7 +222,9 @@
     // One line showing a value: a meter, a colour or a pulse, then the words.
     function row(cap, from, value, note) {
       var node = make("span", "row");
-      if (cap.risk === "gated") { node.appendChild(make("span", "why", cap.harm)); return node; }
+      // Before a gated change is approved there is no value to show, only what could go wrong.
+      if (cap.risk === "gated" && !note) { node.appendChild(make("span", "why", cap.harm)); return node; }
+      if (!value) { node.appendChild(make("span", "was", note)); return node; }
       if (cap.show === "meter") {
         var fill = make("i");
         fill.style.width = (parseInt(from || "0", 10) || 0) + "%";
@@ -215,9 +255,16 @@
       if (cap.risk === "guarded") {
         readout.appendChild(ghost(row(cap, cap.after, cap.after, words.kept)));
         readout.appendChild(ghost(row(cap, cap.after, cap.before, words.undone)));
+      } else if (cap.risk === "gated") {
+        readout.appendChild(ghost(row(cap, "", cap.after, words.done)));
+        readout.appendChild(ghost(row(cap, "", "", words.declined)));
       }
     });
     var valueLive = readout.appendChild(make("span", "live"));
+    var question = reserve(el("scene-question"), [words.waiting, words.asking]);
+    var yes = reserve(el("scene-keep"), [words.keep, words.approve]);
+    var no = reserve(el("scene-undo"), [words.undo, words.decline]);
+    question.textContent = words.waiting; yes.textContent = words.keep; no.textContent = words.undo;
 
     function wait(ms, fn) { queue.push(setTimeout(fn, still ? 0 : ms)); }
     function stopAll() { queue.forEach(clearTimeout); queue = []; decide = null; }
@@ -230,28 +277,36 @@
       var fill = node.querySelector(".bar2 i");
       if (fill) { requestAnimationFrame(function () { requestAnimationFrame(function () { fill.style.width = fill.dataset.to; }); }); }
       var lamp = lampOf();
-      if (lamp && cap.risk !== "gated") { lamp.style.fill = cap.show === "swatch" && value === cap.after ? cap.swatch : "var(--c)"; }
+      if (lamp) { lamp.style.fill = !value ? "" : cap.show === "swatch" && value === cap.after ? cap.swatch : "var(--c)"; }
       readout.classList.add("show");
     }
 
     function finish(hold) { if (playing) { wait(hold, next); } }
 
-    function settle(cap, kept) {
+    function settle(cap, agreed) {
       decide = null;
       confirm.classList.remove("on", "show", "counting");
-      showValue(cap, cap.after, kept ? cap.after : cap.before, kept ? words.kept : words.undone);
+      if (cap.risk === "gated") {
+        showValue(cap, "", agreed ? cap.after : "", agreed ? words.done : words.declined);
+      } else {
+        showValue(cap, cap.after, agreed ? cap.after : cap.before, agreed ? words.kept : words.undone);
+      }
       finish(2200);
     }
 
     function result(cap) {
-      showValue(cap, cap.before, cap.after, "");
-      if (cap.risk === "gated") { return finish(3600); }
-      if (cap.risk !== "guarded") { return finish(2600); }
-      // The change is made, then held open: keep it, or it goes back by itself.
+      var first = cap.risk === "gated";
+      showValue(cap, cap.before, first ? "" : cap.after, "");
+      if (!first && cap.risk !== "guarded") { return finish(2600); }
+      // A guarded change is made, then held open: keep it, or it goes back by
+      // itself. A gated one is asked about first: nothing happens without a yes.
+      question.textContent = first ? words.asking : words.waiting;
+      yes.textContent = first ? words.approve : words.keep;
+      no.textContent = first ? words.decline : words.undo;
       confirm.classList.add("on");
       confirm.style.setProperty("--secs", "5s");
       requestAnimationFrame(function () { requestAnimationFrame(function () { confirm.classList.add("show", "counting"); }); });
-      decide = function (kept) { queue.forEach(clearTimeout); queue = []; settle(cap, kept); };
+      decide = function (agreed) { queue.forEach(clearTimeout); queue = []; settle(cap, agreed); };
       if (playing) { queue.push(setTimeout(function () { if (decide) { decide(false); } }, 5000)); }
     }
 
@@ -264,6 +319,7 @@
       pictures.forEach(function (pic, n) { pic.hidden = n !== di; pic.classList.remove("asking"); });
       var lamp = lampOf(); if (lamp) { lamp.style.fill = ""; }
       stage.style.setProperty("--c", "var(--" + cap.risk + ")");
+      root.style.setProperty("--now", "var(--" + cap.risk + ")");
       dotsEl.textContent = "";
       device.caps.forEach(function (_, n) { dotsEl.appendChild(make("i", n === ci ? "on" : "")); });
       [verdict, readout, statusEl].forEach(function (node) { node.classList.remove("show"); });
@@ -470,7 +526,9 @@
     var targetLine = reserve(travel.querySelector("#target"), items.map(target));
     var gateLine = reserve(stops[2].querySelector("span"), pick("gate"));
     var reachLine = reserve(stops[3].querySelector("span"), pick("reach"));
-    var out = reserve(travel.querySelector("#outcome"), pick("outcome").concat(pick("kept"), pick("reverted")));
+    var out = reserve(travel.querySelector("#outcome"), pick("outcome").concat(pick("kept"), pick("reverted"), pick("approved")));
+    var keepText = reserve(keep, [ladder.words.confirm, ladder.words.approve]);
+    keepText.textContent = ladder.words.confirm;
     var pending = [];
 
     function clear() { pending.forEach(clearTimeout); pending = []; }
@@ -500,17 +558,24 @@
       gateLine.textContent = item.gate;
       reachLine.textContent = item.reach;
       token.classList.remove("show");
-      timer.classList.remove("show", "run");
+      timer.classList.remove("show", "run", "approve");
       settle("", item.before);
 
       at(150, function () { reach(0); });
       at(850, function () { reach(1); });
-      at(1550, function () { reach(2, item.risk === "gated" ? "blocked" : "on"); });
+      at(1550, function () { reach(2); });
       at(2250, function () {
-        if (item.risk === "gated") { stops[3].classList.add("skip"); settle(item.outcome, ""); return; }
+        if (item.risk === "gated") {
+          // Held at the gate: nothing reaches the device until it is approved.
+          settle(item.outcome, "");
+          keepText.textContent = ladder.words.approve;
+          timer.classList.add("show", "approve");
+          return;
+        }
         reach(3);
         settle(item.outcome, item.after);
         if (item.risk !== "guarded") { return; }
+        keepText.textContent = ladder.words.confirm;
         timer.classList.add("show");
         // Start the countdown on the next frame so the bar animates from full.
         requestAnimationFrame(function () { requestAnimationFrame(function () { timer.classList.add("run"); }); });
@@ -526,8 +591,8 @@
       keep.addEventListener("click", function () {
         var item = items[tabs.findIndex(function (t) { return t.getAttribute("aria-selected") === "true"; })];
         clear();
-        timer.classList.remove("show", "run");
-        settle(item.kept, item.after);
+        timer.classList.remove("show", "run", "approve");
+        if (item.risk === "gated") { reach(3); settle(item.approved, item.after); } else { settle(item.kept, item.after); }
       });
     }
     var started = false;

@@ -7,7 +7,9 @@
 
 <h1 align="center">Hardpoint</h1>
 
-<p align="center"><b>Let Claude Code and Codex control your devices. You stay in charge.</b></p>
+<p align="center"><b>Let your agent manage your devices. You stay in charge.</b></p>
+
+<p align="center">Bring your own agent: Claude Code, Codex, OpenCode, or any LLM with a terminal.</p>
 
 <p align="center">
   <a href="https://dotcipher.github.io/hardpoint/">Site</a> ·
@@ -26,9 +28,9 @@
 
 ## What it is
 
-Agents like Claude Code and Codex already work in your files and your
-terminal. Hardpoint adds your devices: a checked card for each one says what
-an agent can read, what it may change, and what stays with you.
+Your agent already works in your files and your terminal. Hardpoint adds
+your devices: a checked card for each one says what it can read, what it may
+change, and what needs your yes first.
 
 The name comes from engineering. A hardpoint is the reinforced, load-rated
 spot on a vehicle where equipment is allowed to attach. A device's card is
@@ -58,7 +60,7 @@ Hardpoint.
 | **Knowing the risk** | Reading a battery and replacing firmware look the same to it: a command to run. | Every ability on a card has one of four labels, set before anyone asks. |
 | **Proof** | Reports what it did. Nothing says whether that was ever checked on your model. | Each claim on a card says whether a person tested it on a real device, and links to the record. |
 | **Touching the device** | Writes its own commands and runs them as you. | A card holds no commands. Only Hardpoint's own program ever touches a device. |
-| **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. The riskiest are left to you. |
+| **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. One that cannot be undone waits for your yes. |
 | **What it learns** | Gone when the session ends. The next agent works it out again. | A card is checked once and shared. Everyone with that device gets it, in any agent. |
 
 That table describes the cards. [What runs today](#what-runs-today) says how
@@ -77,7 +79,7 @@ Every ability on a card gets one of four labels.
 | `read` | It looks, and tells you. |
 | `reversible` | It makes the change, and can put it back. |
 | `guarded` | It makes the change, then asks you to keep it. If you do not answer, it goes back. |
-| `gated` | It will not. It tells you how to do it yourself. |
+| `gated` | It gets everything ready and asks first. Nothing happens until you say yes. |
 
 A card cannot claim a lower risk than the shared vocabulary allows for that
 capability, and anything `guarded` or `gated` has to say, in plain words, what
@@ -94,6 +96,7 @@ goes wrong if it is done carelessly.
 | Brightness that follows the clock; per-key press counts | Runs |
 | Reading a mouse and the computer through adapters | Designed. Read by hand so far |
 | Confirm-or-revert, and a journal of every change | Designed |
+| Approve-first changes, such as firmware updates | Designed |
 | An MCP server for any agent and model provider | Designed |
 | Linux | Not tried |
 
@@ -153,12 +156,13 @@ work, `unverified` for something you only read about.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rest, and
 [docs/SPEC.md](docs/SPEC.md) the full rules.
 
-## What it will not do
+## What keeps it in your hands
 
 | | |
 |---|---|
 | **Cards are data** | A card names an adapter and gives it typed values. It can never carry a command, a script or a path, and the validator rejects any field it does not know. |
-| **Risk has a floor** | Anything that cannot be undone is never done by software alone. |
+| **Risk has a floor** | A card cannot give an ability a lower label than the shared vocabulary allows. |
+| **No undo, no surprise** | Anything that cannot be undone waits for your approval of that exact action, every time. A step that needs your hands, such as a button on the device, stays yours. |
 | **It stays on your computer** | No account, no server. The daemon listens on a local socket only you can write to. |
 | **Counts, not keystrokes** | To act on a press the daemon sees which key went down. It keeps per-key counts only if you turn that on, and never the order, the timing or the text. |
 

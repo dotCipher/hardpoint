@@ -120,10 +120,10 @@ that level); each status, privacy level and kind has a `meaning`.
 | `read` | Nothing changes | Reads the value |
 | `reversible` | Takes effect at once, can be undone at once, cannot stop you using the machine | Applies it and records it |
 | `guarded` | Could get in the way of using the machine | Applies it, then reverts unless you confirm within a few seconds |
-| `gated` | Cannot be undone by software, or needs a physical step | Never does it; explains the steps |
+| `gated` | Cannot be undone, or needs a physical step | Gets it ready and asks first; does nothing until a person approves that exact action |
 
-A reading or an event is always `read`. A `gated` capability always uses the
-`manual` adapter.
+A reading or an event is always `read`. The `manual` adapter, for steps only
+a person can take, is only ever `gated`.
 
 ## Verification status
 

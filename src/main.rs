@@ -262,6 +262,18 @@ fn reachable(card: &catalog::Card, cap: &catalog::Capability, driven: &str) -> b
     }
 }
 
+/// Whether this build can change an ability, not just read it.
+fn changeable(card: &catalog::Card, cap: &catalog::Capability, driven: &str) -> bool {
+    let word = |name: &str| cap.params.get(name).and_then(|v| v.as_str()).unwrap_or("");
+    match cap.adapter.as_str() {
+        _ if card.device.id == driven => ["light.per_key", "light.global"].contains(&cap.id.as_str()),
+        "macos-system" => word("source") == "audio" && word("field") == "output_volume",
+        "hidpp" => ["pointer.dpi", "scroll.mode"].contains(&cap.id.as_str()),
+        "ddc-ci" => reachable(card, cap, driven),
+        _ => false,
+    }
+}
+
 /// Everything this build can reach: the keyboard it is driving, and what the
 /// operating system reports about the rest.
 struct Reach<'a> {
@@ -454,9 +466,13 @@ fn gatekeeper(request: &Request, catalog: &Catalog, cfg: &Config, gate: &mut Gat
             Ok(json!({ "value": reach.read(device, capability)?, "checked": cap.checked() }))
         }
         Request::Propose { device, capability, value } => {
-            let cap = find(device, capability)?;
+            let (card, cap) = lookup(catalog, device, capability)?;
             if cap.adapter == "manual" {
                 return Err(format!("Only a person can do this; software has no way to. {}", cap.note.as_deref().unwrap_or("")));
+            }
+            // Nothing is held for a person to answer if it could not be carried out anyway.
+            if !changeable(card, cap, &reach.board.card) {
+                return Err(format!("this build has no way to change {capability} on {device} yet"));
             }
             let risk = catalog.effective_risk(cap, stricter(cfg, device, capability));
             gate.propose(device, capability, risk, value.clone(), reach, now).map(explain)

@@ -62,7 +62,8 @@ fn handle(stream: UnixStream, bus: Sender<BusEvent>, snapshot: Snapshot) {
                         // The gatekeeper answers from the main loop, which owns the device.
                         let (reply, answer) = std::sync::mpsc::channel();
                         let sent = bus.send(BusEvent::Gate { request, reply }).is_ok();
-                        let answer = answer.recv_timeout(std::time::Duration::from_secs(5));
+                        // Some readings are slow: a sleeping drive has to spin up before it answers.
+                        let answer = answer.recv_timeout(std::time::Duration::from_secs(45));
                         let reply = match (sent, answer) {
                             (true, Ok(answer)) => answer,
                             _ => serde_json::json!({ "ok": false, "error": "the daemon did not answer" }),

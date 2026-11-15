@@ -52,3 +52,15 @@ agent_press = ""
 [telemetry]
 # Per-key press counts per day. Counts only: no order, no timing, no text.
 enabled = false
+
+[gate]
+# Changes an agent proposes through `hardpoint mcp`.
+hold_secs = 10          # a guarded change goes back after this long unless you keep it
+approve_secs = 60       # a gated change is dropped after this long unless you approve it
+# key = 0               # a key that lights when an answer is wanted; pressing it means yes
+
+# Make a label stricter for one of your own devices. It can only be raised.
+# [[stricter]]
+# device = "vendor/model"
+# capability = "light.global"
+# risk = "gated"

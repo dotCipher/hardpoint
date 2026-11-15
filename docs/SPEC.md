@@ -41,6 +41,12 @@ How software recognises the device. At least one. `bus` is `usb`,
 narrow it: `vendor_id`, `product_id`, `usage_page`, `model` (for built-in
 hardware, the computer's model identifier) and `name`.
 
+A **class card** describes a kind of thing rather than one model. Its match
+has `bus = "home-assistant"` with a `domain`, and optionally a
+`device_class`, as Home Assistant names them: every outlet, every light,
+every lock. It gives all such devices the same labels until a card for the
+exact model says more.
+
 A device on the home network is recognised by what it announces there:
 `service` is the kind of announcement, such as `_hap._tcp`, and `model` is the
 model it names. A card never holds an address, a host name or the name
@@ -78,6 +84,7 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 | `params` | Optional. Only parameters the adapter declares |
 | `range`, `step`, `choices` | Optional limits, for controls only |
 | `note` | Optional. Anything a person should know |
+| `firmware` | Optional. The firmware the device must be running for this claim to hold: `family`, and optionally `min` and `max` versions |
 | `verification` | One or more records, described below |
 
 ### `verification`
@@ -129,6 +136,34 @@ that level); each status, privacy level and kind has a `meaning`.
 
 A reading or an event is always `read`. The `manual` adapter, for steps only
 a person can take, is only ever `gated`.
+
+The owner of a device can make a label stricter for that device in their own
+configuration. Nothing can make one looser: the gatekeeper takes the strictest
+of the card's label, the vocabulary's floor and the owner's.
+
+## Other standards
+
+**W3C Web of Things.** The site publishes every card as a Thing Model
+(Thing Description 1.1), at `models/<maker>-<model>.tm.jsonld`. Readings and
+controls become properties, with `readOnly` set for readings; actions carry
+the standard's `safe` and `idempotent`; events are events. What the standard
+has no word for is added under the prefix `hp`, defined on the site's
+`ns.html`: the label, its floor, what goes wrong, privacy, the adapter, and
+how far the claim was checked. `tools/check_models.py` validates every model
+against the W3C's schema.
+
+**Model Context Protocol.** `hardpoint mcp` offers an agent five tools. The
+protocol's hints are set from what each tool can do, and the label is
+enforced by the daemon whatever a host makes of the hints:
+
+| Label | MCP hint on a change | What the daemon does |
+|---|---|---|
+| `read` | `readOnlyHint` | Reads |
+| `reversible` | not destructive | Applies, and can undo |
+| `guarded` | destructive | Applies, reverts unless a person keeps it |
+| `gated` | destructive | Does nothing until a person approves |
+
+An agent is given no tool to keep or approve a change.
 
 ## Verification status
 

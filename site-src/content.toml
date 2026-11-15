@@ -55,6 +55,9 @@ storage = "external drive"
 television = "TV"
 media = "streaming stick"
 climate = "air conditioner"
+plug = "smart plug"
+lock = "door lock"
+lighting = "light"
 
 # What changes when an agent has a card to read. Each row is true of the
 # cards themselves, whatever program reads them.
@@ -185,11 +188,11 @@ answer = "Yes. That is what it is for: the computer itself and what is attached 
 
 [[question]]
 ask = "What can it do right now?"
-answer = "It finds what is attached to your computer and which card describes it, and any agent can ask with `hardpoint inventory`. It fully runs one keyboard from its card: the lights, the key presses, and agent sessions on spare keys. So far it reads, and makes changes that can be put back. For the other devices the cards are written and checked by hand; acting on them, the keep-or-go-back step and approve-first changes such as firmware updates come next."
+answer = "An agent can connect to it with `hardpoint mcp`, see what is attached and how each ability is labelled, read, propose changes and undo them. Today the one device it can act on is a keyboard: its lights, its key presses, and agent sessions on spare keys. All three kinds of change work there: made at once, kept or put back, and held until you approve. For every other device the cards are written and checked by hand, and acting on them comes next, through Home Assistant and the other tools that already talk to that hardware."
 
 [[question]]
 ask = "Which agents does it work with?"
-answer = "Bring your own. Any agent that can run a command will do. The cards are plain files an agent can read, and `hardpoint inventory` tells it which ones apply to this computer. Session lights follow OpenCode by themselves. Claude Code, Codex and others can report in from their hooks with `hardpoint emit`; only OpenCode has been tried so far."
+answer = "Bring your own. `hardpoint mcp` speaks the Model Context Protocol, which Claude Code, Codex, OpenCode and most other agents can connect to. It has been checked with a scripted client; it has not been tried inside each of those yet. Session lights follow OpenCode by themselves, and any agent can report in from its hooks with `hardpoint emit`."
 
 [[question]]
 ask = "What stops it doing something I did not want?"
@@ -205,7 +208,7 @@ answer = "No. There is no account and no server. The catalog is a set of files, 
 
 [[question]]
 ask = "Does it cover smart-home devices?"
-answer = "Yes. A television, a streaming stick and an air conditioner already have cards, found by listening to what they announce on the home network. Nothing is sent to them to find them. A card never holds an address or the name you gave a device, and when a device announces what it is doing, such as what is playing, the card lets only \"something is playing\" through."
+answer = "Yes, by working with Home Assistant rather than replacing it. Home Assistant talks to the devices; Hardpoint adds the label and the approval. There are cards for whole classes of thing, such as any outlet, any light and any lock, and for a television, a streaming stick and an air conditioner found by listening to what they announce on the home network. The Home Assistant connection itself is not written yet. Nothing is sent to them to find them. A card never holds an address or the name you gave a device, and when a device announces what it is doing, such as what is playing, the card lets only \"something is playing\" through."
 
 [[question]]
 ask = "Will it work with my devices?"
@@ -357,7 +360,7 @@ outcome = "Made ready, then held. Nothing is sent to the device until you approv
 approved = "Approved, so it was done. You are told what to press, and when."
 
 [ladder_note]
-text = "Reading and reversible lighting run today. Confirm-or-revert, approve-first and the change journal are designed and not built yet."
+text = "All four run in the gatekeeper today, on a keyboard's lights: an agent connects with `hardpoint mcp`. Reaching other devices is what comes next."
 
 [[start]]
 say = "Build it"
@@ -370,6 +373,10 @@ run = "./target/release/hardpoint inventory"
 [[start]]
 say = "Try it with no hardware: it prints which keys would be lit"
 run = "./target/release/hardpoint run --device dry --config examples/moonlander.toml"
+
+[[start]]
+say = "Let an agent connect, while `hardpoint run` is running"
+run = "./target/release/hardpoint mcp"
 
 [[start]]
 say = "Report an agent session's state from any script or hook"

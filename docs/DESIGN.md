@@ -69,8 +69,21 @@ A client never writes to a device. It proposes a change, and the daemon:
    says when. Where only a person can do the whole thing, the card names
    the `manual` adapter and the daemon explains the steps.
 
-Every change is written to a local journal: who asked, what changed, the
-previous value, and whether it was confirmed or reverted.
+Every change is written to a journal: what changed, the previous value, and
+what became of it. The journal lives in the daemon's memory for now and is
+lost when it stops.
+
+The label that applies is the strictest of three: the card's, the
+vocabulary's floor, and any the owner has set for that device. If a person
+cannot be asked, or does not answer, the answer is no.
+
+A person answers by pressing a key on the keyboard that lights up for the
+purpose, or by typing `hardpoint keep` or `hardpoint approve` in a terminal.
+An agent is offered neither. Only a press that came from the keyboard itself
+counts; one sent over the daemon's socket does not. This is not a sandbox:
+an agent that can run commands as you could talk to the socket directly. It
+protects against an agent that is wrong, or that has been misled through its
+tools, not against one determined to get round it.
 
 Routine changes come from rules, not from a model deciding live: by app, by
 computer, by time of day. An agent's job is to write and revise the rules.

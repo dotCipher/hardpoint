@@ -1,0 +1,26 @@
+card = 1
+
+# A class card. It is not one model: it gives every device Home Assistant
+# classes this way the same labels, until a card for the exact model says more.
+
+[device]
+id = "home-assistant/lock"
+vendor = "Home Assistant"
+name = "Door lock, any maker"
+kind = "lock"
+summary = "Any lock that Home Assistant controls. A class card: it applies to every such device, whoever made it."
+links = ["https://www.home-assistant.io/integrations/lock/"]
+
+[[match]]
+bus = "home-assistant"
+domain = "lock"
+
+[[requires]]
+platform = "any"
+what = "A Home Assistant server that this computer may talk to"
+
+[[capability]]
+id = "access.unlock"
+adapter = "home-assistant"
+risk = "gated"
+verification = [{ status = "unverified", platform = "macos", note = "Home Assistant documents unlocking a lock. Not tried: the adapter is not written." }]

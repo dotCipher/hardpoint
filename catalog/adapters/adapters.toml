@@ -41,26 +41,19 @@ status = "planned"
 params = ["service", "field"]
 notes = "It only listens. Announcements can say what a device is doing, so a card marks those readings as presence only."
 
-[adapter.homekit]
-summary = "Accessories that speak the HomeKit protocol on the local network."
+[adapter.home-assistant]
+summary = "Anything Home Assistant controls, reached through a Home Assistant server you already run."
 platforms = ["macos", "linux", "windows"]
 status = "planned"
 params = []
-notes = "An accessory answers only to a controller it has been paired with, which takes the setup code printed on it."
+notes = "Home Assistant finds, pairs and talks to the device. Hardpoint adds the label and the approval. Not written yet."
 
-[adapter.cast]
-summary = "Google Cast devices on the local network."
-platforms = ["macos", "linux", "windows"]
+[adapter.fwupd]
+summary = "Firmware updates through fwupd, the firmware service on Linux."
+platforms = ["linux"]
 status = "planned"
 params = []
-notes = "Not written yet."
-
-[adapter.usb-dfu]
-summary = "Writes firmware to a device that is in USB DFU update mode."
-platforms = ["macos", "linux", "windows"]
-status = "planned"
-params = []
-notes = "The device has to be put into update mode first, usually with a button on it. Every write waits for a person's approval."
+notes = "fwupd already knows how to update thousands of devices. Hardpoint asks first, shows the exact version, and records the result. Not written yet."
 
 [adapter.manual]
 summary = "A person performs the step. The daemon only explains what to do."

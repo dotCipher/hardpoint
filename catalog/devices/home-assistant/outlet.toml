@@ -1,0 +1,28 @@
+card = 1
+
+# A class card. It is not one model: it gives every device Home Assistant
+# classes this way the same labels, until a card for the exact model says more.
+
+[device]
+id = "home-assistant/outlet"
+vendor = "Home Assistant"
+name = "Outlet or smart plug, any maker"
+kind = "plug"
+summary = "Any switch that Home Assistant classes as an outlet. A class card: it applies to every such device, whoever made it."
+links = ["https://www.home-assistant.io/integrations/switch/"]
+
+[[match]]
+bus = "home-assistant"
+domain = "switch"
+device_class = "outlet"
+
+[[requires]]
+platform = "any"
+what = "A Home Assistant server that this computer may talk to"
+
+[[capability]]
+id = "power.outlet"
+adapter = "home-assistant"
+risk = "gated"
+note = "A plug cannot know what is plugged into it, so cutting its power always waits for a yes."
+verification = [{ status = "unverified", platform = "macos", note = "Home Assistant documents switching an outlet on and off. Not tried: the adapter is not written." }]

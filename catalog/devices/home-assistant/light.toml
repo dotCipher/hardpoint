@@ -1,0 +1,32 @@
+card = 1
+
+# A class card. It is not one model: it gives every device Home Assistant
+# classes this way the same labels, until a card for the exact model says more.
+
+[device]
+id = "home-assistant/light"
+vendor = "Home Assistant"
+name = "Light, any maker"
+kind = "lighting"
+summary = "Any light that Home Assistant controls. A class card: it applies to every such device, whoever made it."
+links = ["https://www.home-assistant.io/integrations/light/"]
+
+[[match]]
+bus = "home-assistant"
+domain = "light"
+
+[[requires]]
+platform = "any"
+what = "A Home Assistant server that this computer may talk to"
+
+[[capability]]
+id = "power.switch"
+adapter = "home-assistant"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "Home Assistant documents turning a light on and off. Not tried: the adapter is not written." }]
+
+[[capability]]
+id = "light.brightness"
+adapter = "home-assistant"
+risk = "reversible"
+verification = [{ status = "unverified", platform = "macos", note = "Home Assistant documents setting a light's brightness. Not tried: the adapter is not written." }]

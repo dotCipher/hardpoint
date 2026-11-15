@@ -17,6 +17,39 @@ pub struct Config {
     pub sources: Sources,
     pub actions: Actions,
     pub telemetry: Telemetry,
+    #[serde(default)]
+    pub gate: GateCfg,
+    /// Labels the owner has made stricter for their own devices.
+    #[serde(default)]
+    pub stricter: Vec<Stricter>,
+}
+
+/// How changes proposed by an agent are held and approved.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct GateCfg {
+    /// How long a guarded change waits to be kept before it goes back.
+    pub hold_secs: u64,
+    /// How long a gated change waits for approval before it is dropped.
+    pub approve_secs: u64,
+    /// A key that lights up when an answer is wanted. Pressing it means yes.
+    pub key: Option<u8>,
+}
+
+impl Default for GateCfg {
+    fn default() -> GateCfg {
+        GateCfg { hold_secs: 10, approve_secs: 60, key: None }
+    }
+}
+
+/// "Treat this ability of this device as at least this risky." It can only
+/// raise a label: the gatekeeper takes the strictest of everything it is told.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Stricter {
+    pub device: String,
+    pub capability: String,
+    pub risk: crate::catalog::Risk,
 }
 
 #[derive(Clone, Debug, Deserialize)]

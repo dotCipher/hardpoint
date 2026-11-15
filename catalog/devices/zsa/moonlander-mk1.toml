@@ -48,6 +48,7 @@ note = "ZSA's Keymapp holds the same channel, so it has to be closed. Checked on
 [[capability]]
 id = "identity.firmware"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "read"
 note = "Reports the Oryx layout id and revision id that were flashed."
 verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12 }]
@@ -55,6 +56,7 @@ verification = [{ status = "tested", platform = "macos", os = "27.2", firmware =
 [[capability]]
 id = "keys.position_events"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "read"
 privacy = "aggregate"
 note = "Reported for every key, including keys with nothing assigned, so unused keys can be given meaning without reflashing."
@@ -63,12 +65,14 @@ verification = [{ status = "tested", platform = "macos", os = "27.2", firmware =
 [[capability]]
 id = "keys.layer"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "read"
 verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, note = "The layer reported on connecting was received. A layer change was not exercised." }]
 
 [[capability]]
 id = "light.per_key"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "reversible"
 note = "While the host controls lighting it must set every key; there is no overlay on the keyboard's own effects."
 verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-13, note = "Six keys confirmed by eye. The order of the other 66 follows QMK's published table." }]
@@ -76,27 +80,30 @@ verification = [{ status = "tested", platform = "macos", os = "27.2", firmware =
 [[capability]]
 id = "light.global"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "reversible"
 verification = [{ status = "tested", platform = "macos", os = "27.2", firmware = "Oryx protocol v4", date = 2026-11-12, note = "Taking and releasing control was confirmed by the keyboard's own reply." }]
 
 [[capability]]
 id = "light.status"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "reversible"
 verification = [{ status = "unverified", platform = "macos", note = "In the published protocol. Not tried." }]
 
 [[capability]]
 id = "keys.layer_set"
 adapter = "oryx-hid"
+firmware = { family = "zsa-oryx" }
 risk = "guarded"
 verification = [{ status = "unverified", platform = "macos", note = "In the published protocol. Not tried." }]
 
 [[capability]]
 id = "firmware.flash"
-adapter = "usb-dfu"
+adapter = "manual"
 risk = "gated"
-note = "You put the keyboard into update mode with its reset button. Software can write the firmware from there, once you approve."
-verification = [{ status = "unverified", platform = "macos", note = "The keyboard's QMK definition names the standard STM32 DFU update mode. Not tried." }]
+note = "You put the keyboard into update mode with its reset button, and ZSA's app writes the firmware. Hardpoint explains the steps."
+verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation. Not tried." }]
 
 [[sources]]
 title = "Oryx raw-HID protocol (zsa/qmk_modules)"

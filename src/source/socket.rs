@@ -58,6 +58,20 @@ fn handle(stream: UnixStream, bus: Sender<BusEvent>, snapshot: Snapshot) {
                     Request::Gone { source, session } => BusEvent::Gone { source, session },
                     Request::Press { key } => BusEvent::Press(key),
                     Request::Status => unreachable!(),
+                    request => {
+                        // The gatekeeper answers from the main loop, which owns the device.
+                        let (reply, answer) = std::sync::mpsc::channel();
+                        let sent = bus.send(BusEvent::Gate { request, reply }).is_ok();
+                        let answer = answer.recv_timeout(std::time::Duration::from_secs(5));
+                        let reply = match (sent, answer) {
+                            (true, Ok(answer)) => answer,
+                            _ => serde_json::json!({ "ok": false, "error": "the daemon did not answer" }),
+                        };
+                        if writeln!(writer, "{reply}").is_err() {
+                            return;
+                        }
+                        continue;
+                    }
                 };
                 serde_json::json!({ "ok": bus.send(event).is_ok() })
             }

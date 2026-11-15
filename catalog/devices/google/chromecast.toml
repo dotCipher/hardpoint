@@ -26,10 +26,10 @@ verification = [{ status = "observed", platform = "macos", os = "27.2", date = 2
 
 [[capability]]
 id = "audio.output_volume"
-adapter = "cast"
+adapter = "home-assistant"
 risk = "reversible"
-verification = [{ status = "unverified", platform = "macos", note = "The Cast protocol has a volume message. Not tried." }]
+verification = [{ status = "unverified", platform = "macos", note = "Home Assistant offers volume for Cast devices. Not tried." }]
 
 [[sources]]
-title = "Google Cast: receiver volume in the Web Sender API"
-url = "https://developers.google.com/cast/docs/reference/web_sender/cast.framework.RemotePlayerController"
+title = "Home Assistant: Google Cast"
+url = "https://www.home-assistant.io/integrations/cast/"

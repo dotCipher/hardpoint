@@ -6,6 +6,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Deserialize)]
@@ -52,6 +53,41 @@ pub struct Capability {
     pub id: String,
     pub adapter: String,
     pub risk: Risk,
+    #[serde(default)]
+    pub note: Option<String>,
+    #[serde(default)]
+    pub verification: Vec<Verification>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Verification {
+    pub status: String,
+}
+
+impl Capability {
+    /// How far the claim has been checked, taking the best record.
+    pub fn checked(&self) -> &str {
+        ["tested", "observed", "imported"]
+            .into_iter()
+            .find(|status| self.verification.iter().any(|v| v.status == *status))
+            .unwrap_or("unverified")
+    }
+}
+
+/// One word of the shared vocabulary: what a capability means on every device.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Word {
+    pub kind: String,
+    pub summary: String,
+    /// The lowest label any card may give it.
+    pub min_risk: Risk,
+    #[serde(default)]
+    pub harm: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Vocabulary {
+    capability: BTreeMap<String, Word>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
@@ -114,6 +150,7 @@ impl Card {
 pub struct Catalog {
     pub root: PathBuf,
     pub cards: Vec<Card>,
+    pub vocabulary: BTreeMap<String, Word>,
 }
 
 impl Catalog {
@@ -144,7 +181,10 @@ impl Catalog {
             }
             cards.push(card);
         }
-        Ok(Catalog { root: root.to_path_buf(), cards })
+        let words = root.join("vocabulary").join("capabilities.toml");
+        let text = std::fs::read_to_string(&words).with_context(|| format!("reading {}", words.display()))?;
+        let vocabulary = toml::from_str::<Vocabulary>(&text).with_context(|| format!("in {}", words.display()))?.capability;
+        Ok(Catalog { root: root.to_path_buf(), cards, vocabulary })
     }
 
     /// Where the catalog is: an explicit path, then `HARDPOINT_CATALOG`, then
@@ -173,6 +213,14 @@ impl Catalog {
             .into_iter()
             .find(|dir| holds_cards(dir))
             .ok_or_else(|| anyhow!("no catalog found; pass --catalog <dir> or set HARDPOINT_CATALOG"))
+    }
+
+    /// The label that actually applies: the strictest of what the card says,
+    /// the vocabulary's floor, and anything the owner has added. A word the
+    /// vocabulary does not know is treated as the strictest there is.
+    pub fn effective_risk(&self, cap: &Capability, stricter: Option<Risk>) -> Risk {
+        let floor = self.vocabulary.get(&cap.id).map_or(Risk::Gated, |word| word.min_risk);
+        cap.risk.max(floor).max(stricter.unwrap_or(Risk::Read))
     }
 
     pub fn card(&self, id: &str) -> Option<&Card> {
@@ -224,6 +272,21 @@ mod tests {
         assert_eq!(catalog.recognise(&hit).map(|c| c.device.id.as_str()), Some(card.device.id.as_str()));
         assert!(catalog.recognise(&seen(&m.bus, m.vendor_id.unwrap(), 0xFFFF)).is_none());
         assert!(catalog.recognise(&seen("audio", m.vendor_id.unwrap(), m.product_id.unwrap())).is_none());
+    }
+
+    #[test]
+    fn a_label_can_be_made_stricter_but_never_looser() {
+        let mut catalog = repo_catalog();
+        let cap = |id: &str, risk| Capability { id: id.into(), adapter: "x".into(), risk, note: None, verification: vec![] };
+        // The owner can raise a label, and asking for a lower one changes nothing.
+        assert_eq!(catalog.effective_risk(&cap("light.global", Risk::Reversible), Some(Risk::Gated)), Risk::Gated);
+        assert_eq!(catalog.effective_risk(&cap("light.global", Risk::Guarded), Some(Risk::Read)), Risk::Guarded);
+        // A card cannot go below the vocabulary's floor, even if it was never validated.
+        assert_eq!(catalog.effective_risk(&cap("power.outlet", Risk::Reversible), None), Risk::Gated);
+        // A word nobody has defined is not trusted at all.
+        assert_eq!(catalog.effective_risk(&cap("made.up", Risk::Reversible), None), Risk::Gated);
+        catalog.vocabulary.clear();
+        assert_eq!(catalog.effective_risk(&cap("light.global", Risk::Reversible), None), Risk::Gated);
     }
 
     #[test]

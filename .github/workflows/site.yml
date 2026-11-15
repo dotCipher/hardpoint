@@ -38,7 +38,9 @@ jobs:
       - name: Check the committed images match the catalog
         run: git diff --exit-code -- assets
       - name: Check the device lister runs here
-        run: python3 tools/observe.py
+        run: python3 tools/observe.py --no-network
+      - name: Check the Web of Things models against the W3C schema
+        run: pip install --quiet jsonschema && python3 tools/check_models.py
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:

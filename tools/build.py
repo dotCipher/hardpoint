@@ -539,6 +539,81 @@ def write_assets(catalog, content):
     return len(files)
 
 
+# ------------------------------------------------- W3C Web of Things export
+
+# Each card is also published as a W3C Web of Things Thing Model, the
+# standard way to describe what a kind of device can do, so other tools can
+# read the catalog without learning its own format. What the standard has no
+# word for (the label, what goes wrong, how much was checked) is added under
+# Hardpoint's own namespace, whose terms are listed here.
+WOT_CONTEXT = "https://www.w3.org/2022/wot/td/v1.1"
+WOT_TERMS = {
+    "card": "The id of the Hardpoint card this model was made from.",
+    "kind": "What kind of device it is.",
+    "match": "How software recognises the device when it is attached.",
+    "risk": "The label on this ability: read, reversible, guarded or gated.",
+    "floor": "The lowest label the shared vocabulary allows this ability to have.",
+    "harm": "What goes wrong if this is done carelessly.",
+    "privacy": "The most that may leave the adapter: open, aggregate or presence.",
+    "adapter": "The code that reaches this ability on the device.",
+    "checked": "How far this claim has been checked: tested, observed, imported or unverified.",
+    "verification": "The records behind that: platform, versions, date and what exactly was checked.",
+    "firmware": "The firmware the device has to be running for this claim to hold.",
+}
+# How the vocabulary's plain-language value types map onto the standard's data types.
+WOT_TYPES = {
+    "percent": {"type": "number", "minimum": 0, "maximum": 100, "unit": "percent"},
+    "boolean": {"type": "boolean"},
+    "count": {"type": "integer", "minimum": 0},
+    "string": {"type": "string"},
+    "degrees": {"type": "number", "unit": "degree Celsius"},
+    "dots per inch": {"type": "integer", "minimum": 0, "unit": "dots per inch"},
+}
+
+
+def thing_model(card, catalog, namespace, page=None):
+    """One card as a Web of Things Thing Model (W3C Recommendation, version 1.1)."""
+    d = card["device"]
+    model = {
+        "@context": [WOT_CONTEXT, {"hp": namespace}],
+        "@type": "tm:ThingModel",
+        "title": f'{d["vendor"]} {d["name"]}',
+        "description": d["summary"],
+        "hp:card": d["id"],
+        "hp:kind": d["kind"],
+        "hp:match": card["match"],
+    }
+    if page:
+        model["links"] = [{"rel": "alternate", "href": page, "type": "text/html"}]
+    groups = {"properties": {}, "actions": {}, "events": {}}
+    for cap in card["capability"]:
+        word = catalog.vocabulary[cap["id"]]
+        entry = {"description": word["summary"]}
+        typed = dict(WOT_TYPES.get(word["value"], {}))
+        if "range" in cap and typed.get("type") in ("number", "integer"):
+            typed["minimum"], typed["maximum"] = cap["range"]
+        if word["kind"] in ("reading", "control"):
+            entry.update(typed)
+            entry["readOnly"] = word["kind"] == "reading"
+            group = "properties"
+        elif word["kind"] == "action":
+            # The standard's two words for an action: does it change anything, and is repeating it harmless.
+            entry.update({"safe": False, "idempotent": False})
+            group = "actions"
+        else:
+            if typed:
+                entry["data"] = typed
+            group = "events"
+        entry.update({"hp:risk": cap["risk"], "hp:floor": word["min_risk"], "hp:adapter": cap["adapter"],
+                      "hp:checked": catalog.best_status(cap), "hp:verification": cap["verification"]})
+        for term, value in (("harm", word.get("harm")), ("privacy", cap.get("privacy")), ("firmware", cap.get("firmware"))):
+            if value:
+                entry[f"hp:{term}"] = value
+        groups[group][cap["id"]] = entry
+    model.update({name: found for name, found in groups.items() if found})
+    return model
+
+
 # ---------------------------------------------------------------------- site
 
 def chip(kind, value):
@@ -623,6 +698,9 @@ class Site:
         self.c, self.t, self.repo = catalog, content, repo
         self.name = content["name"]
         self.risk = catalog.terms["risk"]
+        self.home = site_url(repo)
+        # Where Hardpoint's own terms are defined, for anything that reads the Web of Things models.
+        self.namespace = f"{self.home}ns.html#" if self.home else "urn:hardpoint:ns#"
         # The devices with the most checked come first, wherever devices are listed.
         count = lambda card, status: sum(1 for cap in card["capability"] if catalog.best_status(cap) == status)
         self.cards = sorted(catalog.cards, key=lambda card: [-count(card, s) for s in catalog.statuses][:-1] + [card["device"]["name"]])
@@ -765,7 +843,7 @@ Product names belong to their owners; this project is not affiliated with them.<
     <div class="result"><p id="outcome"></p><div class="line"><span class="value" id="value"></span>
       <span class="timer"><span class="barbox"><span class="fill"></span></span>
       <button class="btn small" id="keep" type="button">{e(travel["confirm"])}</button></span></div></div>
-    <p class="note">{e(t["ladder_note"]["text"])}</p></div>"""
+    <p class="note">{inline_code(t["ladder_note"]["text"])}</p></div>"""
         return block, f'<script type="application/json" id="ladder-data">{json.dumps(data)}</script>'
 
     def steps(self, items):
@@ -941,7 +1019,8 @@ Product names belong to their owners; this project is not affiliated with them.<
                      ("Note", cap.get("note", "")), ("If done carelessly", word.get("harm", "")),
                      ("Route", f'{cap["adapter"]} {params}'.strip() + f' ({c.adapters[cap["adapter"]]["status"]})'),
                      ("Value", f'{word["kind"]}, {word["value"]}' + (f', {cap["range"][0]:g} to {cap["range"][1]:g}' if "range" in cap else "")),
-                     ("Privacy", cap.get("privacy", ""))]
+                     ("Privacy", cap.get("privacy", "")),
+                     ("Needs firmware", " ".join(f"{k} {v}" for k, v in cap.get("firmware", {}).items()).replace("family ", ""))]
             details = "".join(f"<dt>{e(k)}</dt><dd>{e(v)}</dd>" for k, v in facts if v)
             commit = card["_commits"].get(cap["id"])
             link = f' <a class="commit" href="{e(self.repo)}/commit/{commit}">commit</a>' if commit and self.repo else ""
@@ -968,10 +1047,25 @@ Product names belong to their owners; this project is not affiliated with them.<
 <h2 class="small">How it is recognised</h2>
 <div class="tablebox"><table><tr><th>Bus</th><th>Identifiers</th></tr>{match_rows}</table></div>
 {f'<h2 class="small">Sources</h2><ul>{sources}</ul>' if sources else ''}
+<h2 class="small">In a standard form</h2>
+<p class="lede">The same card as a <a href="../models/{slug(card)}.tm.jsonld">W3C Web of Things Thing Model</a>, for tools that read that standard. <a href="../ns.html">Hardpoint's added terms</a>.</p>
 <h2 class="small">The card</h2>
 <p class="lede">This page is made from {where}. If something is wrong, or you have checked more of it, <a href="../add.html">edit that file</a>.</p>
 <pre>{e(card["_source"])}</pre></div>"""
         return self.page(f'{d["vendor"]} {d["name"]} · {self.name}', body, "../", self.t["nav"]["devices"])
+
+    def namespace_page(self):
+        """The terms Hardpoint adds to the Web of Things models, each with an address of its own."""
+        rows = "".join(f'<tr id="{e(term)}"><td class="mono">hp:{e(term)}</td><td>{e(meaning)}</td></tr>' for term, meaning in WOT_TERMS.items())
+        body = f"""<div class="wrap"><div class="page-head"><p class="crumb"><a href="format.html">{e(self.t["nav"]["builders"])}</a> / Terms</p><h1>Terms for the Web of Things</h1>
+<p class="lede">Every card is also published as a W3C Web of Things Thing Model, so other tools can read the catalog in a standard form.
+The standard already says whether a value can be changed and whether an action is safe to repeat. These are the terms Hardpoint adds,
+under the prefix <span class="mono">hp</span>, which stands for <span class="mono">{e(self.namespace)}</span></p></div>
+<div class="tablebox"><table><tr><th>Term</th><th>Meaning</th></tr>{rows}</table></div>
+<h2 class="small">Labels</h2>{defs((chip("risk", r), text) for r, text in self.c.risks.items())}
+<h2 class="small">Checked</h2>{defs((self.checked(s), text) for s, text in self.c.statuses.items())}
+<h2 class="small">Models</h2><p class="lede">One file per card, at <span class="mono">models/&lt;maker&gt;-&lt;model&gt;.tm.jsonld</span>. Each device's page links to its own.</p></div>"""
+        return self.page(f"Terms · {self.name}", body, "", self.t["nav"]["builders"])
 
     def vocabulary(self):
         c = self.c
@@ -1059,7 +1153,11 @@ A device card can only name an adapter and give it typed values; it can never ca
             "icons": [{"src": f"icon-{size}.png", "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any maskable"} for size in (192, 512)],
         }, indent=2) + "\n")
         pages = {"index": self.landing, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
-                 "adapters": self.adapters, "format": self.format}
+                 "adapters": self.adapters, "format": self.format, "ns": self.namespace_page}
+        (SITE / "models").mkdir()
+        for card in c.cards:
+            page = f"{self.home}devices/{slug(card)}.html" if self.home else None
+            (SITE / "models" / f"{slug(card)}.tm.jsonld").write_text(json.dumps(thing_model(card, c, self.namespace, page), indent=2) + "\n")
         for name, render in pages.items():
             (SITE / f"{name}.html").write_text(render())
         for card in c.cards:

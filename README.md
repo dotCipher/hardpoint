@@ -91,11 +91,13 @@ goes wrong if it is done carelessly.
 | A keyboard driven entirely from its card: lights, key presses, layers | Runs on macOS, on one keyboard |
 | Agent sessions on keys, and a press that runs your own action | Runs, with OpenCode and any script |
 | Brightness that follows the clock; per-key press counts | Runs |
+| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs, on the keyboard's lights. Checked with a scripted client, not yet inside Claude Code or Codex |
+| Keep-or-revert, and approve-first, with "no answer means no" | Runs in the gatekeeper |
+| Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
 | Reading a mouse and the computer through adapters | Designed. Read by hand so far |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
-| Confirm-or-revert, and a journal of every change | Designed |
-| Approve-first changes, such as firmware updates | Designed |
-| An MCP server for any agent and model provider | Designed |
+| A journal that outlives the daemon | Designed |
+| Home Assistant, fwupd and the other tools that already reach hardware | Designed. See [docs/STRATEGY.md](docs/STRATEGY.md) |
 | Linux | Not tried |
 
 Each device's page on [the site](https://dotcipher.github.io/hardpoint/devices.html)
@@ -121,6 +123,20 @@ cargo build --release
 ```
 
 Agent states are `idle`, `running`, `needs-you`, `done` and `failed`.
+
+### Let an agent connect
+
+With `hardpoint run` running, any agent that speaks the Model Context
+Protocol can use the gatekeeper. The command to give it is `hardpoint mcp`:
+
+```sh
+claude mcp add hardpoint -- /path/to/hardpoint mcp     # Claude Code
+codex mcp add hardpoint -- /path/to/hardpoint mcp      # Codex
+```
+
+The agent can list devices, read, propose a change and undo it. It cannot
+keep or approve one: that is yours, on a key you choose (`[gate] key` in
+your config) or with `hardpoint keep` and `hardpoint approve`.
 
 To drive a real keyboard, copy an example from [`examples/`](examples) to
 `~/.config/hardpoint/config.toml`, choose which keys are slots, and run

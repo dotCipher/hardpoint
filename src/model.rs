@@ -96,6 +96,8 @@ pub enum BusEvent {
     /// A key press injected over the socket, by vendor key index.
     Press(u8),
     Source { name: String, ok: bool, message: String },
+    /// Something for the gatekeeper, and where to send its answer.
+    Gate { request: Request, reply: std::sync::mpsc::Sender<serde_json::Value> },
 }
 
 /// One line of the socket protocol.
@@ -106,6 +108,16 @@ pub enum Request {
     Gone { source: String, session: String },
     Press { key: u8 },
     Status,
+    // The gatekeeper. An agent may list, read, propose, undo and look at the
+    // journal. Keeping, approving and declining are a person's to do.
+    Devices,
+    Read { device: String, capability: String },
+    Propose { device: String, capability: String, value: serde_json::Value },
+    Undo { change: u64 },
+    Changes,
+    Keep { change: u64 },
+    Approve { change: u64 },
+    Decline { change: u64 },
 }
 
 #[cfg(test)]

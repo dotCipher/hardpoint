@@ -186,6 +186,8 @@ class GeneratedDiscovery(unittest.TestCase):
         guide = (self.output / "agents.md").read_text()
         self.assertIn("journal is in memory", guide)
         self.assertIn("planned, not built", guide)
+        self.assertIn("not a universal implementation", guide)
+        self.assertIn("configured action", guide)
 
     def test_agent_lookup_distinguishes_tested_reads_from_planned_integrations(self):
         entries = json.loads((self.output / "search-index.json").read_text())["entries"]

@@ -101,6 +101,11 @@ requests undo when its condition ends. Watches can raise a reading on a
 session key when it crosses a threshold. Configuration is loaded at startup;
 `reload` refreshes cards, not all running config/watch workers.
 
+A session-key press dispatches the owner's `actions.agent_press` shell action
+with session context. It is not a generic native answer API for agent hosts.
+Those integrations must be implemented/configured and tested separately;
+they are distinct from the gatekeeper's own human keep/approve decision.
+
 Some adapter writes still run synchronously in the device loop and can delay
 lighting/approval handling. The in-memory journal does not recover a guarded
 change after a process crash. Undo can overwrite an external human adjustment,

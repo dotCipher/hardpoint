@@ -25,13 +25,19 @@ device. Live writes need separate consent and a restoration plan.
 
 ### Keyboard: an attention router, not another RGB effect
 
-**Already present:** per-session keys, colors, key events, read watches and
-agent-state rules on the supported keyboard.
+**Already present:** per-session keys, colors, key events, read watches,
+agent-state rules and an owner-configured press action on the supported
+keyboard. A configured action is not a universal native answer integration.
 
 **Build next:** stable session affinity, a priority attention queue, a clear
 summary of what each key answers, optional terminal focusing, and distinct
 signals for agent questions versus Hardpoint device approvals. Coalesce low
 priority health warnings so they do not evict urgent approval requests.
+
+Start with the narrower, verifiable action: pressing a session key focuses
+the correct terminal/session, without submitting an answer. Only then add
+host-specific human response hooks with explicit request identity, queueing,
+expiry and tests that one press cannot answer a different/newer request.
 
 **Demo:** several agents work in parallel; the key for the one needing a
 decision pulses. A device warning waits in the same attention queue without

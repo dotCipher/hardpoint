@@ -35,6 +35,9 @@ Read `docs/ECOSYSTEM.md` before proposing another driver or automation engine.
   Unknown abilities are gated. Rules never execute gated actions.
 - MCP offers only `devices`, `read`, `propose`, `undo`, `changes`. Never add a
   model-callable keep/approve path. Human approval is for the exact action.
+- Session-key presses run the owner's configured action. Do not advertise
+  universal agent-question answering without a tested host integration;
+  keep session actions separate from Hardpoint's device approval key.
 - Hardpoint is not a sandbox against an agent with unrestricted local access.
 - A catalog entry, an implemented adapter, a tested ability and a successful
   live operation are different facts. `reachable` is not proof of permissions,

@@ -16,11 +16,10 @@ catalog                    daemon (on your computer)          clients
   adapters or known helper tools, after enforcing the label.
 - **Clients** ask the daemon. They never talk to a device directly.
 
-The daemon has discovery, four hardware/system adapters, a gatekeeper, MCP,
-agent-session slots, watches, and `at`/`while` rules. Model-specific routes
-come from cards. It currently selects a supported keyboard at startup;
-running without a supported keyboard is still an architecture improvement
-to make, not a supported general headless workflow.
+Model-specific routes, adapter declarations, requirements and verification
+belong to `catalog/`. This document explains the architecture, not a snapshot
+of device coverage. Read the generated device/adapter registry and local
+runtime reports for the system being used.
 
 ## Discovery
 
@@ -43,21 +42,11 @@ An adapter is code in the daemon that implements some of: read a value,
 set a value, subscribe to events. The catalog registers each adapter's name,
 platforms and parameter names; cards refer to them.
 
-| Adapter | Scope | State |
-|---|---|---|
-| `oryx-hid` | Keyboard lights, key positions and layer reports | Implemented and exercised on macOS; not every advertised ability is writable |
-| `hidpp` | Direct-Bluetooth Logitech battery, DPI, wheel mode and host reading | Implemented and exercised on macOS; Input Monitoring needed; host switching and button remapping writes are not implemented |
-| `macos-system` | Field-driven power, firmware, thermal, storage and audio | Implemented on macOS; some values require connection or OS permissions |
-| `ddc-ci` | Display controls via `m1ddc`/`ddcutil` | Apple Silicon path exercised; Linux path untested on hardware; currently single/default-display routing |
-
-`home-assistant`, `fwupd` and network `mdns` adapter implementations remain
-planned. BetterDisplay, Lunar and OpenLogi are integration candidates, not
-working adapters. Adapter-level implementation does not prove every ability
-on every card or every declared platform works.
-
-Things macOS does not hand over without elevated access, and which are
-therefore out of scope for now: individual temperatures, fan speeds, the
-ambient light sensor and the keyboard backlight.
+Names, implementation status, declared platforms, parameters, helper recipes
+and limitations are recorded once in `catalog/adapters/adapters.toml` and
+rendered on the generated adapter page. Device cards link their abilities to
+those declarations. Adapter-level implementation does not verify every
+operation on every card or every declared platform.
 
 ## Changing things
 
@@ -127,8 +116,9 @@ Host helpers are separate from both device firmware and catalog updates.
 `src/tools.rs` uses trusted recipes embedded from the adapter registry. It
 sets up helpers off the device loop on discovery/reload, reuses installed
 executables and attempts a missing helper once per daemon lifetime.
-Existing Homebrew can install `m1ddc` on Apple Silicon. No elevation,
-package-manager bootstrap, permission grants or firmware flashing occurs.
+The OS/architecture/package mapping comes from that registry, not a separate
+documentation table. No elevation, package-manager bootstrap, permission
+grants or firmware flashing occurs.
 `doctor` is read-only; `setup` retries and respects the opt-out. The last
 daemon report is in `status.setup`.
 

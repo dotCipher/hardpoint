@@ -1,21 +1,20 @@
-I want to add one of my devices to the Hardpoint catalog: {repo}
+Help me add or review the devices I choose in Hardpoint: {repo}
 
-Please do this with me, one step at a time.
+Work with me one step at a time. The registry is the only source for device
+cards, abilities, labels, adapter status, platforms and helper requirements.
+Do not assume a fixed device list or infer coverage from documentation examples.
 
-1. Clone that repository and read README.md, docs/SPEC.md and catalog/vocabulary/capabilities.toml.
-2. Run `python3 tools/observe.py`. It lists what is plugged in and what is on my home network. Show me the devices that have no card yet, and ask me which one to add.
-3. Run `python3 tools/observe.py --draft <number>` and save the draft at the path it names.
-4. Fill in the card:
-   - Use only capability ids from the vocabulary. If one is truly missing, propose adding it and ask me first.
-   - Use only adapters listed in catalog/adapters/adapters.toml.
-   - Never give a capability a lower risk than the vocabulary's min_risk.
-   - For anything this computer already reports about the device (a battery level, a firmware version, a health verdict), use the adapter `macos-system` with a `source` and a `field`, as docs/SPEC.md describes. That needs no code.
-   - Never put a command, a script or a file path in a card. For something on the network, never put an address, a host name or the name I gave the device in a card either.
-5. Be exact about what has been checked:
-   - Use "observed", with today's date, only for something you ran on this computer and saw work. Say what you ran in the note.
-   - Use "unverified" for anything you only read about, and say where.
-   - If Hardpoint is installed, save a copy of the card under `~/.config/hardpoint/cards/<maker>/<model>.toml`, run `hardpoint reload`, then `hardpoint read <device id> <ability id>` for each ability. If it returns the value, record that ability as "tested" with today's date, and say so in the note. Otherwise do not use "tested".
-   - Only read from my device. Do not change any setting on it to test something unless I say yes first.
-6. Write from what you observe and from the maker's documentation. Do not copy data files from other projects. List your sources.
-7. Run `python3 tools/build.py --check` and fix what it reports until it passes.
-8. Show me the finished card, then open a pull request with it.
+1. Find an existing checkout or clone the repository without overwriting anything. Read AGENTS.md, docs/SPEC.md, the card schema, and the current registry under catalog/. Check personal cards under the configured Hardpoint cards directory too; do not copy private cards into a public contribution without my review.
+2. Explain the read-only discovery scope and offer local-only discovery with `--no-network` if I do not want network discovery. Inspect the script's current `--help` rather than inventing options. Save one `python3 tools/observe.py --json` result in a private temporary snapshot outside the repository, adding `--no-network` if selected. Do not publish that snapshot.
+3. Show a numbered inventory from that snapshot, including entries with an existing shared or personal card. Mark what needs a new card versus review. Ask me to choose before writing any cards:
+   - All uncatalogued devices (`missing`).
+   - All detected devices for review (`all`); reuse existing cards and draft only missing ones.
+   - Specific snapshot numbers or ranges, such as `1,3-5`. If I give names, resolve them against this inventory and ask about ambiguous matches.
+   Let me exclude entries from either all-device option. An empty inventory or selection is a valid stop, not a reason to guess devices.
+4. Confirm the selected entries and proposed create/reuse/review actions. Use `python3 tools/observe.py --from-file <private-snapshot-path> --select <selection> --json` to preserve the original numbering. Keep the original unfiltered snapshot as the source, not a filtered selection export. Do not rescan and silently apply my old numbers to a reordered inventory. If discovery changes, ask me to confirm a new selection. Discovery can group identical models: work only on selected entries and do not create duplicate model cards for multiple units/observations or copies of an existing card.
+5. For each selected entry without a card, use `python3 tools/observe.py --from-file <private-snapshot-path> --draft <original-number>`. This prints a template; it does not save or complete a card. Resolve its TODO maker/model/id from public model facts, never a friendly name I gave the device. Confirm the destination and do not overwrite an existing shared or personal file. For an existing card, show the exact proposed diff instead of replacing it.
+6. Fill in only what the current registry and evidence justify. Choose ability ids, label floors, adapter routes and typed parameters from catalog/ and the actual adapter implementation. Reuse an existing route where it fits; a missing adapter is a blocker, not permission to invent support or install another controller. Propose a genuinely missing vocabulary entry separately and ask me first. Never put commands, scripts, paths, serial numbers, addresses, host names or private device names into a shared card.
+7. Verify selected entries read-only. If Hardpoint is installed, ask before placing reviewed cards in my personal cards directory, preserve existing contents, then reload and read only those selected abilities. Explain that reload may trigger trusted helper setup according to my settings. Do not restart or rebuild the daemon, elevate privileges, grant permissions, install unrelated software, flash firmware or change a device setting to make a test pass. Report disconnected, permission-blocked, ambiguous or unsupported results without claiming success.
+8. Record only the operation actually exercised: `tested` for a successful read through its real adapter; `observed` for a separate direct observation; `unverified` for documentation alone. Use the actual observation date, platform and versions, and state explicitly when writes/undo were not tested. Do not turn one successful read into a tested whole card. Work from observation and primary documentation, not copied third-party data files; list sources.
+9. Run `python3 tools/build.py --check` and relevant tests. Show a per-selected-entry summary: created, reused, changed, skipped or blocked, with evidence and exact files. Do not write a second device/support inventory into README, AGENTS.md or other docs.
+10. Ask whether I want local-only use or a public contribution. Only after I approve the sanitized diff and publication should you prepare a pull request containing the selected changes. Exclude private snapshots, raw inventory, local routes, configs and logs. Leave unselected devices and unrelated work alone.

@@ -159,11 +159,9 @@ Each maps to a real incident or a real gap above.
 
 ## Earlier sequence (superseded)
 
-The gatekeeper/MCP interface, macOS system/HID++/DDC adapters, watches, basic
-rules, W3C export and host-helper setup now exist. Home Assistant and fwupd
-remain planned. The current order is [ROADMAP.md](ROADMAP.md): strengthen
-readiness, instance identity, ownership and recovery, then expand workflows.
-Do not use these earlier research notes as a live implementation checklist.
+Read [ROADMAP.md](ROADMAP.md) for design priorities. Read the registry for
+device coverage, adapter declarations and verification. These research notes
+are not a second inventory or a live implementation checklist.
 
 A measure of success, borrowed from the study: run its injected-deletion
 test against Hardpoint with a gated ability. The count of unapproved actions

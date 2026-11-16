@@ -24,6 +24,11 @@ Read `docs/ECOSYSTEM.md` before proposing another driver or automation engine.
 - `site-src/content.toml`: site copy and discovery metadata.
 - `tools/build.py`, `tools/discovery.py`: validators and static generation.
 - `site/` is generated and ignored. Never patch it as the source of a change.
+- Do not maintain device inventories, coverage counts, adapter/platform/helper
+  matrices, per-model abilities, labels or verification snapshots in docs,
+  prompts or site prose. The registry owns those facts. Link to its generated
+  views, or derive examples at build time; use placeholders in authored
+  templates. A registry change must not require a parallel documentation edit.
 - Brand assets and the macOS icon come from the same generator; do not hand
   replace one with a different mark. Preserve the animations and fixed geometry.
 
@@ -56,8 +61,8 @@ Read `docs/ECOSYSTEM.md` before proposing another driver or automation engine.
 - Input/host switching, power cuts, firmware and security controls need explicit
   approval. Do not assume automatic revert can recover a disconnected device.
 - Do not stop, replace or seize another app's device channel without consent.
-- DDC currently assumes a single/default external display. Do not claim general
-  multi-monitor routing or choose the first device when identity is ambiguous.
+- Consult registry notes and runtime results for routing limitations. Do not
+  choose the first device when identity is ambiguous.
 - Existing rules/undo do not yet handle every competing writer or survive a
   daemon crash. Treat ownership, manual overrides and durable recovery as work
   to implement, not guarantees to advertise.

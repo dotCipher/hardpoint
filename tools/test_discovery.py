@@ -1,4 +1,5 @@
 import json
+import copy
 import pathlib
 import re
 import tempfile
@@ -174,7 +175,7 @@ class GeneratedDiscovery(unittest.TestCase):
 
     def test_llms_navigation_targets_exist_and_exclude_local_information(self):
         text = (self.output / "llms.txt").read_text()
-        self.assertLess(len(text), 16000)
+        self.assertTrue(text.startswith("# " + self.content["name"]))
         for href in re.findall(r"\]\(([^)]+)\)", text):
             url = urllib.parse.urlsplit(href)
             if url.netloc == "example.test":
@@ -184,19 +185,51 @@ class GeneratedDiscovery(unittest.TestCase):
             self.assertEqual((self.output / path).read_text(), (build.ROOT / path).read_text())
         self.assertIn("not a live inventory", text)
         guide = (self.output / "agents.md").read_text()
-        self.assertIn("journal is in memory", guide)
-        self.assertIn("planned, not built", guide)
+        self.assertIn("adapter registry", guide)
         self.assertIn("not a universal implementation", guide)
         self.assertIn("configured action", guide)
 
-    def test_agent_lookup_distinguishes_tested_reads_from_planned_integrations(self):
-        entries = json.loads((self.output / "search-index.json").read_text())["entries"]
-        lock = next(e for e in entries if e["device"] == "home-assistant/lock")
-        self.assertEqual(lock["label"], "gated")
-        self.assertEqual(lock["adapter_status"], "planned")
-        mouse = next(e for e in entries if e["device"] == "logitech/mx-master-3" and e["capability"] == "pointer.host")
-        self.assertEqual(mouse["checked"], "observed")
-        self.assertTrue(any("Switching was not exercised" in v.get("note", "") for v in mouse["verification"]))
+    def test_registry_changes_propagate_without_editing_prose(self):
+        c = copy.deepcopy(self.catalog)
+        card = copy.deepcopy(next(card for card in c.cards if not card.get("keys")))
+        card["device"].update(id="fixture/future-model", name="FutureRegistryModel", vendor="FixtureMaker", summary="A synthetic registry addition.")
+        card["_path"], card["_source"], card["_commits"] = "catalog/devices/fixture/future-model.toml", "# Synthetic registry fixture", {}
+        card["capability"] = card["capability"][:1]
+        cap = card["capability"][0]
+        cap["verification"] = [{"status": "unverified", "platform": c.adapters[cap["adapter"]]["platforms"][0], "note": "Synthetic registry evidence"}]
+        c.cards.append(card)
+        c.adapters[cap["adapter"]]["notes"] = "Fixture routing constraint from registry"
+        c.adapters[cap["adapter"]]["tool"] = [{"platform": "macos", "arches": [], "binary": "fixture-helper",
+                                               "packages": {"brew": "fixture-package"}, "note": "Fixture helper requirement"}]
+        with tempfile.TemporaryDirectory() as temp, patch.object(build, "SITE", pathlib.Path(temp) / "site"):
+            content = build.load_content(c)
+            self.assertFalse(c.errors)
+            build.Site(c, content, "https://github.com/example/hardpoint").write()
+            output = pathlib.Path(temp) / "site"
+            self.assertIn(card["device"]["name"], (output / "llms.txt").read_text())
+            self.assertIn("Synthetic registry evidence", (output / "devices/fixture-future-model.md").read_text())
+            self.assertIn(c.adapters[cap["adapter"]]["notes"], (output / "adapters.html").read_text())
+            self.assertIn("fixture-helper", (output / "adapters.html").read_text())
+            self.assertIn("fixture-package", (output / "adapters.md").read_text())
+            row = next(e for e in json.loads((output / "search-index.json").read_text())["entries"] if e["device"] == card["device"]["id"])
+            self.assertEqual(row["verification"], cap["verification"])
+
+    def test_authored_docs_and_site_prose_do_not_pin_registry_devices(self):
+        raw = build.load_toml(build.SOURCE / "content.toml")
+        self.assertNotIn("card", raw["demo"])
+        self.assertNotIn("config", raw["demo"])
+        for example in raw["ladder"]:
+            self.assertNotIn("device", example)
+            self.assertNotIn("capability", example)
+        paths = [build.ROOT / p for p in ("README.md", "AGENTS.md", "CONTRIBUTING.md")]
+        paths += list((build.ROOT / "docs").glob("*.md")) + list(build.SOURCE.glob("*.md"))
+        paths.append(build.SOURCE / "content.toml")
+        for path in paths:
+            text = path.read_text()
+            for card in self.catalog.cards:
+                self.assertNotIn(card["device"]["id"], text, f"{path}: link to the registry instead of pinning a model")
+                self.assertNotIn(card["device"]["name"], text, f"{path}: model facts belong to the registry")
+            self.assertNotRegex(text, r"\b\d+ (?:devices|cards|capabilities|models)\b", str(path))
 
     def test_page_and_evidence_survive_without_javascript(self):
         for card in self.catalog.cards:

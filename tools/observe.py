@@ -8,6 +8,9 @@ It reads; it never changes a device.
     python3 tools/observe.py --json       # the same, for a program to read
     python3 tools/observe.py --draft 3    # print a draft card for device 3
     python3 tools/observe.py --no-network # skip the home network
+    python3 tools/observe.py --json > <private-snapshot-path>
+    python3 tools/observe.py --from-file <private-snapshot-path> --select missing --json
+    python3 tools/observe.py --from-file <private-snapshot-path> --select 1,3-5 --json
 
 It knows how to look on macOS and Linux. Each device is reported with the bus
 it is on and the identifiers a card's [[match]] section needs.
@@ -18,8 +21,10 @@ them. They are reported by the model they announce, never by an address or
 by the name someone gave them.
 """
 import concurrent.futures
+import argparse
 import datetime
 import json
+import os
 import pathlib
 import platform
 import re
@@ -204,16 +209,29 @@ def read_card(path):
 
 
 def cards():
-    return [read_card(path) for path in sorted(DEVICES.glob("*/*.toml"))]
+    # Personal cards participate in matching but are never copied or published.
+    own = pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or pathlib.Path.home() / ".config") / "hardpoint" / "cards"
+    found = {}
+    for scope, directory in (("shared", DEVICES), ("private", own)):
+        for path in sorted(directory.glob("*/*.toml")):
+            card = read_card(path)
+            card["_scope"] = scope
+            found[card["device"]["id"]] = card
+    return list(found.values())
 
 
 def card_for(device, catalog):
+    card = matching_card(device, catalog)
+    return card["device"]["id"] if card else None
+
+
+def matching_card(device, catalog):
     for card in catalog:
         for match in card.get("match", []):
             if match.get("bus") != device["bus"]:
                 continue
             if all(match.get(k) is None or match.get(k) == device.get(k) for k in ("vendor_id", "product_id", "model", "service")):
-                return card["device"]["id"]
+                return card
     return None
 
 
@@ -221,30 +239,49 @@ def slug(text):
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", (text or "").lower())).strip("-") or "unknown"
 
 
-def draft(device):
+def draft_destination(device):
     vendor = device["vendor"] or "Vendor"
-    vendor_slug, model_slug = slug(vendor.split(",")[0]), slug(device["name"])
-    here = "macos" if platform.system() == "Darwin" else "linux"
+    # Friendly USB/Bluetooth names may identify their owner. Never use them as
+    # public names, ids or filenames; a person supplies the public model name.
+    model = device["model"] or "model-{}-{}".format(
+        format(device["vendor_id"], "04x") if device["vendor_id"] is not None else "unknown",
+        format(device["product_id"], "04x") if device["product_id"] is not None else "unknown")
+    return "{}/{}".format(slug(vendor.split(",")[0]), slug(model))
+
+
+def draft(device):
+    vendor = device["vendor"] or "TODO: public maker"
+    identity = draft_destination(device)
+    quote = lambda value: json.dumps(value, ensure_ascii=False)
+    here = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(platform.system())
+    if not here:
+        raise ValueError("choose a verification platform from the schema before drafting on this operating system")
     version = platform.mac_ver()[0] if here == "macos" else platform.release()
     today = datetime.date.today().isoformat()
     if device["bus"] == "builtin":
-        match = f'bus = "builtin"\nmodel = "{device["model"]}"'
+        if not device["model"]:
+            raise ValueError("this observation needs a public model identifier before a draft can be made")
+        match = f'bus = "builtin"\nmodel = {quote(device["model"])}'
     elif device["bus"] == "network":
-        match = f'bus = "network"\nservice = "{device["service"]}"'
-        match += f'\nmodel = "{device["model"]}"' if device["model"] else ""
-        if device["vendor_id"] is not None:
+        if not device["service"] or not (device["model"] or device["vendor_id"] is not None and device["product_id"] is not None):
+            raise ValueError("this observation needs a service and public model or vendor/product identifiers")
+        match = f'bus = "network"\nservice = {quote(device["service"])}'
+        match += f'\nmodel = {quote(device["model"])}' if device["model"] else ""
+        if device["vendor_id"] is not None and device["product_id"] is not None:
             match += f'\nvendor_id = 0x{device["vendor_id"]:04x}\nproduct_id = 0x{device["product_id"]:04x}'
     else:
-        match = f'bus = "{device["bus"]}"\nvendor_id = 0x{device["vendor_id"]:04x}\nproduct_id = 0x{device["product_id"]:04x}'
-    return f"""# Save this as catalog/devices/{vendor_slug}/{model_slug}.toml, then fill in
+        if device["vendor_id"] is None or device["product_id"] is None:
+            raise ValueError("this observation needs public vendor/product identifiers before a draft can be made")
+        match = f'bus = {quote(device["bus"])}\nvendor_id = 0x{device["vendor_id"]:04x}\nproduct_id = 0x{device["product_id"]:04x}'
+    return f"""# Save this as catalog/devices/{identity}.toml, then fill in
 # every line marked TODO. The rules are in docs/SPEC.md.
 card = 1
 
 [device]
-id = "{vendor_slug}/{model_slug}"
-vendor = "{vendor}"
-name = "{device["name"]}"
-kind = "other"          # TODO: one of the kinds listed in docs/SPEC.md, such as keyboard, display, television, plug or climate
+id = "{identity}"
+vendor = {quote(vendor)}
+name = {quote(device["model"] or "TODO: public model name")}
+kind = "TODO"          # Choose a kind from the registry/schema.
 summary = "TODO: one sentence saying what it is."
 
 [[match]]
@@ -255,9 +292,9 @@ summary = "TODO: one sentence saying what it is."
 # catalog/adapters/adapters.toml. Never put a command or a path in a card.
 #
 # [[capability]]
-# id = "battery.level"
-# adapter = "macos-system"
-# risk = "read"
+# id = "<ability id from the registry>"
+# adapter = "<adapter id from the registry>"
+# risk = "<label at or above the vocabulary floor>"
 # verification = [{{ status = "unverified", platform = "{here}", note = "Where this claim comes from." }}]
 #
 # Use "observed" only for something you ran on this computer and saw work,
@@ -267,30 +304,93 @@ summary = "TODO: one sentence saying what it is."
 """
 
 
-def main():
+def snapshot(path):
+    """Reload a private discovery result as data, never as code or commands."""
+    rows = json.loads(pathlib.Path(path).read_text())
+    if not isinstance(rows, list):
+        raise ValueError("a discovery snapshot must be the JSON array from observe.py --json")
+    result = []
+    for index, row in enumerate(rows, 1):
+        if not isinstance(row, dict) or not isinstance(row.get("bus"), str):
+            raise ValueError("each snapshot entry must be a device observation")
+        if "number" in row and (type(row["number"]) is not int or row["number"] != index):
+            raise ValueError("use the original unfiltered snapshot; do not renumber a filtered selection export")
+        for key in ("name", "vendor", "model", "service"):
+            if row.get(key) is not None and not isinstance(row[key], str):
+                raise ValueError("snapshot text fields must be strings")
+        for key in ("vendor_id", "product_id"):
+            value = row.get(key)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 0xffff):
+                raise ValueError("snapshot vendor/product identifiers must be unsigned 16-bit numbers")
+        result.append(seen(row["bus"], row.get("name"), row.get("vendor_id"), row.get("product_id"),
+                           row.get("vendor"), row.get("model"), row.get("service")))
+    return result
+
+
+def select(devices, selection):
+    numbered = list(enumerate(devices, 1))
+    if selection == "all":
+        return numbered
+    if selection == "missing":
+        return [(n, d) for n, d in numbered if not d.get("card")]
+    chosen = set()
+    for part in selection.split(","):
+        match = re.fullmatch(r"\s*(\d+)(?:\s*-\s*(\d+))?\s*", part)
+        if not match:
+            raise ValueError("select all, missing, or snapshot numbers/ranges such as 1,3-5")
+        start, end = int(match[1]), int(match[2] or match[1])
+        if not 1 <= start <= end <= len(devices):
+            raise ValueError("selection numbers must refer to entries in this discovery snapshot")
+        chosen.update(range(start, end + 1))
+    return [(n, d) for n, d in numbered if n in chosen]
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--no-network", action="store_true", help="skip network discovery")
+    parser.add_argument("--from-file", metavar="PATH", help="reuse a private JSON discovery snapshot without rescanning")
+    parser.add_argument("--select", metavar="SELECTION", help="all, missing, or snapshot numbers/ranges such as 1,3-5")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", help="print selected observations as JSON")
+    output.add_argument("--draft", type=int, metavar="NUMBER", help="print a draft for an uncatalogued snapshot entry; writes no files")
+    args = parser.parse_args(argv)
     catalog = cards()
-    devices = observe(catalog, "--no-network" not in sys.argv)
+    if args.draft is not None and args.select is not None:
+        parser.error("use --select to review entries, then --draft with one original snapshot number")
+    try:
+        devices = snapshot(args.from_file) if args.from_file is not None else observe(catalog, not args.no_network)
+    except (ValueError, OSError) as error:
+        parser.error(str(error))
     for device in devices:
-        device["card"] = card_for(device, catalog)
-    if "--json" in sys.argv:
-        print(json.dumps(devices, indent=2))
+        match = matching_card(device, catalog)
+        device["card"] = match["device"]["id"] if match else None
+        device["card_scope"] = match.get("_scope", "shared") if match else None
+    try:
+        chosen = select(devices, args.select if args.select is not None else "all")
+    except ValueError as error:
+        parser.error(str(error))
+    if args.json:
+        print(json.dumps([dict(device, number=n) for n, device in chosen], indent=2))
         return 0
-    if "--draft" in sys.argv:
-        try:
-            device = devices[int(sys.argv[sys.argv.index("--draft") + 1]) - 1]
-        except (IndexError, ValueError):
-            sys.exit("give the number of a device from the list, for example: --draft 3")
+    if args.draft is not None:
+        if not 1 <= args.draft <= len(devices):
+            parser.error("give an original device number from this discovery snapshot")
+        device = devices[args.draft - 1]
         if device["card"]:
             sys.exit(f'{device["name"]} already has a card: {device["card"]}')
-        print(draft(device))
+        try:
+            print(draft(device))
+        except ValueError as error:
+            parser.error(str(error))
         return 0
-    print(f"{len(devices)} devices found. Displays are only looked for on macOS.\n")
-    for index, device in enumerate(devices, 1):
+    print(f"{len(chosen)} selected from {len(devices)} discovered device models.\n")
+    for index, device in chosen:
         ids = (device["service"] if device["bus"] == "network" else
-               f'{device["vendor_id"]:04x}:{device["product_id"]:04x}' if device["vendor_id"] is not None else device["model"])
+               f'{device["vendor_id"]:04x}:{device["product_id"]:04x}' if device["vendor_id"] is not None and device["product_id"] is not None else device["model"])
+        ids = ids or "(unknown)"
         state = f'has a card: {device["card"]}' if device["card"] else "no card yet"
         print(f'{index:>3}  {device["bus"]:<9} {ids:<16} {device["name"] or "(no name)":<34} {state}')
-    missing = sum(1 for device in devices if not device["card"])
+    missing = sum(1 for _, device in chosen if not device["card"])
     if missing:
         print(f"\n{missing} with no card. To start one: python3 tools/observe.py --draft <number>")
     return 0

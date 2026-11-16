@@ -4,6 +4,10 @@ Reviewed 2026-11-15. These are integration decisions based on the projects'
 own documentation, not a claim that every integration is implemented or that
 no other project offers similar safety features.
 
+This is external integration research, not Hardpoint's device or adapter
+support matrix. Current routes, requirements and verification live only in
+the registry and its generated views.
+
 ## Positioning
 
 **Bring your own agent. Keep your existing device tools. Add a shared catalog
@@ -21,13 +25,13 @@ bypass Hardpoint; this is not a sandbox.
 | Area | Existing systems and their interfaces | Hardpoint's role |
 |---|---|---|
 | Display color and adaptation | f.lux, Night Shift; Lunar offers sensor/sun/clock modes, Shortcuts, CLI and an event stream [1][2] | Leave adaptation with its owner. Do not rebuild color science, ambient-light algorithms, HDR or display layout management. |
-| Display control | BetterDisplay's CLI (Intel and Apple Silicon), Lunar CLI, MonitorControl; `m1ddc` on Apple Silicon; `ddcutil` on Linux; Twinkle Tray/ControlMyMonitor on Windows [2–6] | Wrap a selected backend with exact display selection, value bounds, read-back and labels. Current implementation: `m1ddc`/`ddcutil` only; only macOS hardware tested. |
+| Display control | BetterDisplay, Lunar, MonitorControl, m1ddc, ddcutil, Twinkle Tray and ControlMyMonitor [2–6] | Evaluate documented APIs, exact target selection, read-back and ownership. Consult upstream documentation for their compatibility and the registry for Hardpoint routes. |
 | Logitech peripherals | OpenLogi has a versioned JSON automation API through its running agent; Solaar and libratbag serve Linux devices [7][8] | Prefer an owning daemon's API to adding more raw HID++ code. Keep the small existing Bluetooth adapter as a limited fallback, not a competing remapping suite. |
 | Keyboard/RGB control | QMK/VIA, ZSA's published protocol, OpenRGB's SDK, SteelSeries GameSense and the Stream Deck SDK [9–12] | Translate state and enforce labels. Use SDKs/plugins when another application owns the channel; do not compete for exclusive HID access. |
 | Agent status and answers | claude-busylight, agentsd on macOS, yolodeck on Windows already show sessions and/or offer physical approval [13–15] | Reuse hook/event conventions. A Hardpoint device approval and a Claude tool permission are different decisions; never conflate them or auto-answer one with the other. |
 | General automation | Home Assistant automations, Node-RED, Hammerspoon and Shortcuts [16–19] | Keep `at`/`while` rules small for local coordination. Do not build a flow editor, another smart-home engine, or arbitrary scripts in shared cards. |
-| Smart home | Home Assistant already discovers, pairs and controls devices, with an API and MCP server [16] | Put per-ability policy in front of an existing server. Never install a whole home server as a side effect of loading an outlet card. Planned, not implemented. |
-| Firmware | fwupd/LVFS knows the update protocols, artifacts and device quirks [20] | Show the exact proposed update and require approval. Never treat device firmware as an automatic helper dependency. Planned, not implemented. |
+| Smart home | Home Assistant's device integrations, API and MCP interface [16] | Put per-ability policy in front of an existing server. Never install a whole home server as a side effect of loading a card. |
+| Firmware | fwupd/LVFS's update protocols, artifacts and device quirks [20] | Show the exact proposed update and follow its effective approval policy. Never treat device firmware as an automatic helper dependency. |
 | Descriptions and agent transport | W3C WoT Thing Models/Descriptions and MCP [21][22] | Export interoperable descriptions; use MCP as transport. Hints do not replace server-side enforcement. |
 
 ### Important corrections to the earlier pitch
@@ -62,11 +66,9 @@ The design to work toward is **one owner per setting**:
    overwritten. Overlapping rules need an ownership/lease model, not a stack
    of blind restores.
 
-Items 1 and 5 are **design work still to do** for general third-party
-backends. BetterDisplay, Lunar and OpenLogi are researched integration
-targets, not working Hardpoint adapters. Current DDC code still assumes a
-single/default monitor: do not advertise general multi-monitor safety until
-exact routing is implemented and tested.
+Treat these as acceptance criteria. Determine whether a specific route meets
+them from its registry notes, verification and runtime behavior, not a status
+snapshot maintained in this research document.
 
 ## Host tools: automatic setup without arbitrary installers
 
@@ -74,17 +76,12 @@ The helper is software on the computer, **not firmware on the device**.
 For a matched, attached card, the program collects its adapters and consults
 the trusted adapter registry **embedded at build time**:
 
-- Apple Silicon macOS: `ddc-ci` needs `m1ddc`; install the Homebrew core
-  formula using an existing Homebrew installation. Homebrew verifies its
-  downloaded artifacts. Do not download a random executable or run a remote
-  installation script. `m1ddc` explicitly does not support Intel [3][4].
-- Linux: select `ddcutil` and the installed distribution package manager.
-  System packages need a person; show the command rather than elevating.
-  I2C permissions and the kernel module are separate setup, not something a
-  package being present proves [5]. No Linux hardware has been tested here.
-- Intel macOS/Windows: report that a backend is missing. BetterDisplay and
-  Windows tools are viable candidates, but installing them does not make
-  an unwritten adapter work.
+Tool names, OS/architecture selectors and package names come from that
+registry, never a second installation table in the docs. Reuse an existing
+package manager and its artifact verification. Do not download arbitrary
+executables or run remote installer scripts. If a backend is unavailable,
+report that; installing an unrelated application does not implement a route.
+Permissions and kernel/device access are separate from package presence.
 
 New cards using an existing adapter need no install instructions or program
 change. New executable recipes require a program rebuild/review. Catalog
@@ -101,9 +98,8 @@ does not uninstall software that another app may use.
 
 ## Build next, in order
 
-1. Host-tool setup has now been exercised on Apple Silicon with Homebrew.
-   Keep its Linux/Intel/Windows boundaries explicit. Follow
-   [ROADMAP.md](ROADMAP.md) for current implementation priorities.
+1. Start with the registry and local runtime reports. Follow
+   [ROADMAP.md](ROADMAP.md) for design priorities, not support snapshots.
 2. Add exact DDC target routing and a selected backend interface before
    growing monitor features. Prototype BetterDisplay/Lunar behind that
    interface with an explicit owner choice.

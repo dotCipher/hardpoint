@@ -11,8 +11,10 @@ agent/search files and how to keep their claims aligned with the catalog.
 
 Open the [Add a device](https://dotcipher.github.io/hardpoint/add.html) page,
 press **Copy**, and paste the prompt into Claude Code, Codex or whichever
-coding agent you use. It looks at what is plugged in, asks which device you mean, and writes
-the card with you. The prompt itself is in
+coding agent you use. It takes a private discovery snapshot, checks the
+registry and asks whether to work on all uncatalogued entries, all entries
+for review, or selected numbers/ranges. It reuses existing cards and asks
+before publication. The prompt itself is in
 [`site-src/add-device-prompt.md`](site-src/add-device-prompt.md).
 
 ## By hand
@@ -21,8 +23,13 @@ the card with you. The prompt itself is in
 # What is plugged in, and what has no card yet
 python3 tools/observe.py
 
-# Start a card for one of them
-python3 tools/observe.py --draft 3
+# Keep one private snapshot so selection numbers cannot shift during a rescan
+python3 tools/observe.py --json > <private-snapshot-path>
+python3 tools/observe.py --from-file <private-snapshot-path> --select missing --json
+python3 tools/observe.py --from-file <private-snapshot-path> --select 1,3-5 --json
+
+# Print a template for one selected uncatalogued entry; no files are written
+python3 tools/observe.py --from-file <private-snapshot-path> --draft <original-number>
 
 # Check it
 python3 tools/build.py --check
@@ -47,9 +54,9 @@ hardpoint reload                                # read the cards again
 hardpoint read <device id> <ability id>         # does it return the value?
 ```
 
-For anything your computer already reports about a device, a card needs no
-code: name the `macos-system` adapter with a `source` and a `field`
-([docs/SPEC.md](docs/SPEC.md) lists them). If `hardpoint read` returns the
+Use the current adapter registry and implementation to find an existing
+route and its parameters; this guide does not maintain a parallel coverage
+list. Where a suitable route exists, the card can reuse it. If a read returns the
 value, you have exercised that read through the adapter and may record the
 read as `tested`. Say explicitly if setting/undoing was not tested; never
 promote an entire card, a write operation or another platform on that basis.

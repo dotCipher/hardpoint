@@ -37,7 +37,7 @@ safely carry.
 
 | Part | What it does |
 |---|---|
-| **The catalog** | One card per device model: how to recognise it, what it can do, how risky each change is, and how much of that a person has checked. Data only. It covers what is plugged into the computer and what is on the home network: a television, a streaming stick, an air conditioner. |
+| **The catalog** | The source of truth for device models, matching, abilities, labels, requirements and verification. Data only; coverage is read from the registry rather than repeated here. |
 | **The daemon** | Runs on your computer, enforces labels, and reaches hardware through known adapters or helper tools. Everything it knows about a device comes from that device's card. |
 | **The site** | Generated from the catalog, with a machine-readable feed for any tool. |
 
@@ -50,7 +50,8 @@ Hardpoint should sit **over existing tools, not replace them**. Display
 automation, mouse configuration, agent-status lights and physical permission
 buttons already exist. Its focus is a shared card and enforced labels around
 the actions sent through it. See the [ecosystem review](docs/ECOSYSTEM.md) for
-the integration map, prior art, ownership conflicts and what is still planned.
+integration research, prior art and ownership principles. The registry, not
+that document, records which integrations and devices are available.
 
 ## Why not let the agent work it out?
 
@@ -67,8 +68,8 @@ Hardpoint.
 | **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. One that cannot be undone waits for your yes. |
 | **What it learns** | Gone when the session ends. The next agent works it out again. | A card is checked once and shared. Everyone with that device gets it, in any agent. |
 
-That table describes the cards. [What runs today](#what-runs-today) says how
-much of it the program acts on so far.
+That table describes the approach, not a device-support promise. Check the
+registry and your local runtime for the specific operation you need.
 
 ## The four labels
 
@@ -89,33 +90,14 @@ A card cannot claim a lower risk than the shared vocabulary allows for that
 capability, and anything `guarded` or `gated` has to say, in plain words, what
 goes wrong if it is done carelessly.
 
-## What runs today
+## Find current coverage
 
-| | Status |
-|---|---|
-| Catalog format, validator, generated site and feed | Runs |
-| Discovery: matching attached devices to cards | Runs on macOS |
-| A keyboard driven entirely from its card: lights, key presses, layers | Runs on macOS, on one keyboard |
-| Agent sessions on keys, and a press that runs your own action | Runs, with OpenCode and any script |
-| Brightness that follows the clock; per-key press counts | Runs |
-| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs through implemented adapters. Used from OpenCode; not yet tried inside Claude Code or Codex |
-| Keep-or-revert, and approve-first, with "no answer means no" | Runs in the gatekeeper |
-| Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
-| Reaching the computer itself, a Logitech mouse over Bluetooth, a display, headphones, docks and drives | Runs on macOS |
-| A device that needs you (a low battery, a failing drive) raised on a spare key | Runs |
-| Rules: set something at a time of day, or for as long as an agent is in some state | Runs |
-| Its own app on a Mac, so the system's permission lists show Hardpoint's name and mark | Written. Whether macOS shows the mark there is for a person to confirm |
-| Your own cards in `~/.config/hardpoint/cards`, working at once; no code for anything the system already reports | Runs |
-| OS/architecture-aware setup of host helper tools on card load, reload and attachment discovery | Homebrew `m1ddc` on Apple Silicon; Linux package-manager selection tested with fixtures, not hardware |
-| Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
-| Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |
-| A journal that outlives the daemon | Designed |
-| Home Assistant, fwupd and the other tools that already reach hardware | Planned. See [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) |
-| Linux | Not tried |
-
-Each device's page on [the site](https://dotcipher.github.io/hardpoint/devices.html)
-shows, capability by capability, what has been tested and what has only been
-read about.
+Do not use this README as an inventory or support matrix. Read the
+[device registry](https://dotcipher.github.io/hardpoint/devices.html) for
+per-ability evidence and the
+[adapter registry](https://dotcipher.github.io/hardpoint/adapters.html) for
+routes, platforms, helper requirements and limitations. Both are generated
+from `catalog/`, as are the machine-readable catalog and search index.
 
 The public catalog is not a live inventory. Adapter implementation,
 historical verification and current read/write availability are different
@@ -168,10 +150,10 @@ A config file only has to say what differs from the
 
 ### Helper tools, not device firmware
 
-The daemon reuses installed helper executables. On an Apple Silicon Mac with
-Homebrew, an attached display card using `ddc-ci` can automatically install
-the `m1ddc` core formula in the background. New cards using that adapter work
-without another manual installation step. Disable this with:
+The daemon resolves helpers from the adapter registry for the current OS and
+architecture, reusing installed executables where possible. Consult that
+registry and `hardpoint doctor` for actual requirements rather than a package
+list in this document. Disable automatic setup with:
 
 ```toml
 [tools]
@@ -186,12 +168,9 @@ or flashes device firmware. A failed install is not retried every discovery
 cycle; run `hardpoint setup` to retry, and inspect `hardpoint status`'s `setup`
 field for the daemon's last report.
 
-On Linux it identifies `ddcutil` and an installed apt/dnf/pacman/zypper/apk
-manager, but system installation and I2C access need a person. Intel Macs
-and Windows do not yet have a DDC backend. BetterDisplay, Lunar and OpenLogi
-are researched integration targets, not working adapters. Do not let two
-apps continuously write the same setting. Current DDC routing is suitable
-only for a single/default external monitor, not arbitrary multi-monitor setups.
+Unavailable backends or permissions are not solved by installing an unrelated
+package. Follow the resolver's report, keep one owner per setting, and respect
+the selected adapter's routing limitations.
 
 ## Try it from a checkout
 
@@ -204,7 +183,7 @@ cargo build --release
 ./target/release/hardpoint inventory
 
 # No hardware needed: prints which keys would be lit
-./target/release/hardpoint run --device dry --config examples/moonlander.toml
+./target/release/hardpoint run --device dry --config <example-config-path>
 
 # In another terminal, report an agent's state the way a hook or script would
 ./target/release/hardpoint emit --source my-tool --session 1 --state needs-you
@@ -244,7 +223,9 @@ your device.
 **With Claude Code, Codex or any coding agent:** open the
 [Add a device](https://dotcipher.github.io/hardpoint/add.html) page, press
 Copy, and paste. The prompt has it list what is plugged in, ask which device
-you mean, and write the card with you.
+you want, and write the cards with you. Choose all uncatalogued devices, all
+detected devices for review, or specific entries from a discovery snapshot.
+Existing cards are reviewed rather than duplicated; publication stays your choice.
 
 **By hand:**
 

@@ -323,33 +323,43 @@ def load_content(catalog):
         if order["key"] not in SORTS:
             errors.append(f"content.toml: unknown catalog order {order['key']!r}; it can be {', '.join(SORTS)}")
     demo = content["demo"]
-    card = catalog.card(demo["card"])
-    config_path = ROOT / demo["config"]
-    if card is None or not card.get("keys"):
-        errors.append(f"content.toml: demo.card {demo['card']!r} is not a card with a key layout")
-    if not config_path.exists():
-        errors.append(f"content.toml: demo.config {demo['config']!r} does not exist")
+    # Example configs select a card; prose must not pin another support list.
+    candidates = []
+    for config_path in sorted((ROOT / "examples").glob("*.toml")):
+        config = load_toml(config_path)
+        card = catalog.card(config.get("device", {}).get("card"))
+        if card and card.get("keys"):
+            candidates.append((card, str(config_path.relative_to(ROOT)), config.get("slot", [])))
+    if not candidates:
+        card = next((c for c in catalog.cards if c.get("keys")), None)
+        if card:
+            candidates.append((card, "", [{"key": n, "kind": "agent", "pressable": True} for n in range(min(2, len(card["keys"]["grid"]))) ]))
+    if not candidates:
+        errors.append("the interactive keyboard illustration needs a registry card with a key layout")
     else:
-        slots = load_toml(config_path).get("slot", [])
+        card, demo["config"], slots = candidates[0]
+        demo["card"] = card["device"]["id"]
         demo["slots"] = [{"key": s["key"], "pressable": bool(s.get("pressable"))} for s in slots if s.get("kind") == "agent"]
-        if card and card.get("keys") and any(s["key"] >= len(card["keys"]["grid"]) for s in demo["slots"]):
-            errors.append("content.toml: the demo config uses a key the card does not have")
+        if any(s["key"] >= len(card["keys"]["grid"]) for s in demo["slots"]):
+            errors.append("the demo config uses a key the registry card does not have")
     for step in demo["step"]:
         if "state" in step and step["state"] not in STATE_COLOR:
             errors.append(f"content.toml: unknown state {step['state']!r} in the demo")
     for item in content["ladder"]:
-        target = catalog.card(item["device"])
-        cap = next((c for c in (target or {}).get("capability", []) if c["id"] == item["capability"]), None)
-        if cap is None:
-            errors.append(f"content.toml: ladder example {item['device']} {item['capability']} is not in the catalog")
-        elif cap["risk"] != item["risk"]:
-            errors.append(f"content.toml: {item['device']} {item['capability']} is {cap['risk']!r}, not {item['risk']!r}")
-        else:
+        choices = [(target, cap) for target in catalog.cards for cap in target["capability"]
+                   if cap["risk"] == item["risk"] and catalog.vocabulary[cap["id"]].get("ask")]
+        choices.sort(key=lambda pair: (catalog.rank("statuses", catalog.best_status(pair[1])), pair[0]["device"]["id"], pair[1]["id"]))
+        if choices:
+            target, cap = choices[0]
+            item["device"], item["capability"] = target["device"]["id"], cap["id"]
             word = catalog.vocabulary[item["capability"]]
             item["device_name"] = f'{target["device"]["vendor"]} {target["device"]["name"]}'
             item["ask"] = word.get("ask") or word["summary"]
             item["before"] = word.get("example_before", "")
             item["after"] = word["example"]
+        else:
+            # Explain the label without inventing coverage when no card uses it.
+            item.update(device="", capability="", device_name="", ask=catalog.terms["risk"][item["risk"]]["does"], before="", after="")
     if [item["risk"] for item in content["ladder"]] != list(catalog.risks):
         errors.append("content.toml: the ladder needs one example per risk level, in order")
     return content
@@ -939,6 +949,7 @@ Product names belong to their owners; this project is not affiliated with them.
         rows = ""
         for item in items:
             run = item["run"].replace("{repo}", self.repo or "<this repository's address>")
+            run = run.replace(" --config {demo_config}", f' --config {self.t["demo"]["config"]}' if self.t["demo"]["config"] else "")
             rows += f'<div class="step"><span>{e(item["say"])}</span>' + (f"<pre>{e(run)}</pre>" if run else "") + "</div>"
         return f'<div class="steps">{rows}</div>'
 
@@ -1210,8 +1221,13 @@ under the prefix <span class="mono">hp</span>, which stands for <span class="mon
         rows = ""
         for name, adapter in c.adapters.items():
             count = sum(1 for card in c.cards for cap in card["capability"] if cap["adapter"] == name)
+            tools = "".join(
+                f'<span class="sub"><b>{e(tool["binary"])}</b> · {e(tool["platform"])}'
+                + (f' · {e(", ".join(tool["arches"]))}' if tool["arches"] else '')
+                + f' · {e(", ".join(f"{manager}: {package}" for manager, package in tool["packages"].items()))}'
+                + f'<br>{e(tool["note"])}</span>' for tool in adapter.get("tool", []))
             rows += (f'<tr><td><span class="mono">{e(name)}</span><span class="sub">{e(adapter["summary"])}</span>'
-                     f'<span class="sub">{e(adapter.get("notes", ""))}</span></td>'
+                     f'<span class="sub">{e(adapter.get("notes", ""))}</span>{tools}</td>'
                      f'<td>{e(adapter["status"])}<span class="sub">{e(adapter.get("implementation", ""))}</span></td>'
                      f'<td>{e(", ".join(adapter["platforms"]))}</td><td class="mono">{e(", ".join(adapter.get("params", [])) or "none")}</td>'
                      f"<td>{count}</td></tr>")

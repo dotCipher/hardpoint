@@ -72,11 +72,11 @@ text = "Read changes nothing. Reversible applies a change with undo. Guarded app
 
 [[agent.section]]
 title = "Set up helpers, not firmware"
-text = "The daemon resolves trusted helper recipes by OS and architecture in the background. It reuses installed tools; existing Homebrew can install m1ddc on Apple Silicon. hardpoint setup retries setup, respecting [tools] auto_install = false. Never elevate, bootstrap a package manager or flash firmware to clear a helper error. Linux package installation and OS permissions need a person; Intel Mac and Windows DDC backends are not implemented."
+text = "The daemon resolves trusted helper recipes from the adapter registry for the local OS and architecture. Consult that generated registry and hardpoint doctor for tool names, package choices and prerequisites. hardpoint setup retries setup, respecting [tools] auto_install = false. Never elevate, bootstrap a package manager or flash firmware to clear a helper error."
 
 [[agent.section]]
-title = "Respect the current limits"
-text = "The DDC backend currently assumes a single/default external monitor. General multi-monitor identity, competing-writer protection, persistent journal recovery and overlapping-rule ownership still need work. The journal is in memory and does not survive restart. Avoid unattended compound workflows that depend on these missing guarantees. Home Assistant, fwupd, BetterDisplay, Lunar and OpenLogi integrations are planned, not built."
+title = "Resolve availability from its source"
+text = "Read each selected card and adapter entry for coverage, constraints, platforms, requirements and verification; then confirm the operation through the local daemon. Do not infer support from examples or cache a device list from this guide. Do not assume exact targeting, persistence, crash recovery or ownership behavior without verifying the relevant implementation."
 
 [[agent.section]]
 title = "Protect private facts"
@@ -95,7 +95,7 @@ agents = ["Claude Code", "Codex", "OpenCode", "any LLM with a terminal"]
 install = "Install"
 devices = "Devices"
 how = "How it works"
-add = "Add a device"
+add = "Add devices"
 builders = "For builders"
 
 # The moving pictures at the top. One is made for each kind of device in the
@@ -181,11 +181,11 @@ topic = "What it learns"
 without = "Gone when the session ends. The next agent works it out again."
 with = "A card is checked once and shared. Everyone with that device gets it, in any agent."
 
-# What people do with it. Every one of these works today.
+# Workflow ideas, not a duplicated device-support matrix.
 [uses]
 eyebrow = "What you can do"
 title = "What it is good for"
-lede = "Each of these works today, on a Mac."
+lede = "Choose abilities from the registry, then check what is available on your computer."
 
 [[uses.item]]
 art = "keyboard"
@@ -195,17 +195,17 @@ text = "Each agent session takes a spare key: blue while it works, amber when it
 [[uses.item]]
 art = "mouse"
 title = "Let your devices raise their hand"
-text = "A mouse or laptop running low shows up on the same keys as an agent that needs you. One short entry in your settings for each thing to watch."
+text = "Choose a reading from a device's card and set a watch for a condition that matters. Route its warning to a configured attention surface instead of checking it repeatedly."
 
 [[uses.item]]
 art = "storage"
 title = "Ask about your hardware"
-text = "\"Is heat throttling this computer, is the battery worn, or does the drive report trouble?\" Your agent gathers the readings instead of guessing. A health verdict is not a prediction of failure."
+text = "Ask your agent to gather the relevant readings listed on your device cards, report missing evidence and explain what the values mean without guessing."
 
 [[uses.item]]
 art = "display"
 title = "Change things, and take them back"
-text = "\"Let the wheel spin freely for this long review, then put it back.\" Your agent reads the original setting, makes the change through its label, and can undo it afterwards."
+text = "For an ability labelled reversible, your agent records the original setting before requesting the change and can ask to restore it afterwards."
 
 [[uses.item]]
 art = "lighting"
@@ -215,12 +215,12 @@ text = "\"Glow amber while an agent is waiting on me.\" A short rule uses the sa
 [[uses.item]]
 art = "lock"
 title = "Try a risky change safely"
-text = "Speed the pointer up and it goes back by itself unless you keep it. A change that cannot be undone waits for your yes, on a key or in a terminal."
+text = "A guarded change is a trial that goes back unless you keep it. A gated change waits for your approval. The selected card determines which label applies."
 
 [[uses.item]]
 art = "card"
-title = "Add a device in minutes"
-text = "If your computer already reports it, a card is all it takes: no code. Paste one prompt and your agent writes the card with you."
+title = "Add the devices you choose"
+text = "Discover what is present, choose all uncatalogued devices or specific entries, and have your agent reuse existing registry routes where they fit."
 
 [labels]
 eyebrow = "How it works"
@@ -231,14 +231,12 @@ count = "in the catalog"
 # The moving keyboard. It replays what the named device card and example
 # setup do together; the build checks that both exist.
 [demo]
-card = "zsa/moonlander-mk1"
-config = "examples/moonlander.toml"
 eyebrow = "More than answers"
 title = "Your devices can reach you, too"
-lede = "A card works both ways. Here every agent session gets a spare key: it lights up when the session needs you, and a press is your answer."
-caption = "A replay of Hardpoint running a real keyboard from its card. You can click a lit key."
+lede = "A card works both ways. In this illustration each agent session gets a spare key. Its light asks for your attention; a press runs the action you configure."
+caption = "An interactive illustration drawn from a registry card and example configuration. You can click a lit key."
 loop_secs = 25
-pressed = "You pressed the key. That session has its answer."
+pressed = "You pressed the key. Its configured action runs."
 
 [[demo.step]]
 at = 0.8
@@ -261,7 +259,7 @@ say = "It needs an answer. Its key pulses amber."
 [[demo.step]]
 at = 9.6
 press = true
-say = "You press the key. It carries on."
+say = "You press the key. Its configured action runs."
 
 [[demo.step]]
 at = 12.4
@@ -304,15 +302,15 @@ answer = "Yes. That is what it is for: the computer itself and what is attached 
 
 [[question]]
 ask = "What can it do right now?"
-answer = "On a Mac, an agent connected with `hardpoint mcp` can reach the computer itself (battery, wear, heat, drive health, volume), a Logitech mouse over Bluetooth (battery, pointer speed, scroll wheel), a display (brightness), headphones, docks and drives (firmware and health), and a keyboard (lights, key presses, agent sessions on spare keys). Changes are made at once and can be undone, or kept or put back, or held until you approve, according to each label. Smart-home devices come next, through Home Assistant. Linux and Windows are not tried yet."
+answer = "The device registry is the current source for abilities, labels and verification; the adapter registry supplies routes, platforms and helper requirements. These pages are generated from the registry rather than maintained as a second list here. On your computer, use `hardpoint inventory`, `hardpoint doctor` and the local MCP tools to check actual availability and errors."
 
 [[question]]
 ask = "Does it need any special permission?"
-answer = "No account or sudo. On a Mac, some devices need permission from you: Input Monitoring for the mouse, or removable-volume access for an external drive. Hardpoint checks for the host-side tools an attached card needs and installs supported helpers in the background, such as `m1ddc` using existing Homebrew on Apple Silicon. It never grants permissions, installs a package manager, or flashes firmware for you. `hardpoint doctor` explains what is missing; `[tools] auto_install = false` turns automatic setup off."
+answer = "Requirements belong to each card and adapter entry, not a separate permission list here. `hardpoint doctor` reports local helper requirements; actual operations report permission or connection errors. Hardpoint never grants permissions, elevates privileges, bootstraps a package manager or flashes firmware as helper setup. `[tools] auto_install = false` turns automatic helper setup off."
 
 [[question]]
 ask = "Does it replace my device or automation apps?"
-answer = "No. Lunar and BetterDisplay already automate displays; OpenLogi and Solaar manage mice; Home Assistant and Hammerspoon handle broader automation. Agent-status lights and Stream Deck approvals exist too. Hardpoint adds a shared card, enforced labels and an undo or approval path for actions sent through it. Today it wraps `m1ddc` on Apple Silicon and has a Linux `ddcutil` path not yet tested on hardware; adapters for those larger apps are planned, not built. Keep one owner for each setting so two automation loops do not fight."
+answer = "No. Hardpoint is a policy and verification layer over device tools, not a replacement for their specialist features. Consult the adapter registry to see which routes exist and their constraints. Keep one owner for each setting so two automation loops do not fight; research examples are not promises that an integration is available."
 
 [[question]]
 ask = "Which agents does it work with?"
@@ -332,11 +330,11 @@ answer = "Hardpoint has no account or cloud service; the daemon listens locally.
 
 [[question]]
 ask = "Does it cover smart-home devices?"
-answer = "Yes, by working with Home Assistant rather than replacing it. Home Assistant talks to the devices; Hardpoint adds the label and the approval. There are cards for whole classes of thing, such as any outlet, any light and any lock, and for a television, a streaming stick and an air conditioner found by listening to what they announce on the home network. The Home Assistant connection itself is not written yet. Nothing is sent to them to find them. A card never holds an address or the name you gave a device, and when a device announces what it is doing, such as what is playing, the card lets only \"something is playing\" through."
+answer = "Check the registry for matching models or class cards and the status of their adapter routes. A card's presence does not establish that control is available. Use the selected card's matching rules, requirements and verification, and keep private network identities out of shared data."
 
 [[question]]
 ask = "Will it work with my devices?"
-answer = "If they have a card. A card is one small file, and for anything your computer already reports, such as a battery level, a firmware version or a health verdict, it needs no code at all. Paste one prompt into Claude Code or Codex and it writes the card with you. A card in your own `~/.config/hardpoint/cards` folder works straight away, before anyone else has seen it."
+answer = "Start with discovery and the registry, then check the selected operation locally. The add-device prompt lets you choose all uncatalogued devices, all detected devices for review, or specific entries. Existing cards are reused or reviewed rather than duplicated. Your own cards can live in `~/.config/hardpoint/cards` without being published."
 
 # The catalog page. Each facet is worked out from the cards, so a new card,
 # kind or maker appears by itself. A facet with fewer than `min_options`
@@ -443,10 +441,10 @@ run = "hardpoint update"
 
 # The page that asks people to add their own devices.
 [add]
-title = "Add your device"
-lede = "A card is one small file. You do not need to write code, and nothing is changed on your device."
+title = "Add your devices"
+lede = "Discover what is present, then choose all uncatalogued devices, all devices for review, or just the ones you select. No device settings are changed."
 ai_title = "The quick way: paste this into Claude Code or Codex"
-ai_lede = "Any coding agent will do. It looks at what is plugged in and what is on your home network, asks which device you mean, and writes the card with you."
+ai_lede = "Your agent discovers the current devices, checks the registry, asks which entries to work on, and writes or reviews their cards with you. Nothing is published without your choice."
 copy = "Copy"
 copied = "Copied"
 hand_title = "Or by hand"
@@ -464,8 +462,8 @@ say = "See what is plugged in or on your home network, and what has no card yet"
 run = "python3 tools/observe.py"
 
 [[add.step]]
-say = "Start a card for one of them"
-run = "python3 tools/observe.py --draft 3"
+say = "Capture a private discovery snapshot, then select all missing cards or specific snapshot numbers"
+run = "python3 tools/observe.py --json > <private-snapshot-path>\npython3 tools/observe.py --from-file <private-snapshot-path> --select missing --json\npython3 tools/observe.py --from-file <private-snapshot-path> --select 1,3-5 --json"
 
 [[add.step]]
 say = "Fill it in, then check it"
@@ -500,24 +498,18 @@ approve = "Approve"
 
 [[ladder]]
 risk = "read"
-device = "logitech/mx-master-3"
-capability = "battery.level"
 gate = "Nothing to guard"
 reach = "Value read"
 outcome = "The value comes back. Nothing on the device changed."
 
 [[ladder]]
 risk = "reversible"
-device = "zsa/moonlander-mk1"
-capability = "light.per_key"
 gate = "Previous value saved"
 reach = "Applied"
 outcome = "Applied at once. The previous colour is on record, so it can be put back at once."
 
 [[ladder]]
 risk = "guarded"
-device = "logitech/mx-master-3"
-capability = "pointer.dpi"
 gate = "Saved, and a timer starts"
 reach = "Applied, waiting for you"
 outcome = "Applied, then held open. Confirm it, or do nothing and it goes back."
@@ -526,15 +518,13 @@ reverted = "No answer, so it went back."
 
 [[ladder]]
 risk = "gated"
-device = "zsa/moonlander-mk1"
-capability = "firmware.flash"
 gate = "Waits for your yes"
 reach = "Done once approved"
 outcome = "Made ready, then held. Nothing is sent to the device until you approve this exact action."
-approved = "Approved, so it was done. You are told what to press, and when."
+approved = "Approved for this exact proposed action."
 
 [ladder_note]
-text = "All four run in the gatekeeper today, on a keyboard's lights: an agent connects with `hardpoint mcp`. Reaching other devices is what comes next."
+text = "Worked examples are selected from the registry at build time. They illustrate labels, not live availability; consult the selected card's evidence and your local runtime."
 
 [[start]]
 say = "Build it"
@@ -546,7 +536,7 @@ run = "./target/release/hardpoint inventory"
 
 [[start]]
 say = "Try it with no hardware: it prints which keys would be lit"
-run = "./target/release/hardpoint run --device dry --config examples/moonlander.toml"
+run = "./target/release/hardpoint run --device dry --config {demo_config}"
 
 [[start]]
 say = "Let an agent connect, while `hardpoint run` is running"

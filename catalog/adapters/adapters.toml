@@ -35,7 +35,7 @@ platforms = ["macos", "linux"]
 status = "implemented"
 implementation = "src/ddc.rs"
 params = ["vcp"]
-notes = "Uses m1ddc on Apple Silicon or ddcutil on Linux. Intel Mac and Windows backends are not implemented. Displays answer unreliably through docks, so every reading is taken twice and every change is confirmed. Run on macOS only so far."
+notes = "Uses m1ddc on Apple Silicon or ddcutil on Linux. Intel Mac and Windows backends are not implemented. Targets the helper's default external display; general multi-monitor target routing is not implemented. Displays answer unreliably through docks, so every reading is taken twice and every change is confirmed. Run on macOS only so far."
 
 # Tool recipes are compiled into the program. A card only selects an adapter;
 # a downloaded catalog cannot introduce a new installer into an old program.

@@ -30,14 +30,14 @@ The format version. Always `1`.
 |---|---|
 | `id` | `<vendor>/<model>`, lower case, matching the file path |
 | `vendor`, `name` | As the maker writes them |
-| `kind` | `keyboard`, `mouse`, `laptop`, `desktop`, `display`, `dock`, `audio`, `cooling`, `lighting`, `storage`, `television`, `media`, `speaker`, `plug`, `climate`, `hub`, `sensor`, `lock`, `camera` or `other` |
+| `kind` | A kind defined in the vocabulary and allowed by the schema |
 | `summary` | One sentence |
 | `links` | Optional `https` links |
 
 ### `[[match]]`
 
-How software recognises the device. At least one. `bus` is `usb`,
-`bluetooth`, `builtin`, `display`, `audio` or `network`. The other fields
+How software recognises the device. At least one. Allowed `bus` values and
+matching fields come from the schema. The other fields
 narrow it: `vendor_id`, `product_id`, `usage_page`, `model` (for built-in
 hardware, the computer's model identifier) and `name`.
 
@@ -141,26 +141,16 @@ The owner of a device can make a label stricter for that device in their own
 configuration. Nothing can make one looser: the gatekeeper takes the strictest
 of the card's label, the vocabulary's floor and the owner's.
 
-## Abilities that need no code
+## Reusing existing routes
 
-The `macos-system` adapter finds a named field in what macOS reports about a
-device, so a card for something the system already knows about works without
-any new code.
+Consult the adapter registry and matching cards before writing code. Where
+an adapter already exposes the needed system report or protocol operation,
+a new card can name that route and its declared parameters. The supported
+sources, fields, platforms and prerequisites belong to the registry and
+adapter implementation, not a copied table here. The generated format page
+selects its worked example directly from a registry card.
 
-| `source` | What it reads | Example `field` |
-|---|---|---|
-| `power` | the computer's battery | `state_of_charge`, `is_charging`, `cycle_count`, `maximum_capacity` |
-| `bluetooth` | a paired Bluetooth device | `firmware_version`, `battery_level` |
-| `thunderbolt`, `usb`, `displays` | a device on that bus | `switch_version` |
-| `storage` | a drive's own health verdict | `smart_status` |
-| `thermal` | whether heat is limiting the computer | `warning_level` |
-| `audio` | output volume, which can also be set | `output_volume` |
-
-A `field` matches a name in the system's report whatever its spelling:
-`firmware_version` finds `device_firmwareVersion`. If several parts report
-it, such as each earbud and the case, they come back together. A field that
-would identify one unit or one person, such as a serial number or an
-address, is refused by the validator and by the adapter.
+Fields that identify a unit or person must not be exposed or published.
 
 The owner's own cards live in `~/.config/hardpoint/cards`, laid out like the
 catalog. They work at once, replace a catalog card with the same id, and are
@@ -174,15 +164,15 @@ that".
 ```toml
 [[rule]]
 at = "20:00"                     # once, when the clock gets there
-device = "lg/ultrawide-76fe"
-capability = "display.brightness"
-value = 40
+device = "<device id from the registry>"
+capability = "<ability id from that card>"
+value = "<value accepted by that ability>"
 
 [[rule]]
 while = "needs-you"              # for as long as any agent session is in this state
-device = "zsa/moonlander-mk1"
-capability = "light.global"
-value = "#402000"
+device = "<device id from the registry>"
+capability = "<ability id from that card>"
+value = "<value accepted by that ability>"
 ```
 
 A rule is not a way round the labels. Its change goes through the gatekeeper
@@ -209,9 +199,9 @@ an existing adapter does not.
 `[tools] auto_install = false` opts out. `hardpoint doctor` is read-only;
 `hardpoint setup` explicitly retries setup (and respects the opt-out).
 The daemon reports its last result under `hardpoint status` → `setup`.
-Only existing Homebrew formula installation is automatic today. Linux
-system package managers are detected, but their commands are left for a
-person. No privilege elevation, package-manager bootstrap, app installation,
+Automatic-install eligibility and package-manager selection come from the
+trusted resolver and registry. Follow its local report. No privilege
+elevation, package-manager bootstrap, unrelated app installation,
 firmware flashing, permission grants, or automatic helper upgrades.
 
 ## Other standards

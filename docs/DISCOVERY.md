@@ -43,6 +43,13 @@ HTML fragment (`#cap-<capability id>`) so a citation can point to the claim
 rather than only a product page. Do not interpret a staged animation as a
 runtime result, and do not try to call this static site as an MCP server.
 
+Authored docs and site prose must not enumerate registry devices, reproduce
+support/platform/helper matrices or freeze coverage counts. Even worked
+examples select their card/ability from the registry during the build.
+Tests add a synthetic registry entry and verify that HTML, Markdown, search
+records and navigation update without editing prose. External ecosystem
+research is not a statement of Hardpoint availability.
+
 ## Hosting and crawlers
 
 `HARDPOINT_SITE_URL` selects the canonical base URL; otherwise the build

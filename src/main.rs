@@ -12,6 +12,7 @@ mod model;
 mod source;
 mod system;
 mod telemetry;
+mod tools;
 mod update;
 
 use anyhow::{anyhow, bail, Result};
@@ -141,6 +142,10 @@ enum Command {
     Read { device: String, capability: String },
     /// Have the running daemon read the cards again, after adding or changing one.
     Reload,
+    /// Report helper tools and permission requirements without installing anything.
+    Doctor,
+    /// Install missing trusted helpers for attached cards, without sudo.
+    Setup,
 }
 
 fn main() -> Result<()> {
@@ -170,6 +175,17 @@ fn main() -> Result<()> {
         }
         Command::Read { device, capability } => send(Request::Read { device, capability }),
         Command::Reload => send(Request::Reload),
+        Command::Doctor | Command::Setup => {
+            let install = matches!(cli.command, Command::Setup);
+            let (cfg, _) = Config::load(None)?;
+            let seen = discover::observe()?;
+            let report = tools::Setup::default().check(&catalog()?, &seen, cfg.tools.auto_install, install);
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if install && report["tools"].as_array().is_some_and(|tools| tools.iter().any(|t| t["state"] == "failed")) {
+                bail!("helper setup failed; inspect the report and installation output above");
+            }
+            Ok(())
+        }
         Command::Keep { change } => by_a_person(Request::Keep { change }),
         Command::Approve { change } => by_a_person(Request::Approve { change }),
     }
@@ -693,13 +709,35 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
     }
     // What is attached, refreshed in the background so nothing slow runs in the loop.
     let attached: Arc<Mutex<Vec<catalog::Observation>>> = Arc::new(Mutex::new(Vec::new()));
+    let tool_status = Arc::new(Mutex::new(json!({ "state": "checking" })));
+    let (tool_catalog_tx, tool_catalog_rx) = mpsc::channel::<Catalog>();
     {
-        let attached = attached.clone();
-        std::thread::spawn(move || loop {
-            if let (Ok(found), Ok(mut shared)) = (discover::observe(), attached.lock()) {
-                *shared = found;
+        let (attached, report) = (attached.clone(), tool_status.clone());
+        let mut catalog = catalog.clone();
+        // A dry daemon never installs software. Reload and hot-plug discovery
+        // both use this worker, never the lighting/approval loop.
+        let auto = cfg.tools.auto_install && backend != Backend::Dry;
+        std::thread::spawn(move || {
+            let mut setup = tools::Setup::default();
+            loop {
+                match discover::observe() {
+                    Ok(found) => {
+                        if let Ok(mut shared) = attached.lock() { *shared = found.clone(); }
+                        let status = setup.check(&catalog, &found, auto, true);
+                        if let Ok(mut shared) = report.lock() { *shared = status; }
+                    }
+                    Err(error) => eprintln!("device discovery: {error:#}"),
+                }
+                match tool_catalog_rx.recv_timeout(Duration::from_secs(60)) {
+                    Ok(fresh) => {
+                        catalog = fresh;
+                        // Coalesce reloads arriving while an installation ran.
+                        for fresh in tool_catalog_rx.try_iter() { catalog = fresh; }
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => {}
+                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                }
             }
-            std::thread::sleep(Duration::from_secs(60));
         });
     }
     // Readings to keep an eye on. One that crosses its line is raised the way
@@ -773,6 +811,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             match Catalog::load_with_own(&catalog.root) {
                 Ok(fresh) => {
                     eprintln!("catalog reloaded: {} cards", fresh.cards.len());
+                    let _ = tool_catalog_tx.send(fresh.clone());
                     reloaded = Some(fresh);
                     installed = update::stamp();
                 }
@@ -972,6 +1011,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             status["catalog"] = json!({ "cards": catalog.cards.len(), "from": catalog.root });
             status["installed"] = json!(installed);
             status["update"] = json!(update_note.lock().map(|note| note.clone()).unwrap_or_default());
+            status["setup"] = tool_status.lock().map(|s| s.clone()).unwrap_or(Value::Null);
             if let Ok(mut shared) = snapshot.lock() {
                 *shared = status;
             }

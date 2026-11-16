@@ -1,5 +1,10 @@
 # Where Hardpoint fits
 
+**Current ecosystem review and implementation priorities:**
+[ECOSYSTEM.md](ECOSYSTEM.md). The earlier notes below are not an exhaustive
+market survey. In particular, status lights, physical agent approvals and
+display automation already exist; none is a uniqueness claim for Hardpoint.
+
 Research notes from November 2026: what already exists, what is missing, and
 what Hardpoint should build so that it adds value instead of repeating it.
 Sources are at the end. Where a claim is my reading rather than something a
@@ -104,10 +109,10 @@ Nothing I found combines these (my reading; the search was not exhaustive):
 | Read-only versus not | MCP hints, Home Assistant, Thing Descriptions | reuse, and map onto them |
 | **Reversible versus not, with a floor nobody can lower** | proposed for MCP, not adopted | yes |
 | **Enforced in the gatekeeper, not left as a hint** | rare, per the study above | yes |
-| **Undo, keep-or-revert, approve-first for hardware** | no | yes |
-| **What goes wrong, in plain words** | no | yes |
-| **Whether a person tested the claim, and where** | no | yes |
-| **Approval on a physical key** | no | yes: a pressed key is something an injected prompt cannot fake |
+| **Undo, keep-or-revert, approve-first for hardware** | individual tools offer subsets; not unique | combine under shared labels |
+| **What goes wrong, in plain words** | device documentation and tool warnings | put it beside each ability |
+| **Whether a person tested the claim, and where** | project/device compatibility reports | structured per-ability evidence |
+| **Approval on a physical key** | agentsd, yolodeck and other control surfaces | optional surface; not a sandbox or an unspoofable boundary |
 
 ## Use cases worth building for
 
@@ -117,9 +122,10 @@ Each maps to a real incident or a real gap above.
    are reversible. The plug feeding the rack needs a yes first. This is the
    demonstration to build and publish: the same sentence, the same home,
    a different outcome.
-2. **"Switch the screen to my other computer."** Through ddcutil. The change
-   reverts by itself if nobody confirms, because after the switch nobody can
-   see the confirmation on the old input. No existing tool does this.
+2. **"Switch the screen to my other computer."** Through a display backend.
+   Ask first: after switching, the old input may no longer accept commands,
+   so an automatic revert cannot be relied on. Input switching already
+   exists in display tools; the per-model label is Hardpoint's contribution.
 3. **"Update the dock's firmware."** Through fwupd. Approve-first, showing
    the exact version and what could go wrong; the result is recorded.
 4. **"Make everything blue."** Through OpenRGB. Applied to the keyboard and

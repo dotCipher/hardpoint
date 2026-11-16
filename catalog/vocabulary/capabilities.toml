@@ -113,7 +113,7 @@ kind = "reading"
 value = "status"
 summary = "The drive's own health verdict."
 min_risk = "read"
-ask = "Is this drive about to fail? Check before I back up to it."
+ask = "Check the drive's reported health before this backup."
 example = "healthy"
 
 [capability."thermal.pressure"]

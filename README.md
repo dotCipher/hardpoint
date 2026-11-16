@@ -45,6 +45,12 @@ you: agent sessions shown on keyboard keys you never use. Each session gets a
 key, the colour is its state, and pressing the key runs an action of your own
 for that session.
 
+Hardpoint should sit **over existing tools, not replace them**. Display
+automation, mouse configuration, agent-status lights and physical permission
+buttons already exist. Its focus is a shared card and enforced labels around
+the actions sent through it. See the [ecosystem review](docs/ECOSYSTEM.md) for
+the integration map, prior art, ownership conflicts and what is still planned.
+
 ## Why not let the agent work it out?
 
 Claude Code, Codex or any LLM with a terminal can already try to control a
@@ -99,6 +105,7 @@ goes wrong if it is done carelessly.
 | Rules: set something at a time of day, or for as long as an agent is in some state | Runs |
 | Its own app on a Mac, so the system's permission lists show Hardpoint's name and mark | Written. Whether macOS shows the mark there is for a person to confirm |
 | Your own cards in `~/.config/hardpoint/cards`, working at once; no code for anything the system already reports | Runs |
+| OS/architecture-aware setup of host helper tools on card load, reload and attachment discovery | Homebrew `m1ddc` on Apple Silicon; Linux package-manager selection tested with fixtures, not hardware |
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
 | Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |
 | A journal that outlives the daemon | Designed |
@@ -123,6 +130,8 @@ git clone https://github.com/dotCipher/hardpoint ~/.local/share/hardpoint/src
 cd ~/.local/share/hardpoint/src
 sh tools/install.sh           # builds it, puts it at ~/.local/bin/hardpoint
 hardpoint service install     # start it now and at every login
+hardpoint doctor              # read-only: helpers and permission requirements
+hardpoint setup               # retry supported helper setup without sudo
 hardpoint update              # later: bring the cards up to date
 ```
 
@@ -138,6 +147,33 @@ How it stays current:
 
 A config file only has to say what differs from the
 [built-in settings](config/default.toml).
+
+### Helper tools, not device firmware
+
+The daemon reuses installed helper executables. On an Apple Silicon Mac with
+Homebrew, an attached display card using `ddc-ci` can automatically install
+the `m1ddc` core formula in the background. New cards using that adapter work
+without another manual installation step. Disable this with:
+
+```toml
+[tools]
+auto_install = false
+```
+
+Recipes live in `catalog/adapters/adapters.toml` and are **compiled into the
+program**. A downloaded or private card cannot supply an executable installer;
+a new recipe requires a program update. Setup never elevates, installs a
+package manager or GUI app, upgrades an existing helper, grants permissions,
+or flashes device firmware. A failed install is not retried every discovery
+cycle; run `hardpoint setup` to retry, and inspect `hardpoint status`'s `setup`
+field for the daemon's last report.
+
+On Linux it identifies `ddcutil` and an installed apt/dnf/pacman/zypper/apk
+manager, but system installation and I2C access need a person. Intel Macs
+and Windows do not yet have a DDC backend. BetterDisplay, Lunar and OpenLogi
+are researched integration targets, not working adapters. Do not let two
+apps continuously write the same setting. Current DDC routing is suitable
+only for a single/default external monitor, not arbitrary multi-monitor setups.
 
 ## Try it from a checkout
 
@@ -215,8 +251,9 @@ work, `unverified` for something you only read about.
 | **It stays on your computer** | No account, no server. The daemon listens on a local socket only you can write to. |
 | **Counts, not keystrokes** | To act on a press the daemon sees which key went down. It keeps per-key counts only if you turn that on, and never the order, the timing or the text. |
 
-The one place a command can come from is your own config file: the action
-you choose to run when you press a slot.
+Arbitrary shell commands can come only from your own config file: the action
+you choose to run when you press a slot. Helper setup uses fixed package-manager
+arguments from the program's embedded registry, not commands in device cards.
 
 ## Layout
 

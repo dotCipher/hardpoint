@@ -100,6 +100,42 @@ def load_toml(path):
         return plain(tomllib.load(handle))
 
 
+def check_adapter_tools(name, adapter, errors):
+    """Recipes are data, but only the compiled copy is allowed to install.
+    Reject command/URL fields, ambiguous selectors and package-manager options.
+    """
+    managers = {"macos": {"brew"}, "linux": {"apt-get", "dnf", "pacman", "zypper", "apk"}}
+    selectors = set()
+    for tool in adapter.get("tool", []):
+        where = f"adapter {name}: tool"
+        fields = {"platform", "arches", "binary", "packages", "note"}
+        if not isinstance(tool, dict) or set(tool) != fields:
+            errors.append(f"{where}: needs exactly {', '.join(sorted(fields))}; no commands, paths or URLs")
+            continue
+        os_name, arches = tool["platform"], tool["arches"]
+        if os_name not in adapter.get("platforms", []) or os_name not in managers:
+            errors.append(f"{where}: unsupported platform {os_name!r}")
+        if not isinstance(arches, list) or any(a not in ("aarch64", "x86_64", "arm", "x86") for a in arches):
+            errors.append(f"{where}: arches must be a list of Rust architecture names (empty means any)")
+            continue
+        if any(os_name == os and (not arches or not old or set(arches) & set(old)) for os, old in selectors):
+            errors.append(f"{where}: overlapping OS/architecture selectors")
+        selectors.add((os_name, tuple(arches)))
+        if not isinstance(tool["binary"], str) or not re.fullmatch(r"[a-z0-9][a-z0-9._+-]*", tool["binary"]):
+            errors.append(f"{where}: binary must be a plain executable name")
+        packages = tool["packages"]
+        if not isinstance(packages, dict) or not packages:
+            errors.append(f"{where}: packages must name at least one supported package manager")
+            continue
+        for manager, package in packages.items():
+            if manager not in managers.get(os_name, set()):
+                errors.append(f"{where}: unsupported package manager {manager!r} for {os_name}")
+            if not isinstance(package, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._+-]*", package):
+                errors.append(f"{where}: package must be a plain repository package name, not options, a tap or a URL")
+        if not isinstance(tool["note"], str) or not tool["note"].strip():
+            errors.append(f"{where}: explain prerequisites in note")
+
+
 class Catalog:
     def __init__(self):
         self.errors = []
@@ -151,6 +187,7 @@ class Catalog:
         for name, adapter in self.adapters.items():
             if adapter.get("status") not in ("implemented", "planned"):
                 self.errors.append(f"adapter {name}: status must be implemented or planned")
+            check_adapter_tools(name, adapter, self.errors)
 
     def _load_cards(self):
         for path in sorted((CATALOG / "devices").glob("*/*.toml")):

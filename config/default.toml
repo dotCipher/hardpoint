@@ -81,6 +81,12 @@ every_hours = 24
 # say = "Mouse battery is low"
 # every_secs = 300
 
+# Install missing host-side adapter tools for attached cards (not firmware).
+# Uses existing Homebrew on Apple Silicon. Never bootstraps a package manager
+# or uses sudo. Linux system packages and OS permissions need a person.
+[tools]
+auto_install = true
+
 # "When this, set that." A rule goes through the gatekeeper like any change,
 # and never makes a gated one. Use `at` for a time of day, or `while` for as
 # long as any agent session is in a state (the change is put back afterwards).

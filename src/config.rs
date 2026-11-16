@@ -24,6 +24,9 @@ pub struct Config {
     pub stricter: Vec<Stricter>,
     #[serde(default)]
     pub update: UpdateCfg,
+    /// Install trusted adapter helpers for attached devices, without elevation.
+    #[serde(default)]
+    pub tools: ToolsCfg,
     /// Readings to keep an eye on. When one crosses its line, it shows up on
     /// a spare key the same way an agent that needs you does.
     #[serde(default)]
@@ -71,6 +74,18 @@ pub struct Watch {
 
 fn five_minutes() -> u64 {
     300
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct ToolsCfg {
+    pub auto_install: bool,
+}
+
+impl Default for ToolsCfg {
+    fn default() -> Self {
+        Self { auto_install: true }
+    }
 }
 
 /// Whether the catalog keeps itself current. The program never updates itself.
@@ -351,6 +366,9 @@ mod tests {
         assert!(cfg.update.catalog);
         assert_eq!(cfg.update.every_hours, 24, "what it does not mention keeps the built-in setting");
         assert_eq!(cfg.gate.hold_secs, 10);
+        assert!(cfg.tools.auto_install);
+        assert!(!Config::parse("[tools]\nauto_install = false\n").unwrap().tools.auto_install);
+        assert!(Config::parse("[tools]\ncommand = 'sh installer'\n").is_err());
         assert!(Config::parse("[update]\nnonsense = 1\n").is_err(), "an unknown setting is still an error");
     }
 

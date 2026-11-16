@@ -31,11 +31,27 @@ notes = "A card names a source (power, bluetooth, thunderbolt, usb, displays, st
 
 [adapter.ddc-ci]
 summary = "A display's own controls, over the video cable."
-platforms = ["macos", "linux", "windows"]
+platforms = ["macos", "linux"]
 status = "implemented"
 implementation = "src/ddc.rs"
 params = ["vcp"]
-notes = "Uses a tool that already speaks DDC/CI: m1ddc on a Mac, ddcutil on Linux. Displays answer unreliably through docks, so every reading is taken twice and every change is confirmed. Run on macOS only so far."
+notes = "Uses m1ddc on Apple Silicon or ddcutil on Linux. Intel Mac and Windows backends are not implemented. Displays answer unreliably through docks, so every reading is taken twice and every change is confirmed. Run on macOS only so far."
+
+# Tool recipes are compiled into the program. A card only selects an adapter;
+# a downloaded catalog cannot introduce a new installer into an old program.
+[[adapter.ddc-ci.tool]]
+platform = "macos"
+arches = ["aarch64"]
+binary = "m1ddc"
+packages = { brew = "m1ddc" }
+note = "Needs an Apple Silicon Mac and a supported display connection. Other display apps may also write brightness; choose one owner for that setting."
+
+[[adapter.ddc-ci.tool]]
+platform = "linux"
+arches = []
+binary = "ddcutil"
+packages = { apt-get = "ddcutil", dnf = "ddcutil", pacman = "ddcutil", zypper = "ddcutil", apk = "ddcutil" }
+note = "Installing the package alone may not give access: the i2c-dev module and I2C device permissions must be configured by a person. Linux hardware is not tested yet."
 
 [adapter.mdns]
 summary = "Facts a device announces about itself on the local network."

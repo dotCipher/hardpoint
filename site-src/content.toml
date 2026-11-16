@@ -127,17 +127,17 @@ text = "A mouse or laptop running low shows up on the same keys as an agent that
 [[uses.item]]
 art = "storage"
 title = "Ask about your hardware"
-text = "\"Is my drive healthy? How worn is my battery? What firmware is the dock on?\" Your agent reads the answer instead of guessing at a command."
+text = "\"Is heat throttling this computer, is the battery worn, or does the drive report trouble?\" Your agent gathers the readings instead of guessing. A health verdict is not a prediction of failure."
 
 [[uses.item]]
 art = "display"
 title = "Change things, and take them back"
-text = "\"Turn it down.\" \"Dim the screen.\" \"Let the wheel spin freely.\" Each is made at once and undone with a word."
+text = "\"Let the wheel spin freely for this long review, then put it back.\" Your agent reads the original setting, makes the change through its label, and can undo it afterwards."
 
 [[uses.item]]
 art = "lighting"
 title = "Set it once, as a rule"
-text = "\"Dim the screen at eight.\" \"Glow amber while an agent is waiting on me.\" A rule is two lines in your settings, runs through the same labels, and puts things back when the moment has passed."
+text = "\"Glow amber while an agent is waiting on me.\" A short rule uses the same labels and puts the setting back afterwards. Simple clock rules work too; complex automation belongs in your existing tools."
 
 [[uses.item]]
 art = "lock"
@@ -235,11 +235,11 @@ answer = "On a Mac, an agent connected with `hardpoint mcp` can reach the comput
 
 [[question]]
 ask = "Does it need any special permission?"
-answer = "Mostly not: no sudo, no account. Two things on a Mac do. Talking to a Logitech mouse needs Input Monitoring permission for Hardpoint, which macOS asks you to grant in System Settings. Reaching a display uses a small tool called `m1ddc`, which you install yourself. Without either, those devices are still described to your agent; they just cannot be acted on."
+answer = "No account or sudo. On a Mac, some devices need permission from you: Input Monitoring for the mouse, or removable-volume access for an external drive. Hardpoint checks for the host-side tools an attached card needs and installs supported helpers in the background, such as `m1ddc` using existing Homebrew on Apple Silicon. It never grants permissions, installs a package manager, or flashes firmware for you. `hardpoint doctor` explains what is missing; `[tools] auto_install = false` turns automatic setup off."
 
 [[question]]
-ask = "Does it replace f.lux, Night Shift or my smart-home app?"
-answer = "No, and it should not. Those already do their one job well, and Hardpoint works beside them. What it adds is rules for the things only it reaches, such as a display's own backlight, a keyboard's lights or a mouse's speed, and one set of labels over all of it. For the smart home it is built to sit in front of Home Assistant, not to stand in for it."
+ask = "Does it replace my device or automation apps?"
+answer = "No. Lunar and BetterDisplay already automate displays; OpenLogi and Solaar manage mice; Home Assistant and Hammerspoon handle broader automation. Agent-status lights and Stream Deck approvals exist too. Hardpoint adds a shared card, enforced labels and an undo or approval path for actions sent through it. Today it wraps `m1ddc` on Apple Silicon and has a Linux `ddcutil` path not yet tested on hardware; adapters for those larger apps are planned, not built. Keep one owner for each setting so two automation loops do not fight."
 
 [[question]]
 ask = "Which agents does it work with?"

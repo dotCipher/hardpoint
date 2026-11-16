@@ -190,6 +190,30 @@ like any other: a reversible one is made, a guarded one is held until a
 person keeps it, and a gated one is never made by a rule at all. A `while`
 rule puts its change back when no session is in that state any more.
 
+## Host helper requirements
+
+An adapter may declare `[[adapter.<id>.tool]]` entries in
+`catalog/adapters/adapters.toml`, with `platform`, Rust `arches` (empty for
+any), `binary`, `packages` by supported package manager, and a prerequisite
+`note`. Selectors must not overlap. Executable and package names are plain
+names, never paths, command flags, URLs or third-party taps. Device cards
+cannot declare installers.
+
+The daemon uses the registry **embedded when it was built**, not mutable
+recipes from a catalog download. Only attached/matched cards select tools;
+shared requirements are deduplicated. Setup runs outside the device loop on
+startup, reload and periodic attachment discovery. Existing executables are
+reused. New helper recipes need a reviewed program update; a new card using
+an existing adapter does not.
+
+`[tools] auto_install = false` opts out. `hardpoint doctor` is read-only;
+`hardpoint setup` explicitly retries setup (and respects the opt-out).
+The daemon reports its last result under `hardpoint status` → `setup`.
+Only existing Homebrew formula installation is automatic today. Linux
+system package managers are detected, but their commands are left for a
+person. No privilege elevation, package-manager bootstrap, app installation,
+firmware flashing, permission grants, or automatic helper upgrades.
+
 ## Other standards
 
 **W3C Web of Things.** The site publishes every card as a Thing Model

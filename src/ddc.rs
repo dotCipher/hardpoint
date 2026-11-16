@@ -1,14 +1,13 @@
 //! The `ddc-ci` adapter: a display's own controls, over the video cable.
 //!
 //! Hardpoint does not speak DDC itself. It asks a tool that already does:
-//! `m1ddc` on a Mac, `ddcutil` on Linux. If neither is installed the ability
-//! is simply not reachable, and the error says what to install.
+//! `m1ddc` on Apple Silicon, `ddcutil` on Linux. The setup worker resolves
+//! and installs supported helpers without blocking the device loop.
 //!
 //! Displays answer unreliably through docks and adapters, so every read is
 //! checked and retried.
 
 use serde_json::{json, Value};
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -19,34 +18,26 @@ const PAUSE: Duration = Duration::from_millis(350);
 /// The controls this module knows, by their DDC number and the name `m1ddc` gives them.
 const CONTROLS: [(i64, &str, i64); 4] = [(0x10, "luminance", 100), (0x12, "contrast", 100), (0x60, "input", 255), (0x62, "volume", 100)];
 
-fn tool() -> Option<PathBuf> {
-    let name = if cfg!(target_os = "macos") { "m1ddc" } else { "ddcutil" };
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    // A login service has a short PATH, so look where package managers put things too.
-    std::env::split_paths(&path)
-        .chain(["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].map(PathBuf::from))
-        .map(|dir| dir.join(name))
-        .find(|candidate| candidate.is_file())
-}
-
 pub fn supports(vcp: i64) -> bool {
-    tool().is_some() && CONTROLS.iter().any(|(code, _, _)| *code == vcp)
+    crate::tools::helper("ddc-ci").is_some() && CONTROLS.iter().any(|(code, _, _)| *code == vcp)
 }
 
 /// One DDC exchange at a time, with a pause after each: a display that is
 /// asked again too soon answers the previous question, or does not answer.
 fn run(args: &[String]) -> Result<String, String> {
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
-    let tool = tool().ok_or_else(|| {
-        if cfg!(target_os = "macos") { "reaching a display needs the m1ddc tool: brew install m1ddc".to_string() } else { "reaching a display needs ddcutil".to_string() }
-    })?;
+    let tool = crate::tools::helper("ddc-ci").ok_or("the display helper is missing or this OS/architecture has no backend; run `hardpoint doctor` for details or `hardpoint setup` to retry setup")?;
     let mut last = LAST.lock().map_err(|_| "the display channel is unavailable".to_string())?;
     if let Some(wait) = last.and_then(|at| PAUSE.checked_sub(at.elapsed())) {
         std::thread::sleep(wait);
     }
     let out = Command::new(tool).args(args).output().map_err(|e| e.to_string());
     *last = Some(Instant::now());
-    Ok(String::from_utf8_lossy(&out?.stdout).trim().to_string())
+    let out = out?;
+    if !out.status.success() {
+        return Err(format!("the display helper failed ({}): {}", out.status, String::from_utf8_lossy(&out.stderr).trim()));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 fn control(vcp: i64) -> Result<(&'static str, i64), String> {

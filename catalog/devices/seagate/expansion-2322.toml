@@ -13,6 +13,10 @@ bus = "usb"
 vendor_id = 0x0bc2
 product_id = 0x2322
 
+[[requires]]
+platform = "macos"
+what = "When run as a login service, Hardpoint may need removable-volume access in System Settings, Privacy & Security, Files and Folders"
+
 [[capability]]
 id = "storage.health"
 adapter = "macos-system"

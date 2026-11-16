@@ -13,6 +13,75 @@ lede = "Your agent already works in your files and your terminal. Hardpoint adds
 cta = "Install with your agent"
 cta_second = "See the difference"
 
+# Metadata is written alongside the same visible content, not a separate pitch.
+[discovery]
+summary = "An open device catalog and local gatekeeper for AI agents. Reuse existing device tools, with read, reversible, guarded and gated labels on each ability."
+notes = [
+  "This is a public model catalog, not a live inventory. Example animations are illustrative, not measurements or proof of implemented support.",
+  "A card, an implemented adapter and a tested operation are different facts. Check each ability's verification platform, date and note, then use the local daemon for actual availability.",
+  "Keep and approve belong to a person, not the agent. Hardpoint is not a sandbox around unrestricted shell access.",
+]
+guide_title = "Start here"
+devices_title = "Device cards"
+data_title = "Machine-readable data"
+docs_title = "Technical documentation"
+footer = "For agents"
+markdown_label = "Read as Markdown"
+feed_label = "Catalog JSON"
+search_label = "Capability search index"
+index_note = "Catalog descriptions and verification only; no live device availability, addresses or readings."
+programming_languages = ["Rust", "Python"]
+published_docs = ["docs/DESIGN.md", "docs/SPEC.md", "docs/ECOSYSTEM.md", "docs/ROADMAP.md", "docs/DISCOVERY.md"]
+repository_docs = ["README.md", "CONTRIBUTING.md", "AGENTS.md"]
+
+[discovery.pages]
+index = "Hardpoint connects AI agents to device tools through an open catalog, per-ability risk labels, undo and human approval. Bring your own agent."
+install = "Install Hardpoint with your agent. Review the source, select login and update options, set up trusted helpers, and connect a local MCP server."
+add = "Add a privacy-safe device card to Hardpoint. Record model identifiers, capabilities, labels and evidence without publishing private unit details."
+devices = "Browse device cards by maker, ability, label and verification. Catalog entries describe models; they do not guarantee live availability."
+format = "Hardpoint's TOML card format: model matching, capabilities, risk floors, verification records and data-only adapter parameters."
+adapters = "Hardpoint device adapters, implementation status, declared platforms, parameters and host-side helper requirements."
+vocabulary = "Shared device capability definitions, value types, minimum labels and privacy levels used by Hardpoint cards."
+ns = "Definitions of Hardpoint's hp: extensions for W3C Web of Things Thing Models: labels, verification, privacy and adapter routes."
+agents = "Use Hardpoint from an AI agent: discover the catalog, inspect local availability, read before proposing, respect approvals and report evidence."
+
+[agent]
+title = "Use Hardpoint with an agent"
+lede = "Find the right card, check what works here, and keep the person in charge. The public site describes models; the local daemon acts on devices."
+
+[[agent.section]]
+title = "Find evidence, not just a product name"
+text = "Read catalog.json or search-index.json to find a model or ability. Each card has its own HTML, Markdown and W3C Thing Model. Follow the per-ability verification record: a tested read does not verify a write, another OS or another firmware. Adapter status alone does not verify every method."
+
+[[agent.section]]
+title = "Check the local system"
+text = "After installation, call the local MCP devices tool before reading or proposing. Its reachable flag describes a code path, not guaranteed permissions, connection or write support. Read the actual value and handle errors explicitly. Paired headphones may be listed even when their battery cannot currently be read."
+code = "hardpoint doctor\nhardpoint inventory\nhardpoint status"
+
+[[agent.section]]
+title = "Use the five MCP tools"
+text = "Connect your agent to the local stdio command hardpoint mcp. devices lists abilities; read obtains a value; propose requests a change under its label; undo requests the recorded earlier value; changes shows the current daemon's journal. This website is not an HTTP MCP endpoint."
+
+[[agent.section]]
+title = "Never answer your own approval"
+text = "Read changes nothing. Reversible applies a change with undo. Guarded applies it and reverts unless a person keeps it. Gated does nothing until a person approves that exact action. Do not call terminal keep/approve commands, synthesize approval presses, lower labels, or bypass a refusal with direct device commands. Rules cannot execute gated actions. These protections are not a sandbox around unrestricted local access."
+
+[[agent.section]]
+title = "Set up helpers, not firmware"
+text = "The daemon resolves trusted helper recipes by OS and architecture in the background. It reuses installed tools; existing Homebrew can install m1ddc on Apple Silicon. hardpoint setup retries setup, respecting [tools] auto_install = false. Never elevate, bootstrap a package manager or flash firmware to clear a helper error. Linux package installation and OS permissions need a person; Intel Mac and Windows DDC backends are not implemented."
+
+[[agent.section]]
+title = "Respect the current limits"
+text = "The DDC backend currently assumes a single/default external monitor. General multi-monitor identity, competing-writer protection, persistent journal recovery and overlapping-rule ownership still need work. The journal is in memory and does not survive restart. Avoid unattended compound workflows that depend on these missing guarantees. Home Assistant, fwupd, BetterDisplay, Lunar and OpenLogi integrations are planned, not built."
+
+[[agent.section]]
+title = "Protect private facts"
+text = "Shared cards contain model facts, not a unit's serial number, address, host name or user-given name. Do not publish inventories, session data or local logs. Values handed to an agent follow that agent's privacy settings and may reach its model provider. Updates and enabled helper setup contact the source repository and package registries."
+
+[[agent.section]]
+title = "Report exactly what happened"
+text = "Separate proposed, applied, read-back verified, awaiting a person, reverted and blocked. Never mark a whole card tested from a single successful read. Say which operation was checked, where its evidence lives, what remains unavailable, and who must take the next step."
+
 # Under the buttons at the top: the agents people already use.
 [byo]
 title = "Bring your own agent"

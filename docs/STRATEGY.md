@@ -157,24 +157,13 @@ Each maps to a real incident or a real gap above.
   destructive; guarded and gated are destructive. Hosts that honour hints
   then behave sensibly, and Hardpoint still enforces for those that do not.
 
-## Order of work
+## Earlier sequence (superseded)
 
-Done so far: step 1 for the keyboard's lights; class cards for outlets,
-lights and locks; stricter-only labels for owners; `power.outlet` gated;
-"no answer means no"; the firmware field; and the Web of Things export.
-
-1. **A gatekeeper agents can call.** An MCP server in the daemon: list what
-   is attached, read, propose a change. Journal and undo for reversible,
-   timer for guarded, approval for gated (asked through the host where it
-   can, and on a lit key always). Proven with the keyboard, then tried with
-   Claude Code, Codex and OpenCode. This makes the site's headline true.
-2. **Home Assistant adapter and class cards.** Reproduce the office incident
-   safely and write it up.
-3. **Monitor through ddcutil** (testable on the display here), then **fwupd**
-   on a Linux machine.
-4. **OpenRGB, VIA, libratbag.** Thing Description export. Take the
-   reversibility vocabulary to MCP's tool-annotations group, so the idea
-   lands upstream instead of only here.
+The gatekeeper/MCP interface, macOS system/HID++/DDC adapters, watches, basic
+rules, W3C export and host-helper setup now exist. Home Assistant and fwupd
+remain planned. The current order is [ROADMAP.md](ROADMAP.md): strengthen
+readiness, instance identity, ownership and recovery, then expand workflows.
+Do not use these earlier research notes as a live implementation checklist.
 
 A measure of success, borrowed from the study: run its injected-deletion
 test against Hardpoint with a gated ability. The count of unapproved actions

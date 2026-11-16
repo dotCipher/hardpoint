@@ -3,6 +3,10 @@
 A device's card is one small file. Adding one needs no code and changes
 nothing on your device.
 
+Coding agents should read [AGENTS.md](AGENTS.md) before changing the program
+or generated site. [docs/DISCOVERY.md](docs/DISCOVERY.md) explains the public
+agent/search files and how to keep their claims aligned with the catalog.
+
 ## The quick way
 
 Open the [Add a device](https://dotcipher.github.io/hardpoint/add.html) page,
@@ -46,8 +50,9 @@ hardpoint read <device id> <ability id>         # does it return the value?
 For anything your computer already reports about a device, a card needs no
 code: name the `macos-system` adapter with a `source` and a `field`
 ([docs/SPEC.md](docs/SPEC.md) lists them). If `hardpoint read` returns the
-value, you have exercised it through the adapter and may record it as
-`tested`.
+value, you have exercised that read through the adapter and may record the
+read as `tested`. Say explicitly if setting/undoing was not tested; never
+promote an entire card, a write operation or another platform on that basis.
 
 ## Short on time?
 

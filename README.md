@@ -16,7 +16,8 @@
   <a href="#install">Install</a> ·
   <a href="#add-a-device">Add a device</a> ·
   <a href="docs/DESIGN.md">Design</a> ·
-  <a href="docs/SPEC.md">Card format</a>
+  <a href="docs/SPEC.md">Card format</a> ·
+  <a href="docs/ROADMAP.md">Roadmap</a>
 </p>
 
 <p align="center">
@@ -97,7 +98,7 @@ goes wrong if it is done carelessly.
 | A keyboard driven entirely from its card: lights, key presses, layers | Runs on macOS, on one keyboard |
 | Agent sessions on keys, and a press that runs your own action | Runs, with OpenCode and any script |
 | Brightness that follows the clock; per-key press counts | Runs |
-| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs, on the keyboard's lights. Used from OpenCode; not yet tried inside Claude Code or Codex |
+| A gatekeeper any agent can connect to (`hardpoint mcp`): list, read, propose, undo | Runs through implemented adapters. Used from OpenCode; not yet tried inside Claude Code or Codex |
 | Keep-or-revert, and approve-first, with "no answer means no" | Runs in the gatekeeper |
 | Every card published as a W3C Web of Things Thing Model | Runs, validated against the W3C schema |
 | Reaching the computer itself, a Logitech mouse over Bluetooth, a display, headphones, docks and drives | Runs on macOS |
@@ -109,12 +110,29 @@ goes wrong if it is done carelessly.
 | Things on the home network | `tools/observe.py` finds them by listening, and three have cards. The daemon does not look for them or act on them yet |
 | Install by pasting one prompt into an agent; cards that update themselves; a login service | Runs on macOS, installed that way from OpenCode. The Linux service is written and untried |
 | A journal that outlives the daemon | Designed |
-| Home Assistant, fwupd and the other tools that already reach hardware | Designed. See [docs/STRATEGY.md](docs/STRATEGY.md) |
+| Home Assistant, fwupd and the other tools that already reach hardware | Planned. See [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) |
 | Linux | Not tried |
 
 Each device's page on [the site](https://dotcipher.github.io/hardpoint/devices.html)
 shows, capability by capability, what has been tested and what has only been
 read about.
+
+The public catalog is not a live inventory. Adapter implementation,
+historical verification and current read/write availability are different
+facts. See [current architecture](docs/DESIGN.md) for limits and the
+[functionality roadmap](docs/ROADMAP.md) for the next useful workflows.
+
+### For coding and search agents
+
+- Repository contributors: read [AGENTS.md](AGENTS.md).
+- Agent users: start with the [agent guide](https://dotcipher.github.io/hardpoint/agents.html)
+  or [llms.txt](https://dotcipher.github.io/hardpoint/llms.txt).
+- Every generated HTML page has a Markdown alternative. The public
+  [capability index](https://dotcipher.github.io/hardpoint/search-index.json)
+  links individual claims to their device page, verification and WoT model.
+- [docs/DISCOVERY.md](docs/DISCOVERY.md) documents canonical URLs, structured
+  metadata, crawler/subpath behavior and tests. These help navigation and
+  citation; they are not an indexing or AI-ranking guarantee.
 
 ## Install
 

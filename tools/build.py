@@ -24,6 +24,8 @@ import sys
 import urllib.parse
 import zlib
 
+from discovery import canonical, markdown, origin_robots, script_json, sitemap
+
 if sys.version_info < (3, 11):
     sys.exit(f"tools/build.py needs Python 3.11 or newer, and this is {sys.version.split()[0]}. "
              "A pull request is checked for you either way.")
@@ -309,6 +311,11 @@ def load_content(catalog):
     """The words and demo scripts, checked against the catalog they describe."""
     content = load_toml(SOURCE / "content.toml")
     errors = catalog.errors
+    for path in content["discovery"]["published_docs"]:
+        allowed = path in ("README.md", "CONTRIBUTING.md", "AGENTS.md") or re.fullmatch(r"docs/[A-Z][A-Z_-]*\.md", path)
+        file = ROOT / path
+        if not allowed or not file.resolve().is_relative_to(ROOT) or not file.is_file():
+            errors.append(f"content.toml: published_docs entry {path!r} must name an existing public Markdown document")
     for facet in content["catalog"]["facet"]:
         if facet["key"] not in FACETS:
             errors.append(f"content.toml: unknown catalog facet {facet['key']!r}; it can be {', '.join(FACETS)}")
@@ -352,6 +359,9 @@ def site_url(repo):
     """Where the built site will be served from, when that can be known. Used for links that must be absolute."""
     explicit = os.environ.get("HARDPOINT_SITE_URL")
     if explicit:
+        parsed = urllib.parse.urlsplit(explicit)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("HARDPOINT_SITE_URL must be an absolute HTTP(S) base URL without credentials, query or fragment")
         return explicit.rstrip("/") + "/"
     found = re.match(r"https://github\.com/([^/]+)/([^/]+)$", repo or "")
     return f"https://{found.group(1).lower()}.github.io/{found.group(2)}/" if found else None
@@ -753,13 +763,35 @@ class Site:
         self.name = content["name"]
         self.risk = catalog.terms["risk"]
         self.home = site_url(repo)
+        self.page_metadata = {}
         # Where Hardpoint's own terms are defined, for anything that reads the Web of Things models.
         self.namespace = f"{self.home}ns.html#" if self.home else "urn:hardpoint:ns#"
         # The devices with the most checked come first, wherever devices are listed.
         count = lambda card, status: sum(1 for cap in card["capability"] if catalog.best_status(cap) == status)
         self.cards = sorted(catalog.cards, key=lambda card: [-count(card, s) for s in catalog.statuses][:-1] + [card["device"]["name"]])
 
-    def page(self, title, body, root, active, scripts=""):
+    def page(self, title, body, root, active, scripts="", *, path="index.html", description=None, about=None):
+        description = description or self.t["discovery"]["pages"][path.removesuffix(".html")]
+        self.page_metadata[path] = {"title": title, "description": description}
+        url = canonical(self.home, path)
+        md_path = path.removesuffix(".html") + ".md"
+        discovery = self.t["discovery"]
+        metadata = ""
+        if url:
+            metadata = f'<link rel="canonical" href="{e(url)}"><meta property="og:url" content="{e(url)}">'
+            website = {"@type": "WebSite", "@id": self.home + "#website", "name": self.name, "url": self.home}
+            page = {"@type": "WebPage", "@id": url + "#page", "url": url, "name": title,
+                    "description": description, "isPartOf": {"@id": website["@id"]},
+                    "inLanguage": "en", "encodingFormat": "text/html"}
+            if about:
+                page["about"] = about
+            graph = [website, page]
+            if path == "index.html" and self.repo:
+                graph.append({"@type": "SoftwareSourceCode", "@id": self.home + "#source", "name": self.name,
+                              "description": discovery["summary"], "codeRepository": self.repo,
+                              "programmingLanguage": discovery["programming_languages"], "url": self.home,
+                              "license": self.repo + "/blob/main/LICENSE"})
+            metadata += '<script type="application/ld+json">' + script_json({"@context": "https://schema.org", "@graph": graph}) + '</script>'
         n = self.t["nav"]
         links = [(n["install"], "install.html"), (n["devices"], "devices.html"), (n["how"], "index.html#how"), (n["add"], "add.html"), (n["builders"], "format.html")]
         nav = ""
@@ -772,22 +804,25 @@ class Site:
         picture = f'<meta property="og:image" content="{e(home)}icon-512.png">' if home else ""
         return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{e(title)}</title><meta name="description" content="{e(self.t["lede"])}">
+<title>{e(title)}</title><meta name="description" content="{e(description)}">{metadata}
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="{INK}" media="(prefers-color-scheme: dark)"><meta name="theme-color" content="{PAPER}" media="(prefers-color-scheme: light)">
-<meta property="og:type" content="website"><meta property="og:title" content="{e(title)}"><meta property="og:description" content="{e(self.t["lede"])}">{picture}
+<meta property="og:type" content="website"><meta property="og:title" content="{e(title)}"><meta property="og:description" content="{e(description)}">{picture}
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="{root}favicon.ico" sizes="32x32"><link rel="icon" href="{root}favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png"><link rel="manifest" href="{root}site.webmanifest">
 <link rel="preload" href="{root}fonts/{FONT}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{root}style.css">
+<link rel="alternate" type="text/markdown" href="{root}{md_path}" title="{e(discovery['markdown_label'])}">
+<link rel="describedby" type="text/plain" href="{root}llms.txt"><link rel="help" href="{root}agents.html">
 <script>if ("IntersectionObserver" in window) document.documentElement.className = "js"</script></head><body>
 <div class="sky" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
 <header><div class="wrap bar"><a class="brand" href="{root}index.html">{mark(32, "ring")}<span>{e(self.name)}</span></a><nav>{nav}</nav></div>
 <div class="progress" aria-hidden="true"></div></header>
 <main>{body}</main>
 <footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.
-Product names belong to their owners; this project is not affiliated with them.</div></footer>
+Product names belong to their owners; this project is not affiliated with them.
+<a href="{root}agents.html">{e(discovery['footer'])}</a> · <a href="{root}{md_path}">{e(discovery['markdown_label'])}</a></div></footer>
 {scripts}<script src="{root}app.js" defer></script>
 </body></html>"""
 
@@ -1033,7 +1068,7 @@ Product names belong to their owners; this project is not affiliated with them.<
 <h2 class="small">{e(a["rules_title"])}</h2>
 <div class="plate pad">{rules}</div>
 {issue}</div>"""
-        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["add"])
+        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["add"], path="add.html")
 
     def install(self):
         a = self.t["install"]
@@ -1050,7 +1085,7 @@ Product names belong to their owners; this project is not affiliated with them.<
 <div class="plate pad">{listed(a["updates"])}</div>
 <h2 class="small">{e(a["hand_title"])}</h2>
 <div class="plate pad">{self.steps(a["step"])}</div></div>"""
-        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["install"])
+        return self.page(f'{a["title"]} · {self.name}', body, "", self.t["nav"]["install"], path="install.html")
 
     def devices(self):
         c, sec, words = self.c, self.t["sections"], self.t["catalog"]
@@ -1077,7 +1112,7 @@ Product names belong to their owners; this project is not affiliated with them.<
 </div></div>
 <h2 class="small">Checked</h2>{defs((self.checked(s), text) for s, text in c.statuses.items())}
 <h2 class="small">Labels</h2>{defs((chip("risk", r), text) for r, text in c.risks.items())}</div>"""
-        return self.page(f'{self.t["nav"]["devices"]} · {self.name}', body, "", self.t["nav"]["devices"])
+        return self.page(f'{self.t["nav"]["devices"]} · {self.name}', body, "", self.t["nav"]["devices"], path="devices.html")
 
     def device(self, card):
         c, d = self.c, card["device"]
@@ -1103,7 +1138,7 @@ Product names belong to their owners; this project is not affiliated with them.<
             commit = card["_commits"].get(cap["id"])
             link = f' <a class="commit" href="{e(self.repo)}/commit/{commit}">commit</a>' if commit and self.repo else ""
             rows.append(
-                f'<tr><td><b>{e(word.get("ask") or word["summary"])}</b><span class="sub mono">{e(cap["id"])}</span>'
+                f'<tr id="cap-{e(cap["id"])}"><td><b>{e(word.get("ask") or word["summary"])}</b><span class="sub mono">{e(cap["id"])}</span>'
                 f'<details class="more"><summary>Details</summary><dl>{details}</dl></details></td>'
                 f'<td>{chip("risk", cap["risk"])}</td>'
                 f'<td>{self.checked(record["status"])}{link}</td></tr>')
@@ -1130,7 +1165,9 @@ Product names belong to their owners; this project is not affiliated with them.<
 <h2 class="small">The card</h2>
 <p class="lede">This page is made from {where}. If something is wrong, or you have checked more of it, <a href="../add.html">edit that file</a>.</p>
 <pre>{e(card["_source"])}</pre></div>"""
-        return self.page(f'{d["vendor"]} {d["name"]} · {self.name}', body, "../", self.t["nav"]["devices"])
+        return self.page(f'{d["vendor"]} {d["name"]} · {self.name}', body, "../", self.t["nav"]["devices"],
+                         path=f"devices/{slug(card)}.html", description=d["summary"],
+                         about={"@type": "Thing", "name": f'{d["vendor"]} {d["name"]}', "identifier": d["id"]})
 
     def namespace_page(self):
         """The terms Hardpoint adds to the Web of Things models, each with an address of its own."""
@@ -1143,7 +1180,7 @@ under the prefix <span class="mono">hp</span>, which stands for <span class="mon
 <h2 class="small">Labels</h2>{defs((chip("risk", r), text) for r, text in self.c.risks.items())}
 <h2 class="small">Checked</h2>{defs((self.checked(s), text) for s, text in self.c.statuses.items())}
 <h2 class="small">Models</h2><p class="lede">One file per card, at <span class="mono">models/&lt;maker&gt;-&lt;model&gt;.tm.jsonld</span>. Each device's page links to its own.</p></div>"""
-        return self.page(f"Terms · {self.name}", body, "", self.t["nav"]["builders"])
+        return self.page(f"Terms · {self.name}", body, "", self.t["nav"]["builders"], path="ns.html")
 
     def vocabulary(self):
         c = self.c
@@ -1166,7 +1203,7 @@ under the prefix <span class="mono">hp</span>, which stands for <span class="mon
 <h2 class="small">Privacy</h2>{defs((f'<span class="chip plain">{e(k)}</span>', text) for k, text in c.privacy.items())}
 <h2 class="small">Capabilities</h2>
 <div class="tablebox"><table><tr><th>Capability</th><th>Kind</th><th>Lowest risk allowed</th><th>Devices</th></tr>{rows}</table></div></div>"""
-        return self.page(f"Vocabulary · {self.name}", body, "", self.t["nav"]["builders"])
+        return self.page(f"Vocabulary · {self.name}", body, "", self.t["nav"]["builders"], path="vocabulary.html")
 
     def adapters(self):
         c = self.c
@@ -1183,7 +1220,7 @@ under the prefix <span class="mono">hp</span>, which stands for <span class="mon
 A device card can only name an adapter and give it typed values; it can never carry a command or a script.</p></div>
 <h2 class="small">{len(c.adapters)} adapters</h2>
 <div class="tablebox"><table><tr><th>Adapter</th><th>Status</th><th>Platforms</th><th>Parameters</th><th>Capabilities using it</th></tr>{rows}</table></div></div>"""
-        return self.page(f"Adapters · {self.name}", body, "", self.t["nav"]["builders"])
+        return self.page(f"Adapters · {self.name}", body, "", self.t["nav"]["builders"], path="adapters.html")
 
     def format(self):
         c, travel, sec = self.c, self.t["travel"], self.t["sections"]
@@ -1209,7 +1246,60 @@ A device card can only name an adapter and give it typed values; it can never ca
 <h2 class="small">An example</h2><p class="lede"><span class="mono">{e(example["_path"])}</span>. The full rules are in
 <span class="mono">docs/SPEC.md</span> and <span class="mono">catalog/schema/device.schema.json</span>.</p>
 <pre>{e(example["_source"])}</pre></div>"""
-        return self.page(f"Format · {self.name}", body, "", self.t["nav"]["builders"], script)
+        return self.page(f"Format · {self.name}", body, "", self.t["nav"]["builders"], script, path="format.html")
+
+    def agents(self):
+        a, d = self.t["agent"], self.t["discovery"]
+        sections = "".join(f'<section><h2 class="small">{e(s["title"])}</h2><p>{inline_code(s["text"])}</p>'
+                           + (f'<pre>{e(s["code"])}</pre>' if s.get("code") else "") + '</section>' for s in a["section"])
+        docs = "".join(f'<li><a href="{e(path)}">{e(path)}</a></li>' for path in d["published_docs"])
+        body = (f'<div class="wrap narrow"><div class="page-head"><h1>{e(a["title"])}</h1><p class="lede">{e(a["lede"])}</p></div>'
+                f'<p><a href="llms.txt">llms.txt</a> · <a href="catalog.json">{e(d["feed_label"])}</a> · '
+                f'<a href="search-index.json">{e(d["search_label"])}</a>'
+                + (' · <a href="sitemap.xml">sitemap.xml</a>' if self.home else '') + f'</p>{sections}'
+                f'<h2 class="small">{e(d["docs_title"])}</h2><ul>{docs}</ul></div>')
+        return self.page(f'{a["title"]} · {self.name}', body, "", "", path="agents.html")
+
+    def write_discovery(self):
+        d = self.t["discovery"]
+        link = lambda path: urllib.parse.urljoin(self.home, path) if self.home else path
+        for path in self.page_metadata:
+            html = (SITE / path).read_text()
+            (SITE / (path.removesuffix(".html") + ".md")).write_text(markdown(html, link(path)))
+        for path in d["published_docs"]:
+            dest = SITE / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(ROOT / path, dest)
+        file_list = lambda entries: "\n".join(f'- [{title}]({link(path)})' + (f': {note}' if note else '') for title, path, note in entries)
+        guides = [(self.page_metadata[path]["title"], path.removesuffix(".html") + ".md", self.page_metadata[path]["description"])
+                  for path in ("agents.html", "install.html", "devices.html", "add.html", "format.html", "adapters.html", "vocabulary.html", "ns.html")]
+        devices = [(f'{c["device"]["vendor"]} {c["device"]["name"]}', f'devices/{slug(c)}.md', c["device"]["summary"]) for c in self.cards]
+        data = [(d["feed_label"], "catalog.json", d["index_note"]), (d["search_label"], "search-index.json", d["index_note"])]
+        docs = [(path, path, "") for path in d["published_docs"]]
+        if self.repo:
+            docs += [(path, f"{self.repo}/blob/main/{path}", "") for path in d["repository_docs"]]
+        text = f'# {self.name}\n\n> {d["summary"]}\n\n' + "\n\n".join(d["notes"]) + "\n\n"
+        text += "\n\n".join(f'## {title}\n\n{file_list(entries)}' for title, entries in
+                             [(d["guide_title"], guides), (d["data_title"], data), (d["devices_title"], devices), (d["docs_title"], docs)])
+        (SITE / "llms.txt").write_text(text + "\n")
+        if self.home:
+            (SITE / "sitemap.xml").write_text(sitemap(canonical(self.home, path) for path in self.page_metadata))
+        robots = origin_robots(self.home)
+        if robots:
+            (SITE / "robots.txt").write_text(robots)
+        entries = []
+        for card in self.cards:
+            for cap in card["capability"]:
+                word, adapter = self.c.vocabulary[cap["id"]], self.c.adapters[cap["adapter"]]
+                entries.append({"device": card["device"]["id"], "name": card["device"]["name"], "maker": card["device"]["vendor"],
+                                "kind": card["device"]["kind"], "capability": cap["id"], "summary": word["summary"],
+                                "question": word.get("ask"), "label": cap["risk"], "checked": self.c.best_status(cap),
+                                "adapter": cap["adapter"], "adapter_status": adapter["status"],
+                                "declared_platforms": adapter["platforms"], "verification": cap["verification"],
+                                "url": link(f'devices/{slug(card)}.html#cap-{cap["id"]}'),
+                                "markdown": link(f'devices/{slug(card)}.md'), "model": link(f'models/{slug(card)}.tm.jsonld')})
+        (SITE / "search-index.json").write_text(json.dumps({"format": 1, "scope": "catalog-not-runtime-inventory",
+                                                         "note": d["index_note"], "entries": entries}, indent=2) + "\n")
 
     def write(self):
         c = self.c
@@ -1231,7 +1321,7 @@ A device card can only name an adapter and give it typed values; it can never ca
             "icons": [{"src": f"icon-{size}.png", "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any maskable"} for size in (192, 512)],
         }, indent=2) + "\n")
         pages = {"index": self.landing, "install": self.install, "add": self.add, "devices": self.devices, "vocabulary": self.vocabulary,
-                 "adapters": self.adapters, "format": self.format, "ns": self.namespace_page}
+                 "adapters": self.adapters, "format": self.format, "ns": self.namespace_page, "agents": self.agents}
         (SITE / "models").mkdir()
         for card in c.cards:
             page = f"{self.home}devices/{slug(card)}.html" if self.home else None
@@ -1243,6 +1333,7 @@ A device card can only name an adapter and give it typed values; it can never ca
         feed = {"format": 1, "terms": c.terms, "vocabulary": c.vocabulary, "adapters": c.adapters,
                 "devices": [{k: v for k, v in card.items() if not k.startswith("_")} for card in c.cards]}
         (SITE / "catalog.json").write_text(json.dumps(feed, indent=2) + "\n")
+        self.write_discovery()
         return sum(1 for path in SITE.rglob("*") if path.is_file())
 
 

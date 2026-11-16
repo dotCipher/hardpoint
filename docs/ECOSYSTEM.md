@@ -101,8 +101,9 @@ does not uninstall software that another app may use.
 
 ## Build next, in order
 
-1. Finish and test host-tool setup on the available Mac. Keep the tested
-   matrix honest for Linux, Intel and Windows.
+1. Host-tool setup has now been exercised on Apple Silicon with Homebrew.
+   Keep its Linux/Intel/Windows boundaries explicit. Follow
+   [ROADMAP.md](ROADMAP.md) for current implementation priorities.
 2. Add exact DDC target routing and a selected backend interface before
    growing monitor features. Prototype BetterDisplay/Lunar behind that
    interface with an explicit owner choice.

@@ -238,6 +238,13 @@ enforced by the daemon whatever a host makes of the hints:
 
 An agent is given no tool to keep or approve a change.
 
+**Public discovery.** The site also generates `llms.txt`, per-page Markdown,
+`search-index.json`, canonical/schema metadata and a human-page sitemap.
+The search index contains one record per card/ability, preserving label and
+verification records and linking a stable `#cap-<id>` HTML citation. Its
+scope is catalog descriptions, never runtime availability or private device
+instances. See [DISCOVERY.md](DISCOVERY.md) for the complete contract.
+
 ## Verification status
 
 | Status | Meaning |

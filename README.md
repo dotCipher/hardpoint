@@ -37,7 +37,7 @@ safely carry.
 | Part | What it does |
 |---|---|
 | **The catalog** | One card per device model: how to recognise it, what it can do, how risky each change is, and how much of that a person has checked. Data only. It covers what is plugged into the computer and what is on the home network: a television, a streaming stick, an air conditioner. |
-| **The daemon** | Runs on your computer and is the only thing that touches hardware. Everything it knows about a device comes from that device's card. |
+| **The daemon** | Runs on your computer, enforces labels, and reaches hardware through known adapters or helper tools. Everything it knows about a device comes from that device's card. |
 | **The site** | Generated from the catalog, with a machine-readable feed for any tool. |
 
 A card works both ways. The first thing built on it lets your devices reach
@@ -62,7 +62,7 @@ Hardpoint.
 | **Knowing your device** | Has never seen your exact device. It searches, then works from whatever it finds. | Reads a card written for that exact model. |
 | **Knowing the risk** | Reading a battery and replacing firmware look the same to it: a command to run. | Every ability on a card has one of four labels, set before anyone asks. |
 | **Proof** | Reports what it did. Nothing says whether that was ever checked on your model. | Each claim on a card says whether a person tested it on a real device, and links to the record. |
-| **Touching the device** | Writes its own commands and runs them as you. | A card holds no commands. Only Hardpoint's own program ever touches a device. |
+| **Touching the device** | Writes its own commands and runs them as you. | A card holds no commands. Hardpoint checks the label, then uses a known adapter or helper tool. |
 | **When it goes wrong** | If a change locks you out, you are on your own. | A risky change is labelled to go back by itself unless you keep it. One that cannot be undone waits for your yes. |
 | **What it learns** | Gone when the session ends. The next agent works it out again. | A card is checked once and shared. Everyone with that device gets it, in any agent. |
 
@@ -248,7 +248,7 @@ work, `unverified` for something you only read about.
 | **Cards are data** | A card names an adapter and gives it typed values. It can never carry a command, a script or a path, and the validator rejects any field it does not know. |
 | **Risk has a floor** | A card cannot give an ability a lower label than the shared vocabulary allows. |
 | **No undo, no surprise** | Anything that cannot be undone waits for your approval of that exact action, every time. A step that needs your hands, such as a button on the device, stays yours. |
-| **It stays on your computer** | No account, no server. The daemon listens on a local socket only you can write to. |
+| **Local control** | No Hardpoint account or cloud service. The daemon listens locally; updates and helper setup contact repositories. Readings sent to your agent follow that agent's privacy settings. |
 | **Counts, not keystrokes** | To act on a press the daemon sees which key went down. It keeps per-key counts only if you turn that on, and never the order, the timing or the text. |
 
 Arbitrary shell commands can come only from your own config file: the action

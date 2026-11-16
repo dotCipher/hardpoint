@@ -96,7 +96,7 @@ with = "Each claim on a card says whether a person tested it on a real device, a
 [[why.row]]
 topic = "Touching the device"
 without = "Writes its own commands and runs them as you."
-with = "A card holds no commands. Only Hardpoint's own program ever touches a device."
+with = "A card holds no commands. Hardpoint checks the label, then uses a known adapter or helper tool."
 
 [[why.row]]
 topic = "When it goes wrong"
@@ -247,7 +247,7 @@ answer = "Bring your own. `hardpoint mcp` speaks the Model Context Protocol, whi
 
 [[question]]
 ask = "What stops it doing something I did not want?"
-answer = "Three things. A card holds only information, never a command, so nothing in the catalog can run on your computer. Every ability has a lowest label it can ever be given, so a card cannot pass off a risky change as a harmless one. And anything that cannot be undone waits for you: your agent gets it ready and shows what will happen, and nothing is done until you say yes to that exact action."
+answer = "A card cannot supply code or an install command; helper installation uses trusted recipes built into the program. Every ability has a lowest label, so a card cannot make a risky change harmless. Gated actions wait for your approval of that exact action. These protections apply to requests through Hardpoint: an agent with unrestricted shell or device access can bypass it. Hardpoint is not a sandbox."
 
 [[question]]
 ask = "Is it watching what I type?"
@@ -255,7 +255,7 @@ answer = "To let you answer with a spare key, it sees which key went down. It do
 
 [[question]]
 ask = "Does anything leave my computer?"
-answer = "Nothing about you or your devices. There is no account and no server, and the program listens only on your own computer. If you turn on automatic updates, it fetches the catalog from the project once a day, the same way `git` fetches any public repository; that is the only thing it ever asks the network for."
+answer = "Hardpoint has no account or cloud service; the daemon listens locally. Catalog and program updates contact the source repository, and enabled helper setup contacts the package manager's registries. Readings you give your agent follow that agent's privacy settings and may be sent to its model provider. Shared cards contain model facts, not your unit's serial number, address or private name."
 
 [[question]]
 ask = "Does it cover smart-home devices?"

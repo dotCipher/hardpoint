@@ -12,7 +12,7 @@ catalog                    daemon (on your computer)          clients
 
 - **The catalog** says what a device can do. It is data, shared and versioned.
 - **The daemon** finds the devices that are present, reaches them through
-  adapters, and is the only thing that touches hardware.
+  adapters or known helper tools, after enforcing the label.
 - **Clients** ask the daemon. They never talk to a device directly.
 
 The daemon already has discovery, the `oryx-hid` adapter, a rules engine

@@ -4,9 +4,15 @@ card = 1
 id = "caldigit/ts3-plus"
 vendor = "CalDigit"
 name = "TS3 Plus"
+identity = "model"
+aliases = ["Thunderbolt Station 3 Plus"]
 kind = "dock"
 summary = "Thunderbolt 3 dock with display, USB, audio and network ports."
-links = ["https://www.caldigit.com/"]
+links = ["https://www.caldigit.com/ts3-plus/"]
+
+[[sources]]
+title = "CalDigit: TS3 Plus Thunderbolt 3 dock"
+url = "https://www.caldigit.com/ts3-plus/"
 
 # Recognised by the audio interface the dock adds, which is how it shows up
 # among input devices.

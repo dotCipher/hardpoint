@@ -2,8 +2,10 @@ card = 1
 
 [device]
 id = "zsa/moonlander-mk1"
-vendor = "ZSA Technology Labs"
+vendor = "ZSA"
 name = "Moonlander Mark I"
+identity = "model"
+aliases = ["Moonlander MK1", "Moonlander"]
 kind = "keyboard"
 summary = "Split ergonomic keyboard with a light under every key and an open control protocol."
 links = ["https://www.zsa.io/moonlander"]
@@ -104,6 +106,10 @@ adapter = "manual"
 risk = "gated"
 note = "You put the keyboard into update mode with its reset button, and ZSA's app writes the firmware. Hardpoint explains the steps."
 verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation. Not tried." }]
+
+[[sources]]
+title = "ZSA: Moonlander product family"
+url = "https://www.zsa.io/moonlander"
 
 [[sources]]
 title = "Oryx raw-HID protocol (zsa/qmk_modules)"

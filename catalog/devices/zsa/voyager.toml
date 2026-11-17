@@ -2,10 +2,11 @@ card = 1
 
 [device]
 id = "zsa/voyager"
-vendor = "ZSA Technology Labs"
+vendor = "ZSA"
 name = "Voyager"
+identity = "model"
 kind = "keyboard"
-summary = "Low-profile split keyboard with a light under every key. Nobody has checked this card on a real Voyager yet."
+summary = "Low-profile split ergonomic keyboard with per-key lighting. Consult each ability's verification record separately from this product description."
 links = ["https://www.zsa.io/voyager"]
 
 [[match]]
@@ -46,6 +47,10 @@ adapter = "manual"
 risk = "gated"
 note = "This keyboard uses ZSA's own update mode, which ZSA's app writes to after you press the reset button. Hardpoint explains the steps."
 verification = [{ status = "unverified", platform = "macos", note = "Taken from ZSA's documentation and the keyboard's QMK definition. Not tried." }]
+
+[[sources]]
+title = "ZSA: Voyager product specifications"
+url = "https://www.zsa.io/voyager"
 
 [[sources]]
 title = "Oryx raw-HID protocol (zsa/qmk_modules)"

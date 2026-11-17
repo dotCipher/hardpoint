@@ -293,6 +293,8 @@ h2.small{font-size:1.2rem;margin:44px 0 14px}
 .use .ico{width:26px;height:26px;color:var(--accent);margin-bottom:12px}
 .use h3{margin:0 0 6px}
 .use p{margin:0;color:var(--muted)}
+.use p.use-mode{font-size:11px;letter-spacing:.04em;color:var(--accent);margin:0 0 10px}
+.use p.use-evidence{font-size:11px;line-height:1.6;margin-top:14px;overflow-wrap:anywhere}
 
 /* device cards */
 .card{display:block;text-decoration:none;padding:26px 22px 20px;transition:border-color .2s,box-shadow .2s}

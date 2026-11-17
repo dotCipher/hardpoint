@@ -3,10 +3,16 @@ card = 1
 [device]
 id = "samsung/tu690t"
 vendor = "Samsung"
-name = "TU690T 4K TV"
+name = "TU690T Crystal UHD 4K TV"
+identity = "family"
+aliases = ["UTU690T"]
 kind = "television"
-summary = "Smart television on the home network. This card is for the model that announces itself as UTU690T."
-links = ["https://www.samsung.com/"]
+summary = "TU690T Crystal UHD television family advertised as UTU690T. The announcement does not establish screen size or regional model suffix. The reference is a family member, not proof of the matched unit's size."
+links = ["https://www.samsung.com/ca/support/model/UN43TU690TFXZC/"]
+
+[[sources]]
+title = "Samsung: TU690T family-member support page (size is not inferred)"
+url = "https://www.samsung.com/ca/support/model/UN43TU690TFXZC/"
 
 [[match]]
 bus = "network"

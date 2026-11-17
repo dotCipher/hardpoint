@@ -3,10 +3,20 @@ card = 1
 [device]
 id = "apple/macbook-pro-mac16-6"
 vendor = "Apple"
-name = "MacBook Pro (Mac16,6)"
+name = "MacBook Pro (14-inch, 2024)"
+identity = "model"
+aliases = ["Mac16,6"]
 kind = "laptop"
-summary = "Apple silicon laptop with an M4 Max chip and a 3024 x 1964 built-in display."
-links = ["https://www.apple.com/macbook-pro/"]
+summary = "14-inch MacBook Pro from the 2024 M4 Pro / M4 Max range, matched by the public Mac16,6 model identifier. The model card does not identify a unit's memory, storage or other configured options."
+links = ["https://support.apple.com/en-us/108052", "https://support.apple.com/en-us/121553"]
+
+[[sources]]
+title = "Apple: identify your MacBook Pro model (Mac16,6 / Mac16,8)"
+url = "https://support.apple.com/en-us/108052"
+
+[[sources]]
+title = "Apple: MacBook Pro (14-inch, M4 Pro or M4 Max, 2024) specifications"
+url = "https://support.apple.com/en-us/121553"
 
 [[match]]
 bus = "builtin"

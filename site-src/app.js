@@ -79,11 +79,16 @@
   // filtered list can be linked to.
   var catalog = document.getElementById("catalog");
   if (catalog) {
+    // Search convenience only; public identity assignment stays in the shared
+    // registry normalizer. Never turn a search match into a device address.
+    var searchKey = function (text) {
+      return text.replace(/[™®©]/g, "").normalize("NFKC").toLowerCase().replace(/\+/g, "plus").replace(/[^\p{L}\p{N}]/gu, "");
+    };
     var q = document.getElementById("q"), order = document.getElementById("sort"), panel = document.getElementById("facets");
     var grid = document.getElementById("cards"), found = document.getElementById("found");
     var clear = document.getElementById("clear"), none = document.getElementById("none");
     var tiles = Array.prototype.slice.call(grid.children).map(function (node) {
-      return { node: node, facets: JSON.parse(node.dataset.facets), text: node.dataset.search, name: node.dataset.name.toLowerCase(),
+      return { node: node, facets: JSON.parse(node.dataset.facets), text: node.dataset.search, key: node.dataset.searchKey || searchKey(node.dataset.search), name: node.dataset.name.toLowerCase(),
                abilities: Number(node.dataset.abilities), rank: Number(node.dataset.rank) };
     });
     var groups = Array.prototype.slice.call(panel.querySelectorAll(".facet")).map(function (box) {
@@ -96,7 +101,7 @@
     };
 
     var fits = function (tile, terms, picks, except) {
-      if (!terms.every(function (term) { return tile.text.indexOf(term) >= 0; })) { return false; }
+      if (!terms.every(function (term) { return tile.text.indexOf(term) >= 0 || tile.key.indexOf(searchKey(term)) >= 0; })) { return false; }
       return groups.every(function (group) {
         var want = picks[group.key];
         return group.key === except || !want.length || want.some(function (value) { return tile.facets[group.key].indexOf(value) >= 0; });

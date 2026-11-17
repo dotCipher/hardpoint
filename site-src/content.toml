@@ -121,19 +121,6 @@ declined = "Not done. Nothing changed."
 # The three hands a request passes through, drawn above each scene.
 flow = ["Agent", "Card", "Device"]
 
-# What a kind of device is called in the scenes. A kind that is not listed
-# here is shown under its own name.
-[scenes.kinds]
-display = "screen"
-audio = "headphones"
-storage = "external drive"
-television = "TV"
-media = "streaming stick"
-climate = "air conditioner"
-plug = "smart plug"
-lock = "door lock"
-lighting = "light"
-
 # What changes when an agent has a card to read. Each row is true of the
 # cards themselves, whatever program reads them.
 [why]
@@ -183,48 +170,68 @@ with = "A card is checked once and shared. Everyone with that device gets it, in
 
 # Workflow ideas, not a duplicated device-support matrix.
 [uses]
-eyebrow = "What you can do"
-title = "What it is good for"
-lede = "Choose abilities from the registry, then check what is available on your computer."
+eyebrow = "Put it to work"
+title = "More useful than another settings menu"
+lede = "Playbooks, watch configurations and workflow ideas—not preinstalled automations. Registry links show the related abilities; verify the route, permissions and operation before using one."
+evidence_title = "Related registry abilities"
+
+[uses.modes]
+agent = "Agent playbook"
+watch = "Configure a watch"
+idea = "Workflow idea · integration required"
+onboarding = "Guided setup"
 
 [[uses.item]]
 art = "keyboard"
-title = "See which agent needs you"
-text = "Each agent session takes a spare key: blue while it works, amber when it needs you. A press runs the action you choose; answering an agent's question needs an integration with that agent."
+title = "Give your agents an attention budget"
+mode = "idea"
+requires = ["light.per_key"]
+text = "Let urgent decisions interrupt you while routine progress stays quiet. Keep a key associated with each session and queue lower-priority warnings. A session-focus or answer action needs an explicit host integration; a light alone is not an approval."
 
 [[uses.item]]
 art = "mouse"
-title = "Let your devices raise their hand"
-text = "Choose a reading from a device's card and set a watch for a condition that matters. Route its warning to a configured attention surface instead of checking it repeatedly."
+title = "Turn a spare key into a device inbox"
+mode = "watch"
+requires = ["battery.level", "light.per_key"]
+text = "Choose a reading and threshold that deserve your attention. Raise the warning on a configured spare key, then clear it when the reading recovers. Keep device warnings distinct from requests for permission."
 
 [[uses.item]]
 art = "storage"
-title = "Ask about your hardware"
-text = "Ask your agent to gather the relevant readings listed on your device cards, report missing evidence and explain what the values mean without guessing."
+title = "Preflight the expensive job"
+mode = "agent"
+requires = ["battery.charging", "thermal.pressure", "storage.health"]
+text = "Before a long local build, render or backup, ask your agent to collect the relevant readings and report blockers or unknowns. A drive's health verdict is not a failure forecast, and this checklist does not start the workload or prove a backup is safe."
 
 [[uses.item]]
 art = "display"
-title = "Change things, and take them back"
-text = "For an ability labelled reversible, your agent records the original setting before requesting the change and can ask to restore it afterwards."
+title = "Borrow a setup for a focused review"
+mode = "idea"
+requires = ["pointer.dpi", "scroll.mode", "display.brightness"]
+text = "Propose a temporary precision, scrolling and display preset under each card's actual label. Build ownership and manual-override handling before automatic restoration, so ending a review never overwrites a setting you changed yourself."
 
 [[uses.item]]
 art = "lighting"
-title = "Set it once, as a rule"
-text = "\"Glow amber while an agent is waiting on me.\" A short rule uses the same labels and puts the setting back afterwards. Simple clock rules work too; complex automation belongs in your existing tools."
+title = "Explain the missing connection"
+mode = "idea"
+requires = ["identity.firmware"]
+text = "When a desk device disappears, trace which workflows depended on its connection instead of flooding you with unrelated warnings. This needs connection/topology integration; model or firmware readings alone cannot diagnose a cable or prove the dependency."
 
 [[uses.item]]
 art = "lock"
-title = "Try a risky change safely"
-text = "A guarded change is a trial that goes back unless you keep it. A gated change waits for your approval. The selected card determines which label applies."
+title = "Make leaving a checklist, not a power cut"
+mode = "idea"
+requires = ["media.playing", "power.outlet"]
+text = "Review what is still in use, then propose a handoff checklist through your owning automation system. Treat every selected ability under its registry label. A broad request to shut down a room must never become blanket approval to interrupt power."
 
 [[uses.item]]
 art = "card"
 title = "Add the devices you choose"
+mode = "onboarding"
 text = "Discover what is present, choose all uncatalogued devices or specific entries, and have your agent reuse existing registry routes where they fit."
 
 [labels]
 eyebrow = "How it works"
-title = "Four labels"
+title = "The labels"
 lede = "Every ability a device has gets one. The colour always means the same thing."
 count = "in the catalog"
 
@@ -314,7 +321,7 @@ answer = "No. Hardpoint is a policy and verification layer over device tools, no
 
 [[question]]
 ask = "Which agents does it work with?"
-answer = "Bring your own. `hardpoint mcp` speaks the Model Context Protocol, which Claude Code, Codex, OpenCode and most other agents can connect to. It is used from OpenCode; it has not been tried inside Claude Code or Codex yet. Session lights follow OpenCode, and any agent can report through hooks with `hardpoint emit`. A session-key press runs your configured action; answering a host's question needs a separate integration. Hardpoint device approvals use their own chosen answer key or a person's terminal command."
+answer = "Use a compatible MCP client with the local stdio command `hardpoint mcp`. Configure it using your coding harness's current help rather than assuming a particular provider. Session events can be reported with `hardpoint emit`; a session-key press runs your configured action. Answering a host's question needs its own integration. Hardpoint device approvals remain a separate human decision."
 
 [[question]]
 ask = "What stops it doing something I did not want?"
@@ -379,7 +386,7 @@ title = "Checked"
 
 [[catalog.facet]]
 key = "maker"
-title = "Maker"
+title = "Maker / integration"
 
 [[catalog.facet]]
 key = "bus"
@@ -393,7 +400,7 @@ title = "Checked on"
 [install]
 title = "Install Hardpoint"
 lede = "Paste one prompt into your agent. It checks what is needed, builds Hardpoint from source, connects itself to it, and asks you before each choice that is yours."
-ai_title = "Paste this into Claude Code, Codex or OpenCode"
+ai_title = "Paste this into your coding agent"
 ai_lede = "Any agent that can run commands will do. Nothing here needs sudo, and nothing is changed on your devices."
 copy = "Copy"
 copied = "Copied"
@@ -443,8 +450,8 @@ run = "hardpoint update"
 [add]
 title = "Add your devices"
 lede = "Discover what is present, then choose all uncatalogued devices, all devices for review, or just the ones you select. No device settings are changed."
-ai_title = "The quick way: paste this into Claude Code or Codex"
-ai_lede = "Your agent discovers the current devices, checks the registry, asks which entries to work on, and writes or reviews their cards with you. Nothing is published without your choice."
+ai_title = "The quick way: paste this into your coding agent"
+ai_lede = "Use any coding agent with terminal and file access. It discovers the current devices, checks the registry, asks which entries to work on, and writes or reviews their cards with you. Nothing is published without your choice."
 copy = "Copy"
 copied = "Copied"
 hand_title = "Or by hand"

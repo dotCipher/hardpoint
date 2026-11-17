@@ -21,13 +21,14 @@
         "vendor",
         "name",
         "kind",
-        "summary"
+        "summary",
+        "identity"
       ],
       "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*$"
         },
         "vendor": {
           "type": "string"
@@ -35,30 +36,15 @@
         "name": {
           "type": "string"
         },
-        "kind": {
-          "enum": [
-            "keyboard",
-            "mouse",
-            "laptop",
-            "desktop",
-            "display",
-            "dock",
-            "audio",
-            "cooling",
-            "lighting",
-            "storage",
-            "television",
-            "media",
-            "speaker",
-            "plug",
-            "climate",
-            "hub",
-            "sensor",
-            "lock",
-            "camera",
-            "other"
-          ]
+        "identity": {"type": "string"},
+        "icon": {
+          "type": "string"
         },
+        "aliases": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "kind": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
         "summary": {
           "type": "string"
         },

@@ -4,9 +4,14 @@ card = 1
 id = "lg/ultrawide-76fe"
 vendor = "LG"
 name = "UltraWide display"
+identity = "family"
 kind = "display"
-summary = "2560 x 1080 ultrawide display from 2018. The exact model name is not reported to the computer; this card is for display id 1e6d:76fe."
-links = ["https://www.lg.com/"]
+summary = "An LG UltraWide-family display matched by public display ID 1e6d:76fe. The retail model and physical size are unconfirmed; the family reference does not identify a specific monitor."
+links = ["https://www.lg.com/us/ultrawide-monitors"]
+
+[[sources]]
+title = "LG: UltraWide monitor family (not an exact-model identification)"
+url = "https://www.lg.com/us/ultrawide-monitors"
 
 [[match]]
 bus = "display"

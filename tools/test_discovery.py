@@ -198,6 +198,9 @@ class GeneratedDiscovery(unittest.TestCase):
         cap = card["capability"][0]
         cap["verification"] = [{"status": "unverified", "platform": c.adapters[cap["adapter"]]["platforms"][0], "note": "Synthetic registry evidence"}]
         c.cards.append(card)
+        c.identities["makers"]["fixture"] = {"name": "FixtureMaker", "aliases": []}
+        c.device_types["fixture-widget"] = {"label": "Fixture category", "scene": "fixture", "icon": "other", "aliases": ["widget"]}
+        card["device"]["kind"] = "fixture-widget"
         c.adapters[cap["adapter"]]["notes"] = "Fixture routing constraint from registry"
         c.adapters[cap["adapter"]]["tool"] = [{"platform": "macos", "arches": [], "binary": "fixture-helper",
                                                "packages": {"brew": "fixture-package"}, "note": "Fixture helper requirement"}]
@@ -208,6 +211,7 @@ class GeneratedDiscovery(unittest.TestCase):
             output = pathlib.Path(temp) / "site"
             self.assertIn(card["device"]["name"], (output / "llms.txt").read_text())
             self.assertIn("Synthetic registry evidence", (output / "devices/fixture-future-model.md").read_text())
+            self.assertIn("Fixture category", (output / "devices/fixture-future-model.md").read_text())
             self.assertIn(c.adapters[cap["adapter"]]["notes"], (output / "adapters.html").read_text())
             self.assertIn("fixture-helper", (output / "adapters.html").read_text())
             self.assertIn("fixture-package", (output / "adapters.md").read_text())
@@ -228,7 +232,8 @@ class GeneratedDiscovery(unittest.TestCase):
             text = path.read_text()
             for card in self.catalog.cards:
                 self.assertNotIn(card["device"]["id"], text, f"{path}: link to the registry instead of pinning a model")
-                self.assertNotIn(card["device"]["name"], text, f"{path}: model facts belong to the registry")
+                if card["device"].get("identity") != "class":
+                    self.assertNotIn(card["device"]["name"], text, f"{path}: model facts belong to the registry")
             self.assertNotRegex(text, r"\b\d+ (?:devices|cards|capabilities|models)\b", str(path))
 
     def test_page_and_evidence_survive_without_javascript(self):
@@ -239,7 +244,22 @@ class GeneratedDiscovery(unittest.TestCase):
                 self.assertIn(cap["id"], text)
                 self.assertIn(cap["risk"], text)
                 self.assertIn(self.catalog.best_status(cap), text)
+            html = (self.output / f'devices/{build.slug(card)}.html').read_text()
+            for url in card["device"].get("links", []):
+                self.assertIn(url, Head(html).references, "product/identification links must not be silently omitted")
+            category = self.catalog.device_types[card["device"]["kind"]]
+            self.assertIn(build.e(category["label"]), html)
+            self.assertIn(build.e(self.catalog.identities["identity"][card["device"]["identity"]]["label"]), html)
         self.assertIn(self.content["install"]["title"], (self.output / "install.md").read_text())
+
+    def test_workflow_ideas_have_modes_and_registry_evidence_not_device_lists(self):
+        html = (self.output / "index.html").read_text()
+        for item in self.content["uses"]["item"]:
+            self.assertIn(build.e(self.content["uses"]["modes"][item["mode"]]), html)
+            self.assertNotIn("devices", item)
+            for ability in item.get("requires", []):
+                self.assertIn(ability, self.catalog.vocabulary)
+                self.assertIn("#cap-" + ability, html)
 
 
 if __name__ == "__main__":

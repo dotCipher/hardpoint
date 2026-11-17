@@ -30,6 +30,7 @@ import platform
 import re
 import subprocess
 import sys
+import naming
 
 try:
     import tomllib
@@ -201,10 +202,21 @@ def read_card(path):
             if section == "match":
                 card["match"].append({})
             continue
-        found = re.match(r'(\w+)\s*=\s*(?:"([^"]*)"|(0x[0-9a-fA-F]+|\d+))\s*(?:#.*)?$', line)
+        found = re.match(r'''(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*'|0x[0-9a-fA-F]+|\d+)\s*(?:#.*)?$''', line)
         if found and section in ("device", "match"):
             target = card["device"] if section == "device" else card["match"][-1]
-            target[found.group(1)] = found.group(2) if found.group(2) is not None else int(found.group(3), 0)
+            value = found.group(2)
+            try:
+                target[found.group(1)] = json.loads(value) if value.startswith('"') else value[1:-1] if value.startswith("'") else int(value, 0)
+            except ValueError:
+                raise ValueError("reading this TOML string needs Python with a full TOML parser")
+        if section == "device" and line.startswith("aliases"):
+            # Bundled aliases use JSON-compatible string arrays. Do not guess
+            # if an owner uses richer TOML syntax on an older interpreter.
+            try:
+                card["device"]["aliases"] = json.loads(line.split("=", 1)[1].strip())
+            except (ValueError, IndexError):
+                raise ValueError("reading these aliases needs Python with a full TOML parser")
     return card
 
 
@@ -246,12 +258,23 @@ def draft_destination(device):
     model = device["model"] or "model-{}-{}".format(
         format(device["vendor_id"], "04x") if device["vendor_id"] is not None else "unknown",
         format(device["product_id"], "04x") if device["product_id"] is not None else "unknown")
-    return "{}/{}".format(slug(vendor.split(",")[0]), slug(model))
+    try:
+        vendor_id, _ = naming.maker(vendor, naming.registry())
+        return vendor_id + "/" + naming.slug(model)
+    except ValueError:
+        return "{}/{}".format(slug(vendor.split(",")[0]), slug(model))
 
 
-def draft(device):
+def draft(device, public=None):
     vendor = device["vendor"] or "TODO: public maker"
     identity = draft_destination(device)
+    if public:
+        vendor, identity = public["vendor"], public["id"]
+    else:
+        try:
+            _, vendor = naming.maker(vendor, naming.registry())
+        except ValueError:
+            pass
     quote = lambda value: json.dumps(value, ensure_ascii=False)
     here = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(platform.system())
     if not here:
@@ -280,8 +303,11 @@ card = 1
 [device]
 id = "{identity}"
 vendor = {quote(vendor)}
-name = {quote(device["model"] or "TODO: public model name")}
-kind = "TODO"          # Choose a kind from the registry/schema.
+name = {quote(public["name"] if public else "TODO: public model name")}
+kind = {quote(public["kind"] if public else "TODO")}          # Choose a category from the registry.
+identity = {quote(public["identity"] if public else "family")}
+{('aliases = ' + json.dumps(public['aliases'], ensure_ascii=False)) if public and public.get('aliases') else '# Add only reviewed public model aliases, never private labels.'}
+{('icon = ' + quote(public['icon'])) if public and public.get('icon') else '# The category registry supplies the default icon.'}
 summary = "TODO: one sentence saying what it is."
 
 [[match]]
@@ -353,8 +379,30 @@ def main(argv=None):
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="print selected observations as JSON")
     output.add_argument("--draft", type=int, metavar="NUMBER", help="print a draft for an uncatalogued snapshot entry; writes no files")
+    output.add_argument("--normalize", action="store_true", help="normalize reviewed public identity as JSON; no discovery or files written")
+    parser.add_argument("--vendor", help="reviewed public maker, never a private device label")
+    parser.add_argument("--name", help="reviewed public product/model name")
+    parser.add_argument("--kind", help="canonical category or alias from the identity registry")
+    parser.add_argument("--identity", default="family", choices=tuple(naming.registry()["identity"]), help="identity scope from the registry; defaults to family until reviewed")
+    parser.add_argument("--card-id", help="preserve an existing registry id when reviewing its identity")
+    parser.add_argument("--model-code", help="reviewed public model code to distinguish same-named variants; never a serial number")
     args = parser.parse_args(argv)
+    if args.normalize and (args.from_file is not None or args.select is not None or args.no_network):
+        parser.error("--normalize accepts reviewed public identity only, not discovery/selection options")
     catalog = cards()
+    public = None
+    if args.normalize or any(v is not None for v in (args.vendor, args.name, args.kind, args.card_id, args.model_code)):
+        if not (args.vendor and args.name and args.kind) or not (args.normalize or args.draft is not None):
+            parser.error("public identity needs --vendor, --name and --kind with --normalize or --draft")
+        try:
+            public = naming.normalize(args.vendor, args.name, args.kind, args.identity, catalog, args.card_id, model_code=args.model_code)
+        except ValueError as error:
+            parser.error(str(error))
+        if args.normalize:
+            print(json.dumps(public, indent=2, ensure_ascii=False))
+            return 0
+        if public["existing_card"]:
+            parser.error("this public identity already has a card; review it rather than creating a duplicate")
     if args.draft is not None and args.select is not None:
         parser.error("use --select to review entries, then --draft with one original snapshot number")
     try:
@@ -379,7 +427,7 @@ def main(argv=None):
         if device["card"]:
             sys.exit(f'{device["name"]} already has a card: {device["card"]}')
         try:
-            print(draft(device))
+            print(draft(device, public["device"] if public else None))
         except ValueError as error:
             parser.error(str(error))
         return 0

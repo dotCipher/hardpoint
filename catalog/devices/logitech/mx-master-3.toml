@@ -4,9 +4,15 @@ card = 1
 id = "logitech/mx-master-3"
 vendor = "Logitech"
 name = "MX Master 3"
+identity = "model"
+aliases = ["MX Master 3 Advanced Wireless Mouse"]
 kind = "mouse"
 summary = "Wireless mouse with a thumb wheel, a gesture button and three host slots."
-links = ["https://www.logitech.com/"]
+links = ["https://ir.logitech.com/news/news-details/2019/Logitech-Enables-Advanced-Users-to-Achieve-Peak-Performance-with-MX-Master-3-and-MX-Keys"]
+
+[[sources]]
+title = "Logitech: MX Master 3 product announcement and model features"
+url = "https://ir.logitech.com/news/news-details/2019/Logitech-Enables-Advanced-Users-to-Achieve-Peak-Performance-with-MX-Master-3-and-MX-Keys"
 
 [[match]]
 bus = "bluetooth"

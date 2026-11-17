@@ -4,9 +4,15 @@ card = 1
 id = "apple/airpods-pro-200e"
 vendor = "Apple"
 name = "AirPods Pro"
+identity = "family"
+icon = "earbuds"
 kind = "audio"
-summary = "Wireless earbuds with a charging case. This card is for the model that reports product id 200e."
-links = ["https://www.apple.com/airpods-pro/"]
+summary = "AirPods Pro earbuds reporting Bluetooth product ID 0x200e. The family is identified; the generation and charging-case variant are not established by this card. Check the public A-model number before narrowing the identity."
+links = ["https://support.apple.com/en-us/109525"]
+
+[[sources]]
+title = "Apple: identify AirPods and their charging case by public model number"
+url = "https://support.apple.com/en-us/109525"
 
 [[match]]
 bus = "bluetooth"

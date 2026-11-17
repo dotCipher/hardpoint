@@ -19,6 +19,9 @@ Read `docs/ECOSYSTEM.md` before proposing another driver or automation engine.
 - `catalog/devices/<maker>/<model>.toml`: model facts and verification records.
 - `catalog/vocabulary/`: capability meanings, label floors and terminology.
 - `catalog/adapters/adapters.toml`: adapter declarations and helper recipes.
+- `catalog/vocabulary/devices.json`: canonical maker aliases, category labels,
+  icon choices and public identity scopes. Use `tools/naming.py` for identity
+  normalization; preserve existing card ids and keep uncertain models explicit.
 - `src/`: daemon, adapters, gatekeeper, MCP, rules, updates and services.
 - `config/default.toml`: generic defaults, with no device, key or person selected.
 - `site-src/content.toml`: site copy and discovery metadata.

@@ -12,6 +12,8 @@ words and demo scripts from site-src/content.toml.
 """
 import datetime
 import html
+import ipaddress
+import hashlib
 import json
 import math
 import os
@@ -25,6 +27,7 @@ import urllib.parse
 import zlib
 
 from discovery import canonical, markdown, origin_robots, script_json, sitemap
+import naming
 
 if sys.version_info < (3, 11):
     sys.exit(f"tools/build.py needs Python 3.11 or newer, and this is {sys.version.split()[0]}. "
@@ -149,6 +152,8 @@ class Catalog:
         self.terms = terms
         self.vocabulary = load_toml(CATALOG / "vocabulary" / "capabilities.toml")["capability"]
         self.adapters = load_toml(CATALOG / "adapters" / "adapters.toml")["adapter"]
+        self.identities = json.loads((CATALOG / "vocabulary" / "devices.json").read_text())
+        self.device_types = self.identities["categories"]
         self.schema = json.loads((CATALOG / "schema" / "device.schema.json").read_text())
         self.cards = []
         self._check_terms()
@@ -161,6 +166,24 @@ class Catalog:
         schema_risks = self.schema["properties"]["capability"]["items"]["properties"]["risk"]["enum"]
         if schema_risks != list(self.risks):
             self.errors.append("terms.toml and the schema list different risk levels")
+        owners = {}
+        for id, maker in self.identities["makers"].items():
+            for value in [id, maker["name"], *maker.get("aliases", [])]:
+                try:
+                    if naming.clean(value) != value:
+                        self.errors.append("identity registry: maker aliases must be normalized public text")
+                except ValueError as error:
+                    self.errors.append(f"identity registry: {error}")
+                k = naming.key(value)
+                if k in owners and owners[k] != id:
+                    self.errors.append(f"identity registry: maker alias {value!r} is ambiguous")
+                owners[k] = id
+        for kind, category in self.device_types.items():
+            if any(icon not in [category["icon"], *category.get("icons", [])] for icon in category.get("alias_icons", {}).values()):
+                self.errors.append(f"category {kind}: a form-factor alias selects an icon outside its category")
+            for icon in [category["icon"], *category.get("icons", [])]:
+                if icon not in ART:
+                    self.errors.append(f"category {kind}: icon {icon!r} has no drawing")
         for cap_id, cap in self.vocabulary.items():
             where = f"vocabulary {cap_id}"
             if cap.get("kind") not in self.kinds:
@@ -192,6 +215,7 @@ class Catalog:
             check_adapter_tools(name, adapter, self.errors)
 
     def _load_cards(self):
+        slugs = set()
         for path in sorted((CATALOG / "devices").glob("*/*.toml")):
             rel = path.relative_to(ROOT)
             try:
@@ -206,12 +230,64 @@ class Catalog:
                 continue
             if card["device"]["id"] != f"{path.parent.name}/{path.stem}":
                 self.errors.append(f"{rel}: device.id must be '{path.parent.name}/{path.stem}' to match its path")
+            if slug(card) in slugs:
+                self.errors.append(f"{rel}: generated page name collides with another card; keep existing ids stable and choose an unambiguous new id")
+            slugs.add(slug(card))
+            self._check_identity(card, rel)
             self._check_capabilities(card, rel)
             self._check_keys(card, rel)
             card["_path"] = str(rel)
             card["_source"] = path.read_text()
             card["_commits"] = record_commits(path, card["_source"])
             self.cards.append(card)
+
+    def _check_identity(self, card, rel):
+        d = card["device"]
+        try:
+            maker_id, vendor = naming.maker(d["vendor"], self.identities)
+            if maker_id not in self.identities["makers"] or maker_id != d["id"].split("/")[0] or d["vendor"] != vendor:
+                self.errors.append(f"{rel}: use the canonical maker and namespace from catalog/vocabulary/devices.json; register a new maker there when needed")
+            for field in ("vendor", "name", "summary"):
+                if naming.clean(d[field]) != d[field]:
+                    self.errors.append(f"{rel}: device.{field} must have normalized public text without trademarks or extra whitespace")
+            if naming.product_name(d["name"], d["vendor"], self.identities) != d["name"]:
+                self.errors.append(f"{rel}: device.name must not repeat the maker prefix")
+            for alias in d.get("aliases", []):
+                if naming.clean(alias) != alias:
+                    self.errors.append(f"{rel}: public model aliases must be normalized")
+        except ValueError as error:
+            self.errors.append(f"{rel}: {error}")
+        scope = d.get("identity", "model")
+        if scope not in self.identities["identity"]:
+            self.errors.append(f"{rel}: identity scope must come from the identity registry")
+        if any(m["bus"] == "home-assistant" for m in card["match"]) and scope != "class":
+            self.errors.append(f"{rel}: integration entity cards must declare identity = class")
+        if d["kind"] not in self.device_types:
+            self.errors.append(f"{rel}: device category must come from the identity registry")
+            return
+        category = self.device_types[d["kind"]]
+        if d.get("icon", category["icon"]) not in [category["icon"], *category.get("icons", [])]:
+            self.errors.append(f"{rel}: icon does not belong to this category")
+        if not d.get("links") and not card.get("sources"):
+            self.errors.append(f"{rel}: include a public product, identification or integration reference for the identity")
+        for url in [*d.get("links", []), *(s["url"] for s in card.get("sources", []))]:
+            try:
+                parsed = urllib.parse.urlsplit(url)
+                parsed.port
+            except ValueError:
+                self.errors.append(f"{rel}: malformed reference URL")
+                continue
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or any(c.isspace() or c in '<>"\\' for c in url):
+                self.errors.append(f"{rel}: references need absolute HTTPS URLs without credentials or whitespace")
+            host = (parsed.hostname or "").lower()
+            try:
+                ipaddress.ip_address(host)
+                self.errors.append(f"{rel}: reference links must not publish a device IP address")
+            except ValueError:
+                if host == "localhost" or host.endswith((".local", ".localhost")):
+                    self.errors.append(f"{rel}: reference links must not publish a local device host name")
+            if any(k.lower().startswith("utm_") or k.lower() in ("srsltid", "gclid", "fbclid") for k, _ in urllib.parse.parse_qsl(parsed.query)):
+                self.errors.append(f"{rel}: remove tracking parameters from reference links")
 
     def _check_capabilities(self, card, rel):
         seen = set()
@@ -362,6 +438,14 @@ def load_content(catalog):
             item.update(device="", capability="", device_name="", ask=catalog.terms["risk"][item["risk"]]["does"], before="", after="")
     if [item["risk"] for item in content["ladder"]] != list(catalog.risks):
         errors.append("content.toml: the ladder needs one example per risk level, in order")
+    for item in content["uses"]["item"]:
+        if item.get("mode") not in content["uses"]["modes"]:
+            errors.append("content.toml: each workflow needs a declared presentation mode")
+        if item["art"] not in ART:
+            errors.append(f"content.toml: unknown workflow icon {item['art']!r}")
+        for ability in item.get("requires", []):
+            if ability not in catalog.vocabulary:
+                errors.append(f"content.toml: workflow ability {ability!r} must come from the vocabulary")
     return content
 
 
@@ -624,6 +708,7 @@ WOT_CONTEXT = "https://www.w3.org/2022/wot/td/v1.1"
 WOT_TERMS = {
     "card": "The id of the Hardpoint card this model was made from.",
     "kind": "What kind of device it is.",
+    "identity": "Whether the matching evidence identifies a model, a family, or an integration class.",
     "match": "How software recognises the device when it is attached.",
     "risk": "The label on this ability: read, reversible, guarded or gated.",
     "floor": "The lowest label the shared vocabulary allows this ability to have.",
@@ -651,10 +736,11 @@ def thing_model(card, catalog, namespace, page=None):
     model = {
         "@context": [WOT_CONTEXT, {"hp": namespace}],
         "@type": "tm:ThingModel",
-        "title": f'{d["vendor"]} {d["name"]}',
+        "title": naming.full_name(d),
         "description": d["summary"],
         "hp:card": d["id"],
         "hp:kind": d["kind"],
+        "hp:identity": d.get("identity", "model"),
         "hp:match": card["match"],
     }
     if page:
@@ -717,6 +803,8 @@ def inline_code(text):
 # device's name and large in the scenes.
 G, T, L = 'class="glow"', 'class="glow thin"', 'class="lamp"'
 ART = {
+    "card-reader": f'<rect {G} x="3" y="12" width="18" height="8" rx="2"/><path {G} d="M8 12V3h6l3 3v6M14 3v4h3"/><path {T} d="M7 15h10"/><circle {L} cx="18" cy="17.5" r=".8"/>',
+    "earbuds": f'<path {G} d="M6 3a3 3 0 0 1 3 3v5H6a3 3 0 0 1 0-6M18 3a3 3 0 0 0-3 3v5h3a3 3 0 0 0 0-6"/><path {G} d="M7 11v8a1.5 1.5 0 0 1-3 0v-5M17 11v8a1.5 1.5 0 0 0 3 0v-5"/><circle {L} cx="12" cy="20" r="1"/>',
     "keyboard": f'<rect {G} x="2" y="6" width="20" height="12" rx="2.5"/><path {T} d="M6 10h.01M10 10h.01M14 10h.01M6 14h.01M9.5 14h5"/><circle {L} cx="18" cy="10" r="1.1"/>',
     "mouse": f'<rect {G} x="7" y="2" width="10" height="20" rx="5"/><path {T} d="M7 10.5h10"/><rect {L} x="11" y="4.8" width="2" height="3.8" rx="1"/>',
     "laptop": f'<rect {G} x="4" y="4.5" width="16" height="11" rx="2"/><path {G} d="M2 19.5h20"/><circle {L} cx="12" cy="7" r=".9"/>',
@@ -750,12 +838,12 @@ def art(name, classes="ico", label=""):
     return f'<svg class="{classes}" viewBox="0 0 24 24" {role}>{ART.get(name, ART["other"])}</svg>'
 
 
-def drawing(card, label):
+def drawing(card, label, category=None):
     """A picture of a device for the scenes: its own key layout if the card has one, or its kind."""
     if card.get("keys"):
         picture = board_svg(card, "drawing", lamp=len(card["keys"]["grid"]) // 2)
         return re.sub(r'aria-label="[^"]*"', f'aria-label="{e(label)}"', picture, count=1)
-    return art(card["device"]["kind"], "drawing art", label)
+    return art(card["device"].get("icon", (category or {}).get("icon", card["device"]["kind"])), "drawing art", label)
 
 
 def how_to_show(word):
@@ -774,6 +862,7 @@ class Site:
         self.risk = catalog.terms["risk"]
         self.home = site_url(repo)
         self.page_metadata = {}
+        self.asset_versions = {name: hashlib.sha256((SOURCE / name).read_bytes()).hexdigest()[:12] for name in ("style.css", "app.js")}
         # Where Hardpoint's own terms are defined, for anything that reads the Web of Things models.
         self.namespace = f"{self.home}ns.html#" if self.home else "urn:hardpoint:ns#"
         # The devices with the most checked come first, wherever devices are listed.
@@ -822,7 +911,7 @@ class Site:
 <link rel="icon" href="{root}favicon.ico" sizes="32x32"><link rel="icon" href="{root}favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png"><link rel="manifest" href="{root}site.webmanifest">
 <link rel="preload" href="{root}fonts/{FONT}" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="{root}style.css">
+<link rel="stylesheet" href="{root}style.css?v={self.asset_versions['style.css']}">
 <link rel="alternate" type="text/markdown" href="{root}{md_path}" title="{e(discovery['markdown_label'])}">
 <link rel="describedby" type="text/plain" href="{root}llms.txt"><link rel="help" href="{root}agents.html">
 <script>if ("IntersectionObserver" in window) document.documentElement.className = "js"</script></head><body>
@@ -833,10 +922,16 @@ class Site:
 <footer><div class="wrap">{e(self.name)}. The whole catalog as one file: <a href="{root}catalog.json">catalog.json</a>.
 Product names belong to their owners; this project is not affiliated with them.
 <a href="{root}agents.html">{e(discovery['footer'])}</a> · <a href="{root}{md_path}">{e(discovery['markdown_label'])}</a></div></footer>
-{scripts}<script src="{root}app.js" defer></script>
+{scripts}<script src="{root}app.js?v={self.asset_versions['app.js']}" defer></script>
 </body></html>"""
 
     # ---- pieces shared between pages
+
+    def category(self, card):
+        return self.c.device_types[card["device"]["kind"]]
+
+    def category_label(self, kind):
+        return self.c.device_types[kind]["label"]
 
     def checked(self, status):
         """How much has been checked, as one word with a mark."""
@@ -878,15 +973,16 @@ Product names belong to their owners; this project is not affiliated with them.
         summary = ", ".join(f"{n} {s}" for s, n in counts.items() if n)
         extra = ""
         if rank is not None:
-            words = [d["name"], d["vendor"], d["kind"], d["summary"]] + [m["bus"] for m in card["match"]]
+            maker = self.c.identities["makers"].get(d["id"].split("/")[0], {})
+            words = [d["id"], d["name"], d["vendor"], d["kind"], d["summary"], self.category(card)["label"]] + d.get("aliases", []) + maker.get("aliases", []) + self.category(card).get("aliases", []) + [m["bus"] for m in card["match"]]
             for cap in caps:
                 word = self.c.vocabulary[cap["id"]]
                 words += [cap["id"], word["summary"], word.get("ask", ""), cap["risk"], self.c.best_status(cap)]
-            extra = (f' data-search="{e(" ".join(words).lower())}" data-facets="{e(json.dumps(self.facet_values(card)))}"'
+            extra = (f' data-search="{e(" ".join(words).lower())}" data-search-key="{e(naming.key(" ".join(words)))}" data-facets="{e(json.dumps(self.facet_values(card)))}"'
                      f' data-name="{e(d["name"])}" data-abilities="{len(caps)}" data-rank="{rank}"')
         return (f'<a class="card plate" href="{root}devices/{slug(card)}.html"{extra}>'
-                f'<span class="kind">{art(d["kind"])}{e(d["kind"])}</span><span class="name">{e(d["name"])}</span>'
-                f'<span class="vendor">{e(d["vendor"])}</span><div class="meter">{meter}</div>'
+                f'<span class="kind">{art(d.get("icon", self.category(card)["icon"]))}{e(self.category(card)["label"])}</span><span class="name">{e(d["name"])}</span>'
+                f'<span class="vendor">{e(d["vendor"])} · {e(self.c.identities["identity"][d.get("identity", "model")]["label"])}</span><div class="meter">{meter}</div>'
                 f'<span class="counts">{e(summary)}</span><div class="riskdots">{risks}</div></a>')
 
     def scene_data(self):
@@ -894,7 +990,7 @@ Product names belong to their owners; this project is not affiliated with them.
         only the abilities people would ask for in everyday words. The cards
         with the most checked are read first, and an ability is shown once.
         Nothing here knows any device by name."""
-        names = self.t["scenes"].get("kinds", {})
+        names = {kind: data["scene"] for kind, data in self.c.device_types.items()}
         kinds = {}
         for card in self.cards:
             kind = card["device"]["kind"]
@@ -961,7 +1057,7 @@ Product names belong to their owners; this project is not affiliated with them.
         scenes, whys = self.scene_data(), self.why_data()
         caps = [cap for card in c.cards for cap in card["capability"]]
         pills = "".join(f'<button class="pill" type="button" role="tab" aria-selected="false">{e(d["name"])}</button>' for d in scenes["devices"])
-        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(c.card(d["card"]), d["name"])}</div>' for d in scenes["devices"])
+        drawings = "".join(f'<div class="drawing-wrap" hidden>{drawing(c.card(d["card"]), d["name"], self.category(c.card(d["card"])))}</div>' for d in scenes["devices"])
         label_cards = "".join(
             f'<div class="plate label" style="--c:var(--{risk})"><span class="swatchbar"></span><h3>{e(risk)}</h3>'
             f'<p class="does">{e(term["does"])}</p><p class="tally"><a href="devices.html?label={e(risk)}"><b>{sum(1 for cap in caps if cap["risk"] == risk)}</b> {e(labels["count"])}</a></p></div>'
@@ -973,7 +1069,17 @@ Product names belong to their owners; this project is not affiliated with them.
         questions = "".join(f'<details class="plate q"><summary>{e(q["ask"])}</summary><p>{inline_code(q["answer"])}</p></details>' for q in t["question"])
         more = sec["devices_more"].replace("{count}", str(len(self.cards)))
         uses = t["uses"]
-        use_cards = "".join(f'<div class="plate use">{art(u["art"])}<h3>{e(u["title"])}</h3><p>{e(u["text"])}</p></div>' for u in uses["item"])
+        use_cards = []
+        for u in uses["item"]:
+            links = []
+            for ability in u.get("requires", []):
+                options = [(card, cap) for card in self.cards for cap in card["capability"] if cap["id"] == ability]
+                options.sort(key=lambda pair: (c.rank("statuses", c.best_status(pair[1])), pair[0]["device"]["id"]))
+                href = f'devices/{slug(options[0][0])}.html#cap-{ability}' if options else f'vocabulary.html#cap-{ability}'
+                links.append(f'<a class="mono" href="{e(href)}">{e(ability)}</a>')
+            evidence = f'<p class="use-evidence">{e(uses["evidence_title"])}: {" · ".join(links)}</p>' if links else ''
+            use_cards.append(f'<div class="plate use">{art(u["art"])}<p class="use-mode">{e(uses["modes"][u["mode"]])}</p><h3>{e(u["title"])}</h3><p>{e(u["text"])}</p>{evidence}</div>')
+        use_cards = "".join(use_cards)
         # A request passes through three hands: the agent, the card, the device.
         flow = '<i class="wire"></i>'.join(f'<span class="node">{art(name)}{e(text)}</span>' for name, text in zip(("agent", "card", "device"), s["flow"]))
         # The last sentence of the headline carries the promise, so it carries the colour.
@@ -1102,7 +1208,7 @@ Product names belong to their owners; this project is not affiliated with them.
         c, sec, words = self.c, self.t["sections"], self.t["catalog"]
         groups = ""
         for facet in self.facets():
-            options = "".join(f'<label class="opt"><input type="checkbox" value="{e(value)}"><span>{e(value)}</span><b>{count}</b></label>'
+            options = "".join(f'<label class="opt"><input type="checkbox" value="{e(value)}"><span>{e(self.category_label(value) if facet["key"] == "kind" else value)}</span><b>{count}</b></label>'
                               for value, count in facet["options"])
             groups += (f'<div class="facet" role="group" aria-labelledby="facet-{e(facet["key"])}" data-facet="{e(facet["key"])}">'
                        f'<p class="facet-title" id="facet-{e(facet["key"])}">{e(facet["title"])}</p>{options}</div>')
@@ -1158,12 +1264,16 @@ Product names belong to their owners; this project is not affiliated with them.
             keymap = (f'<h2 class="small">Key numbers</h2><p class="lede">{e(card["keys"]["numbering"])}.</p>'
                       f'<div class="plate stage">{board_svg(card, "keymap", numbers=True)}'
                       f'<p class="keyinfo" id="keyinfo">{len(card["keys"]["grid"])} keys</p></div>')
-        sources = "".join(f'<li><a href="{e(s["url"])}">{e(s["title"])}</a></li>' for s in card.get("sources", []))
+        references = {s["url"]: s["title"] for s in card.get("sources", [])}
+        for url in d.get("links", []):
+            references.setdefault(url, urllib.parse.urlsplit(url).hostname or url)
+        sources = "".join(f'<li><a href="{e(url)}">{e(title)}</a></li>' for url, title in references.items())
         where = (f'<a class="mono" href="{e(self.repo)}/blob/main/{e(card["_path"])}">{e(card["_path"])}</a>'
                  if self.repo else f'<span class="mono">{e(card["_path"])}</span>')
         body = f"""<div class="wrap"><div class="page-head">
-<p class="crumb"><a href="../devices.html">{e(self.t["nav"]["devices"])}</a> / <a href="../devices.html?kind={urllib.parse.quote(d["kind"])}">{e(d["kind"])}</a> / <a href="../devices.html?maker={urllib.parse.quote(d["vendor"])}">{e(d["vendor"])}</a></p>
-<h1>{e(d["name"])}</h1><p class="lede">{e(d["summary"])}</p></div>
+<p class="crumb"><a href="../devices.html">{e(self.t["nav"]["devices"])}</a> / <a href="../devices.html?kind={urllib.parse.quote(d["kind"])}">{e(self.category(card)["label"])}</a> / <a href="../devices.html?maker={urllib.parse.quote(d["vendor"])}">{e(d["vendor"])}</a></p>
+<h1>{e(naming.full_name(d))}</h1><p class="lede">{e(d["summary"])}</p>
+<p class="note"><span class="mono">{e(d["id"])}</span> · {e(self.c.identities["identity"][d.get("identity", "model")]["label"])}: {e(self.c.identities["identity"][d.get("identity", "model")]["meaning"])}</p></div>
 <h2 class="small">What it can do</h2>
 <div class="tablebox"><table><tr><th>Ability</th><th>Label</th><th>Checked</th></tr>{''.join(rows)}</table></div>
 {keymap}
@@ -1176,9 +1286,9 @@ Product names belong to their owners; this project is not affiliated with them.
 <h2 class="small">The card</h2>
 <p class="lede">This page is made from {where}. If something is wrong, or you have checked more of it, <a href="../add.html">edit that file</a>.</p>
 <pre>{e(card["_source"])}</pre></div>"""
-        return self.page(f'{d["vendor"]} {d["name"]} · {self.name}', body, "../", self.t["nav"]["devices"],
+        return self.page(f'{naming.full_name(d)} · {self.name}', body, "../", self.t["nav"]["devices"],
                          path=f"devices/{slug(card)}.html", description=d["summary"],
-                         about={"@type": "Thing", "name": f'{d["vendor"]} {d["name"]}', "identifier": d["id"]})
+                         about={"@type": "Thing", "name": naming.full_name(d), "identifier": d["id"]})
 
     def namespace_page(self):
         """The terms Hardpoint adds to the Web of Things models, each with an address of its own."""
@@ -1204,7 +1314,7 @@ under the prefix <span class="mono">hp</span>, which stands for <span class="mon
             privacy = f' <span class="chip plain">{e(word["privacy"])}</span>' if "privacy" in word else ""
             devices = ", ".join(f'<a href="devices/{slug(card)}.html">{e(card["device"]["name"])}</a>'
                                 for card in used.get(cid, [])) or '<span class="sub">none yet</span>'
-            rows += (f'<tr><td><span class="mono">{e(cid)}</span><span class="sub">{e(word["summary"])}</span></td>'
+            rows += (f'<tr id="cap-{e(cid)}"><td><span class="mono">{e(cid)}</span><span class="sub">{e(word["summary"])}</span></td>'
                      f'<td>{e(word["kind"])}<span class="sub">{e(word["value"])}</span></td>'
                      f'<td>{chip("risk", word["min_risk"])}{privacy}</td><td>{devices}</td></tr>')
         body = f"""<div class="wrap"><div class="page-head"><p class="crumb"><a href="format.html">{e(self.t["nav"]["builders"])}</a> / Vocabulary</p><h1>Vocabulary</h1>
@@ -1289,7 +1399,7 @@ A device card can only name an adapter and give it typed values; it can never ca
         file_list = lambda entries: "\n".join(f'- [{title}]({link(path)})' + (f': {note}' if note else '') for title, path, note in entries)
         guides = [(self.page_metadata[path]["title"], path.removesuffix(".html") + ".md", self.page_metadata[path]["description"])
                   for path in ("agents.html", "install.html", "devices.html", "add.html", "format.html", "adapters.html", "vocabulary.html", "ns.html")]
-        devices = [(f'{c["device"]["vendor"]} {c["device"]["name"]}', f'devices/{slug(c)}.md', c["device"]["summary"]) for c in self.cards]
+        devices = [(naming.full_name(c["device"]), f'devices/{slug(c)}.md', c["device"]["summary"]) for c in self.cards]
         data = [(d["feed_label"], "catalog.json", d["index_note"]), (d["search_label"], "search-index.json", d["index_note"])]
         docs = [(path, path, "") for path in d["published_docs"]]
         if self.repo:
@@ -1309,6 +1419,9 @@ A device card can only name an adapter and give it typed values; it can never ca
                 word, adapter = self.c.vocabulary[cap["id"]], self.c.adapters[cap["adapter"]]
                 entries.append({"device": card["device"]["id"], "name": card["device"]["name"], "maker": card["device"]["vendor"],
                                 "kind": card["device"]["kind"], "capability": cap["id"], "summary": word["summary"],
+                                "category": self.category(card)["label"], "identity": card["device"].get("identity", "model"),
+                                "display_name": naming.full_name(card["device"]), "aliases": card["device"].get("aliases", []),
+                                "maker_id": card["device"]["id"].split("/")[0],
                                 "question": word.get("ask"), "label": cap["risk"], "checked": self.c.best_status(cap),
                                 "adapter": cap["adapter"], "adapter_status": adapter["status"],
                                 "declared_platforms": adapter["platforms"], "verification": cap["verification"],
@@ -1346,7 +1459,7 @@ A device card can only name an adapter and give it typed values; it can never ca
             (SITE / f"{name}.html").write_text(render())
         for card in c.cards:
             (SITE / "devices" / f"{slug(card)}.html").write_text(self.device(card))
-        feed = {"format": 1, "terms": c.terms, "vocabulary": c.vocabulary, "adapters": c.adapters,
+        feed = {"format": 1, "terms": c.terms, "vocabulary": c.vocabulary, "adapters": c.adapters, "identities": c.identities,
                 "devices": [{k: v for k, v in card.items() if not k.startswith("_")} for card in c.cards]}
         (SITE / "catalog.json").write_text(json.dumps(feed, indent=2) + "\n")
         self.write_discovery()

@@ -4,9 +4,15 @@ card = 1
 id = "bose/nc-700"
 vendor = "Bose"
 name = "Noise Cancelling Headphones 700"
+identity = "model"
+aliases = ["NC 700", "Bose 700"]
 kind = "audio"
 summary = "Wireless over-ear headphones."
-links = ["https://www.bose.com/"]
+links = ["https://www.bose.com/pressroom/bose-new-era-headphones"]
+
+[[sources]]
+title = "Bose: introducing Noise Cancelling Headphones 700"
+url = "https://www.bose.com/pressroom/bose-new-era-headphones"
 
 [[match]]
 bus = "bluetooth"

@@ -6,9 +6,10 @@ card = 1
 [device]
 id = "home-assistant/lock"
 vendor = "Home Assistant"
-name = "Door lock, any maker"
+name = "Lock"
+identity = "class"
 kind = "lock"
-summary = "Any lock that Home Assistant controls. A class card: it applies to every such device, whoever made it."
+summary = "A lock entity exposed through Home Assistant. This describes an integration class, not a manufacturer or physical model; availability depends on the entity's route and supported features."
 links = ["https://www.home-assistant.io/integrations/lock/"]
 
 [[match]]

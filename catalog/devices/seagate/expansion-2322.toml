@@ -3,10 +3,15 @@ card = 1
 [device]
 id = "seagate/expansion-2322"
 vendor = "Seagate"
-name = "Expansion portable drive"
+name = "Expansion external drive"
+identity = "family"
 kind = "storage"
-summary = "External USB hard drive. This card is for the model that reports product id 2322."
-links = ["https://www.seagate.com/"]
+summary = "Expansion-family external USB storage reporting product ID 0x2322. The card does not establish capacity or a portable-versus-desktop enclosure; do not infer those from the family name."
+links = ["https://www.seagate.com/support/kb/how-to-use-your-seagate-expansion-drive-007769en/"]
+
+[[sources]]
+title = "Seagate: using Expansion drives (family reference, not enclosure identification)"
+url = "https://www.seagate.com/support/kb/how-to-use-your-seagate-expansion-drive-007769en/"
 
 [[match]]
 bus = "usb"

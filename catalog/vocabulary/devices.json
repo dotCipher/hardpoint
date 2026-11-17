@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "makers": {
+    "apple": {"name": "Apple", "aliases": ["Apple Inc.", "Apple Computer, Inc."]},
+    "bose": {"name": "Bose", "aliases": ["Bose Corporation"]},
+    "caldigit": {"name": "CalDigit", "aliases": ["CalDigit, Inc.", "CalDigit Inc."]},
+    "ge": {"name": "GE Appliances", "aliases": ["GE", "GE Appliances, a Haier company"]},
+    "google": {"name": "Google", "aliases": ["Google Inc.", "Google LLC"]},
+    "home-assistant": {"name": "Home Assistant", "aliases": ["HomeAssistant"]},
+    "lg": {"name": "LG", "aliases": ["LG Electronics", "LG Electronics Inc."]},
+    "logitech": {"name": "Logitech", "aliases": ["Logitech Inc.", "Logitech, Inc."]},
+    "samsung": {"name": "Samsung", "aliases": ["Samsung Electronics", "Samsung Electronics Co., Ltd."]},
+    "seagate": {"name": "Seagate", "aliases": ["Seagate Technology", "Seagate Technology LLC"]},
+    "western-digital": {"name": "Western Digital", "aliases": ["WD", "WDC", "Western Digital Technologies, Inc.", "Western Digital Corporation"]},
+    "zsa": {"name": "ZSA", "aliases": ["ZSA Technology Labs", "ZSA Technology Labs, Inc."]}
+  },
+  "categories": {
+    "keyboard": {"label": "Keyboard", "scene": "keyboard", "icon": "keyboard", "aliases": []},
+    "mouse": {"label": "Mouse", "scene": "mouse", "icon": "mouse", "aliases": ["pointing device"]},
+    "laptop": {"label": "Laptop", "scene": "laptop", "icon": "laptop", "aliases": ["notebook"]},
+    "desktop": {"label": "Desktop computer", "scene": "computer", "icon": "desktop", "aliases": ["desktop computer"]},
+    "display": {"label": "Monitor", "scene": "screen", "icon": "display", "aliases": ["monitor", "screen"]},
+    "dock": {"label": "Dock", "scene": "dock", "icon": "dock", "aliases": ["docking station"]},
+    "audio": {"label": "Audio device", "scene": "audio device", "icon": "audio", "icons": ["earbuds"], "aliases": ["headphones", "earbuds", "headset"], "alias_icons": {"earbuds": "earbuds"}},
+    "cooling": {"label": "Cooling device", "scene": "cooling device", "icon": "cooling", "aliases": ["fan"]},
+    "lighting": {"label": "Light", "scene": "light", "icon": "lighting", "aliases": ["light", "lamp"]},
+    "storage": {"label": "Storage", "scene": "external drive", "icon": "storage", "aliases": ["drive", "external drive", "hard drive", "ssd"]},
+    "card-reader": {"label": "Card reader", "scene": "card reader", "icon": "card-reader", "aliases": ["memory card reader", "sd card reader"]},
+    "television": {"label": "Television", "scene": "TV", "icon": "television", "aliases": ["tv"]},
+    "media": {"label": "Media player", "scene": "media player", "icon": "media", "aliases": ["media player", "streaming device"]},
+    "speaker": {"label": "Speaker", "scene": "speaker", "icon": "speaker", "aliases": ["loudspeaker"]},
+    "plug": {"label": "Outlet / smart plug", "scene": "smart plug", "icon": "plug", "aliases": ["outlet", "smart plug"]},
+    "climate": {"label": "Climate control", "scene": "climate control", "icon": "climate", "aliases": ["air conditioner", "climate control"]},
+    "hub": {"label": "Hub", "scene": "hub", "icon": "hub", "aliases": []},
+    "sensor": {"label": "Sensor", "scene": "sensor", "icon": "sensor", "aliases": []},
+    "lock": {"label": "Lock", "scene": "door lock", "icon": "lock", "aliases": ["door lock"]},
+    "camera": {"label": "Camera", "scene": "camera", "icon": "camera", "aliases": ["webcam"]},
+    "other": {"label": "Other device", "scene": "device", "icon": "other", "aliases": ["other device"]}
+  },
+  "identity": {
+    "model": {"label": "Model match", "meaning": "A named public model or model identifier; this does not verify every configuration or operation."},
+    "family": {"label": "Family match", "meaning": "The family is identified, but the exact retail model, generation, size or configuration is not established."},
+    "class": {"label": "Class card", "meaning": "An integration entity class, not a physical manufacturer/model or a promise that its adapter works."}
+  }
+}

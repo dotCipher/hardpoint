@@ -6,9 +6,10 @@ card = 1
 [device]
 id = "home-assistant/outlet"
 vendor = "Home Assistant"
-name = "Outlet or smart plug, any maker"
+name = "Outlet / smart plug"
+identity = "class"
 kind = "plug"
-summary = "Any switch that Home Assistant classes as an outlet. A class card: it applies to every such device, whoever made it."
+summary = "A Home Assistant switch entity classified as an outlet. This is an integration class, not a physical manufacturer/model or a promise of connected-device availability."
 links = ["https://www.home-assistant.io/integrations/switch/"]
 
 [[match]]

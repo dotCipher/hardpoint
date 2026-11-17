@@ -12,7 +12,7 @@
   <a href="https://dotcipher.github.io/hardpoint/">Site</a> ·
   <a href="#what-it-is">What it is</a> ·
   <a href="#why-not-let-the-agent-work-it-out">Why not let the agent work it out?</a> ·
-  <a href="#the-four-labels">The four labels</a> ·
+  <a href="#the-labels">The labels</a> ·
   <a href="#install">Install</a> ·
   <a href="#add-a-device">Add a device</a> ·
   <a href="docs/DESIGN.md">Design</a> ·
@@ -71,20 +71,15 @@ Hardpoint.
 That table describes the approach, not a device-support promise. Check the
 registry and your local runtime for the specific operation you need.
 
-## The four labels
+## The labels
 
-Every ability on a card gets one of four labels.
+Every ability has a label from the shared vocabulary. The canonical names,
+meanings and floors live in `catalog/vocabulary/`, and the site renders them
+from there rather than maintaining a second table here.
 
 <p align="center">
-  <img src="assets/ladder.svg" width="820" alt="The four risk levels: read, reversible, guarded and gated, each with its meaning">
+  <img src="assets/ladder.svg" width="820" alt="The labels and their meanings, generated from the registry">
 </p>
-
-| Label | What happens when an agent asks |
-|---|---|
-| `read` | It looks, and tells you. |
-| `reversible` | It makes the change, and can put it back. |
-| `guarded` | It makes the change, then asks you to keep it. If you do not answer, it goes back. |
-| `gated` | It gets everything ready and asks first. Nothing happens until you say yes. |
 
 A card cannot claim a lower risk than the shared vocabulary allows for that
 capability, and anything `guarded` or `gated` has to say, in plain words, what
@@ -220,7 +215,7 @@ no keys.
 A card is one small file. Adding one needs no code and changes nothing on
 your device.
 
-**With Claude Code, Codex or any coding agent:** open the
+**With any coding agent that has terminal and file access:** open the
 [Add a device](https://dotcipher.github.io/hardpoint/add.html) page, press
 Copy, and paste. The prompt has it list what is plugged in, ask which device
 you want, and write the cards with you. Choose all uncatalogued devices, all

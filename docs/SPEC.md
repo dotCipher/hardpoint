@@ -29,10 +29,30 @@ The format version. Always `1`.
 | Field | Meaning |
 |---|---|
 | `id` | `<vendor>/<model>`, lower case, matching the file path |
-| `vendor`, `name` | As the maker writes them |
-| `kind` | A kind defined in the vocabulary and allowed by the schema |
+| `vendor`, `name` | Canonical maker plus the reviewed public product name, without repeating the maker prefix |
+| `kind` | A category key from `catalog/vocabulary/devices.json` |
+| `identity` | An identity scope from that registry; distinguish model, family and integration class evidence |
+| `aliases` | Optional reviewed public model names/identifiers; never private device labels |
+| `icon` | Optional visual variant allowed by the category registry |
 | `summary` | One sentence |
 | `links` | Optional `https` links |
+
+Maker names/aliases, namespaces, category labels/icons and identity scopes
+are defined once in `catalog/vocabulary/devices.json`. New categories do not
+require a copied enum in the schema or a second scene-name list. The schema
+checks structure; the validator resolves those semantic values against the
+registry. A class-card namespace identifies its integration, not a physical
+manufacturer. Family references must not imply an exact model.
+
+Normalize reviewed public text with `tools/observe.py --normalize` before
+adding it. The helper normalizes Unicode/spacing, removes trademark marks,
+resolves maker/category aliases and detects known public model names. It
+does not infer identity from a private discovery label, change files, add
+support, or automatically certify research. Its result still requires review.
+Use `--card-id` when correcting metadata to preserve existing references;
+never rename stable ids simply because the display name improves. Use a
+reviewed public `--model-code` to distinguish same-named variants and retain
+it as a public alias; a serial number is never an acceptable discriminator.
 
 ### `[[match]]`
 
@@ -70,8 +90,8 @@ No two keys may share a switch position, a light or a cell.
 ### `[[requires]]`
 
 Optional. Something that must be true before the capabilities work, such as a
-permission or a program that has to be closed. `platform` is `any`, `macos`,
-`linux` or `windows`.
+permission or a program that has to be closed. Allowed `platform` values come
+from the schema; actual requirements come from the selected card/adapter.
 
 ### `[[capability]]`
 
@@ -79,8 +99,8 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 |---|---|
 | `id` | A word from `catalog/vocabulary/capabilities.toml` |
 | `adapter` | A name from `catalog/adapters/adapters.toml` |
-| `risk` | `read`, `reversible`, `guarded` or `gated` |
-| `privacy` | Optional: `open`, `aggregate` or `presence` |
+| `risk` | A label from the risk vocabulary, respecting the ability's floor |
+| `privacy` | Optional privacy level from the shared terms |
 | `params` | Optional. Only parameters the adapter declares |
 | `range`, `step`, `choices` | Optional limits, for controls only |
 | `note` | Optional. Anything a person should know |
@@ -91,8 +111,8 @@ permission or a program that has to be closed. `platform` is `any`, `macos`,
 
 | Field | Meaning |
 |---|---|
-| `status` | `tested`, `observed`, `imported` or `unverified` |
-| `platform` | `macos`, `linux` or `windows` |
+| `status` | A verification status from the shared terms |
+| `platform` | The OS key allowed by the schema for this record |
 | `os`, `firmware` | Versions it was checked on |
 | `date` | The day it was checked. Required for `tested` and `observed` |
 | `note` | What exactly was and was not checked |
@@ -107,7 +127,7 @@ Each word in `catalog/vocabulary/capabilities.toml` has:
 
 | Field | Meaning |
 |---|---|
-| `kind` | `reading`, `event`, `control` or `action` |
+| `kind` | An ability kind from the shared terms |
 | `value` | The type of the value, with its unit |
 | `summary` | The exact definition |
 | `min_risk` | The lowest risk a card may claim for it |
@@ -127,12 +147,10 @@ that level); each status, privacy level and kind has a `meaning`.
 
 ## Risk
 
-| Risk | Meaning | What the daemon does |
-|---|---|---|
-| `read` | Nothing changes | Reads the value |
-| `reversible` | Takes effect at once, can be undone at once, cannot stop you using the machine | Applies it and records it |
-| `guarded` | Could get in the way of using the machine | Applies it, then reverts unless you confirm within a few seconds |
-| `gated` | Cannot be undone, or needs a physical step | Gets it ready and asks first; does nothing until a person approves that exact action |
+Canonical label names and meanings live in
+`catalog/vocabulary/terms.toml`; ability floors live in
+`catalog/vocabulary/capabilities.toml`. The generated vocabulary/label views
+render those values rather than maintaining a second definition table here.
 
 A reading or an event is always `read`. The `manual` adapter, for steps only
 a person can take, is only ever `gated`.
@@ -237,26 +255,22 @@ instances. See [DISCOVERY.md](DISCOVERY.md) for the complete contract.
 
 ## Verification status
 
-| Status | Meaning |
-|---|---|
-| `tested` | Exercised through the named adapter on that platform. Only allowed when the adapter is implemented |
-| `observed` | Seen working or present on a real device, but not through the adapter |
-| `imported` | Taken from another project's data |
-| `unverified` | Documented somewhere; nobody here has tried it |
+Read the status vocabulary for canonical definitions. A record describes the
+specific operation and context exercised; never promote a complete card or
+another platform from a single result. The validator cross-checks these
+records against adapter declarations and required evidence fields.
 
 ## Privacy
 
-| Privacy | Meaning |
-|---|---|
-| `open` | The value can be passed on as it is |
-| `aggregate` | Only counts and coarse states may leave the adapter |
-| `presence` | Only whether it is in use or present may leave the adapter |
+The privacy vocabulary defines what may leave an adapter. Refer to those
+canonical definitions and the selected ability's declaration rather than a
+parallel list in this document.
 
 Where the vocabulary sets a privacy level, a card must declare that level or
 a stricter one.
 
-## Open questions
+## Extensions
 
-- There is no way to say that one device contains another, such as a dock and
-  its audio interface.
-- Version ranges for firmware are free text.
+For additions such as containment or firmware constraints, inspect the current
+schema and implementation, then propose the data/version change explicitly.
+Design documents are not a second tracker of which registry features exist.

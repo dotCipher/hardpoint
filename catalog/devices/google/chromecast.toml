@@ -4,9 +4,14 @@ card = 1
 id = "google/chromecast"
 vendor = "Google"
 name = "Chromecast"
+identity = "family"
 kind = "media"
-summary = "Streaming stick that plugs into a television. This card is for the model that announces itself as Chromecast."
-links = ["https://store.google.com/"]
+summary = "Google Cast media-player family advertised as Chromecast. The announcement does not establish its generation, enclosure shape or resolution; do not assume a stick-shaped device or a particular video specification."
+links = ["https://support.google.com/chromecast/answer/3046409?hl=en"]
+
+[[sources]]
+title = "Google: Chromecast and Google TV Streamer specifications (models differ)"
+url = "https://support.google.com/chromecast/answer/3046409?hl=en"
 
 [[match]]
 bus = "network"

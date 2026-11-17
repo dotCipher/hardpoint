@@ -23,6 +23,9 @@ or aggregate "all devices supported" claims are generated.
 
 `site-src/content.toml` supplies discovery copy, descriptions and the public
 document allowlist. Model descriptions and verification come from `catalog/`.
+Canonical makers, category labels, icon choices and identity scopes come from
+its device-identity vocabulary. Category keys and stable card ids stay
+machine-readable; presentation does not guess model/generation details.
 `tools/build.py` and `tools/discovery.py` generate the output. Do not edit
 `site/` or maintain a second, stronger pitch in a machine-only file.
 
@@ -49,6 +52,11 @@ examples select their card/ability from the registry during the build.
 Tests add a synthetic registry entry and verify that HTML, Markdown, search
 records and navigation update without editing prose. External ecosystem
 research is not a statement of Hardpoint availability.
+
+Workflow examples reference vocabulary abilities rather than pinning device
+ids. Their related evidence links resolve against the registry during the
+build. Presentation distinguishes agent playbooks, configurations and ideas
+that require integrations; those tags are not generated support certifications.
 
 ## Hosting and crawlers
 
@@ -91,5 +99,7 @@ Tests check canonical/subpath handling, matching visible descriptions,
 parseable JSON-LD, safe JSON serialization, Markdown extraction, feed evidence,
 stable citation targets, sitemap coverage and local discovery links. The
 generation is deterministic: no fake build-time `lastmod` or freshness badge.
+Styles and browser scripts use content-derived cache keys so new markup does
+not depend on an older cached presentation/search implementation.
 Browser checks still need desktop/mobile geometry, no-JavaScript content,
 copy buttons and the existing animation interactions.

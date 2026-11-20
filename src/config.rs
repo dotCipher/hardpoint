@@ -34,6 +34,18 @@ pub struct Config {
     /// "When this, set that." The owner's standing instructions.
     #[serde(default)]
     pub rule: Vec<Rule>,
+    /// Optional mapping of separate hardware status indicators (0-5) to live states.
+    #[serde(default)]
+    pub status_leds: StatusLedsCfg,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct StatusLedsCfg {
+    pub running: Option<u8>,
+    pub needs_you: Option<u8>,
+    pub waiting: Option<u8>,
+    pub alert: Option<u8>,
 }
 
 /// One standing instruction: set an ability to a value at a time of day, or
@@ -113,11 +125,14 @@ pub struct GateCfg {
     pub approve_secs: u64,
     /// A key that lights up when an answer is wanted. Pressing it means yes.
     pub key: Option<u8>,
+    /// An optional second key that lights up red when an answer is wanted.
+    /// Pressing it says no (reverts a guarded change or declines a gated one).
+    pub decline_key: Option<u8>,
 }
 
 impl Default for GateCfg {
     fn default() -> GateCfg {
-        GateCfg { hold_secs: 10, approve_secs: 60, key: None }
+        GateCfg { hold_secs: 10, approve_secs: 60, key: None, decline_key: None }
     }
 }
 
@@ -186,6 +201,9 @@ pub struct Lighting {
     pub empty_slot: Rgb,
     pub done_hold_secs: u64,
     pub failed_hold_secs: u64,
+    /// Optional base tint per keyboard layer number (e.g. "1" = "#081424").
+    #[serde(default)]
+    pub layers: std::collections::BTreeMap<String, Rgb>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -195,15 +213,24 @@ pub struct Colors {
     pub needs_you: Rgb,
     pub done: Rgb,
     pub failed: Rgb,
+    /// Colour for device-watch alerts (e.g. low battery), distinct from agent states.
+    #[serde(default = "default_alert_color")]
+    pub alert: Rgb,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+fn default_alert_color() -> Rgb {
+    Rgb::new(0xc0, 0x40, 0xff)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SlotKind {
     /// Shows one agent session; the engine decides which.
     Agent,
     /// Always shows `color` and runs `command` when pressed.
     Fixed,
+    /// Shows device-watch alerts so they never crowd out agent slots.
+    Alert,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -281,10 +308,32 @@ impl Config {
                 _ => bail!("a rule needs either `at` or `while`, and not both"),
             }
         }
+        for layer in cfg.lighting.layers.keys() {
+            if layer.parse::<u8>().is_err() {
+                bail!("lighting.layers key {layer:?} must be a layer number");
+            }
+        }
+        if let (Some(yes), Some(no)) = (cfg.gate.key, cfg.gate.decline_key) {
+            if yes == no {
+                bail!("gate.key and gate.decline_key cannot be the same key ({yes})");
+            }
+        }
+        let mut status_seen = std::collections::HashSet::new();
+        for index in [cfg.status_leds.running, cfg.status_leds.needs_you, cfg.status_leds.waiting, cfg.status_leds.alert].into_iter().flatten() {
+            if index >= 6 {
+                bail!("status_leds indicator index must be 0 to 5, got {index}");
+            }
+            if !status_seen.insert(index) {
+                bail!("status_leds indicator {index} is assigned more than once");
+            }
+        }
         let mut seen = std::collections::HashSet::new();
         for slot in &cfg.slots {
             if !seen.insert(slot.key) {
                 bail!("key {} is used by more than one slot", slot.key);
+            }
+            if cfg.gate.key == Some(slot.key) || cfg.gate.decline_key == Some(slot.key) {
+                bail!("key {} cannot be both a slot and a gate answer key", slot.key);
             }
             if slot.kind == SlotKind::Fixed && slot.color.is_none() {
                 bail!("fixed slot on key {} needs a color", slot.key);
@@ -404,5 +453,14 @@ mod tests {
         assert!(Config::parse(&dup).is_err());
         let unknown = DEFAULT_CONFIG.replace("[telemetry]", "[telemetry]\nbogus = 1");
         assert!(Config::parse(&unknown).is_err());
+        assert!(Config::parse("[gate]\nkey = 32\ndecline_key = 32\n").is_err());
+        assert!(Config::parse("[gate]\nkey = 32\n[[slot]]\nkey = 32\nkind = \"alert\"\n").is_err());
+        assert!(Config::parse("[status_leds]\nrunning = 6\n").is_err());
+        assert!(Config::parse("[status_leds]\nrunning = 0\nalert = 0\n").is_err());
+        assert!(Config::parse("[lighting.layers]\nnotanumber = \"#101010\"\n").is_err());
+        let ok = Config::parse("[gate]\nkey = 32\ndecline_key = 70\n[status_leds]\nrunning = 0\nwaiting = 2\n[lighting.layers]\n\"1\" = \"#081424\"\n[[slot]]\nkey = 6\nkind = \"alert\"\npressable = true\n").unwrap();
+        assert_eq!(ok.gate.decline_key, Some(70));
+        assert_eq!(ok.status_leds.waiting, Some(2));
+        assert_eq!(ok.slots[0].kind, SlotKind::Alert);
     }
 }

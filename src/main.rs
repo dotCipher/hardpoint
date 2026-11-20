@@ -37,7 +37,7 @@ const KEYBOARD_ADAPTER: &str = "oryx-hid";
 
 /// What this build can actually reach on the keyboard it drives. Everything
 /// else a card lists is described to an agent, but cannot be acted on yet.
-const REACHABLE: [&str; 5] = ["light.per_key", "light.global", "identity.firmware", "keys.layer", "keys.position_events"];
+const REACHABLE: [&str; 6] = ["light.per_key", "light.global", "light.status", "identity.firmware", "keys.layer", "keys.position_events"];
 
 #[derive(Parser)]
 #[command(name = "hardpoint", version, about = "Cards that tell your agent what each of your devices can do, what it may change, and what needs your yes first")]
@@ -146,6 +146,22 @@ enum Command {
     Doctor,
     /// Install missing trusted helpers for attached cards, without sudo.
     Setup,
+    /// Summarize aggregate per-key press counts: unused keys, hotspots and hand balance.
+    Heatmap {
+        /// Limit to the most recent N recorded days.
+        #[arg(long)]
+        days: Option<usize>,
+        /// Filter to a specific layout id.
+        #[arg(long)]
+        layout: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Read-only workstation preflight across attached devices through the running daemon.
+    Preflight {
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -188,6 +204,8 @@ fn main() -> Result<()> {
         }
         Command::Keep { change } => by_a_person(Request::Keep { change }),
         Command::Approve { change } => by_a_person(Request::Approve { change }),
+        Command::Heatmap { days, layout, json } => heatmap(&catalog()?, days, layout.as_deref(), json),
+        Command::Preflight { json } => preflight(json),
     }
 }
 
@@ -245,6 +263,8 @@ fn send(request: Request) -> Result<()> {
 struct Lights {
     keys: BTreeMap<u8, Rgb>,
     all: Option<Rgb>,
+    /// Separate status indicator LEDs (0..6). Empty means firmware/auto controls them.
+    status: BTreeMap<u8, bool>,
 }
 
 /// Read or change an ability the operating system can reach, away from the
@@ -282,7 +302,7 @@ fn reachable(card: &catalog::Card, cap: &catalog::Capability, driven: &str) -> b
 fn changeable(card: &catalog::Card, cap: &catalog::Capability, driven: &str) -> bool {
     let word = |name: &str| cap.params.get(name).and_then(|v| v.as_str()).unwrap_or("");
     match cap.adapter.as_str() {
-        _ if card.device.id == driven => ["light.per_key", "light.global"].contains(&cap.id.as_str()),
+        _ if card.device.id == driven => ["light.per_key", "light.global", "light.status"].contains(&cap.id.as_str()),
         "macos-system" => word("source") == "audio" && word("field") == "output_volume",
         "hidpp" => ["pointer.dpi", "scroll.mode"].contains(&cap.id.as_str()),
         "ddc-ci" => reachable(card, cap, driven),
@@ -319,10 +339,20 @@ impl Target for Reach<'_> {
         match capability {
             "light.per_key" => Ok(json!(self.lights.keys.iter().map(|(key, c)| (key.to_string(), c.hex())).collect::<BTreeMap<_, _>>())),
             "light.global" => Ok(json!(self.lights.all.map(Rgb::hex))),
+            "light.status" => Ok(json!(self.lights.status.iter().map(|(idx, on)| (idx.to_string(), *on)).collect::<BTreeMap<_, _>>())),
             "identity.firmware" => self.firmware.clone().map(Value::from).ok_or_else(|| "the keyboard is not connected".to_string()),
             "keys.layer" => Ok(json!(self.layer)),
             // Counts only: which keys, in what order, never leaves the daemon.
-            "keys.position_events" => Ok(json!({ "presses_seen": self.presses })),
+            "keys.position_events" => {
+                let mut out = json!({ "presses_seen": self.presses, "layer": self.layer });
+                if let Ok(summary) = telemetry::summarize(&config::state_dir().join("telemetry"), self.board, self.firmware.as_deref(), None) {
+                    out["telemetry_days"] = json!(summary.days);
+                    out["telemetry_total"] = json!(summary.total_presses);
+                    out["unused_keys"] = json!(summary.unused_keys);
+                    out["hand_balance"] = json!(summary.hand_balance);
+                }
+                Ok(out)
+            }
             other => Err(format!("this build cannot reach {other} on {device} yet")),
         }
     }
@@ -337,6 +367,35 @@ impl Target for Reach<'_> {
         };
         match capability {
             "light.global" => self.lights.all = colour(value)?,
+            "light.status" => {
+                let form = "give {\"index\": 0, \"on\": true} (index 0 to 5), or null to release status indicators";
+                if value.is_null() {
+                    self.lights.status.clear();
+                } else {
+                    let fields = value.as_object().ok_or(form)?;
+                    if let Some(index) = fields.get("index") {
+                        let idx = index.as_u64().filter(|&n| n < 6).ok_or(form)? as u8;
+                        match fields.get("on") {
+                            Some(Value::Bool(on)) => {
+                                self.lights.status.insert(idx, *on);
+                            }
+                            Some(Value::Null) | None => {
+                                self.lights.status.remove(&idx);
+                            }
+                            _ => return Err(form.to_string()),
+                        }
+                    } else {
+                        // The form `read` returns: every controlled status indicator at once (used by undo).
+                        let mut map = BTreeMap::new();
+                        for (name, on) in fields {
+                            let idx = name.parse::<u8>().ok().filter(|&n| n < 6).ok_or(form)?;
+                            let on = on.as_bool().ok_or(form)?;
+                            map.insert(idx, on);
+                        }
+                        self.lights.status = map;
+                    }
+                }
+            }
             "light.per_key" => {
                 let form = "give {\"key\": 12, \"color\": \"#rrggbb\"}, with null for the colour to clear it";
                 let fields = value.as_object().ok_or(form)?;
@@ -369,9 +428,9 @@ fn lookup<'a>(catalog: &'a Catalog, device: &str, capability: &str) -> Result<(&
     Ok((card, cap))
 }
 
-/// Lay what an agent asked for over the slots' frame. Slots always show through.
-fn compose(frame: Option<Vec<Rgb>>, lights: &Lights, board: &Board, slot_leds: &[u8], answer: Option<(u8, Rgb)>) -> Option<Vec<Rgb>> {
-    if lights.keys.is_empty() && lights.all.is_none() && answer.is_none() {
+/// Lay what an agent asked for over the slots' frame. Slots and gate keys always show through.
+fn compose(frame: Option<Vec<Rgb>>, lights: &Lights, board: &Board, slot_leds: &[u8], answers: &[(u8, Rgb)]) -> Option<Vec<Rgb>> {
+    if lights.keys.is_empty() && lights.all.is_none() && answers.is_empty() {
         return frame;
     }
     let mut out = match (&frame, lights.all) {
@@ -389,7 +448,7 @@ fn compose(frame: Option<Vec<Rgb>>, lights: &Lights, board: &Board, slot_leds: &
             out[*led as usize] = frame[*led as usize];
         }
     }
-    if let Some((led, c)) = answer {
+    for &(led, c) in answers {
         out[led as usize] = c;
     }
     Some(out)
@@ -458,6 +517,7 @@ fn devices(catalog: &Catalog, cfg: &Config, driven: &str, seen: &[catalog::Obser
         "values": {
             "light.global": "\"#rrggbb\", or null to clear",
             "light.per_key": "{\"key\": 12, \"color\": \"#rrggbb\"}, with null for the colour to clear that key",
+            "light.status": "{\"index\": 0, \"on\": true} (index 0 to 5), or null to release status indicators",
             "audio.output_volume": "a number from 0 to 100",
             "display.brightness": "a whole number from 0 to 100",
             "pointer.dpi": "dots per inch, for example 1000",
@@ -794,9 +854,14 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
     if cfg.gate.key.is_some() && answer_key.is_none() {
         bail!("the gate's answer key {} does not exist on {}", cfg.gate.key.unwrap_or(0), board.card);
     }
+    let decline_key = cfg.gate.decline_key.and_then(|k| board.by_index(k)).copied();
+    if cfg.gate.decline_key.is_some() && decline_key.is_none() {
+        bail!("the gate's decline key {} does not exist on {}", cfg.gate.decline_key.unwrap_or(0), board.card);
+    }
     let mut dev: Option<Box<dyn Device>> = None;
     let mut telemetry: Option<Telemetry> = None;
     let mut sent: Option<Vec<Rgb>> = None;
+    let mut sent_status: Option<[bool; 6]> = None;
     let mut layer = 0u8;
     let mut presses = 0u64;
     let mut source_ok: std::collections::BTreeMap<String, bool> = Default::default();
@@ -837,6 +902,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                     dev = Some(d);
                     firmware = Some(layout);
                     sent = None;
+                    sent_status = None;
                     layer = 0;
                     last_open_error.clear();
                 }
@@ -866,10 +932,9 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                                 if let (Some(t), Some(key)) = (telemetry.as_mut(), board.by_matrix(row, col)) {
                                     t.record(layer, key.index, &today())?;
                                 }
-                                // A real press on the answer key is a person saying yes. Only a press
+                                // A real press on the answer or decline key is a person answering. Only a press
                                 // that came from the keyboard counts: one sent over the socket does not.
-                                if let (Some(key), Some(waiting)) = (answer_key.filter(|k| k.row == row && k.col == col), gate.waiting(now)) {
-                                    let _ = key;
+                                if let (Some(_), Some(waiting)) = (answer_key.filter(|k| k.row == row && k.col == col), gate.waiting(now)) {
                                     let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
                                     let answered = match waiting.state {
                                         gate::State::Holding => gate.keep(waiting.id, now),
@@ -877,6 +942,14 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                                     };
                                     match answered {
                                         Ok(change) => eprintln!("change {} ({} on {}): a person said yes", change.id, change.capability, change.device),
+                                        Err(error) => eprintln!("change {}: {error}", waiting.id),
+                                    }
+                                    continue;
+                                }
+                                if let (Some(_), Some(waiting)) = (decline_key.filter(|k| k.row == row && k.col == col), gate.waiting(now)) {
+                                    let mut reach = Reach { catalog, seen: &seen_now, board: &board, lights: &mut lights, firmware: firmware.clone(), layer, presses };
+                                    match gate.decline(waiting.id, &mut reach, now) {
+                                        Ok(change) => eprintln!("change {} ({} on {}): a person said no", change.id, change.capability, change.device),
                                         Err(error) => eprintln!("change {}: {error}", waiting.id),
                                     }
                                     continue;
@@ -986,16 +1059,32 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
                     }
                 }
             }
-            // While an answer is wanted, the answer key pulses: amber to keep a change, red to approve one.
+            // While an answer is wanted, the answer key pulses: amber to keep a change,
+            // green (when a decline key is also set) or red to approve one; the decline key pulses red.
             let waiting = gate.waiting(now);
             let pulse = 0.3 + 0.7 * (0.5 + 0.5 * (now.duration_since(started).as_secs_f32() * 5.2).sin());
-            let answer = answer_key.zip(waiting.as_ref()).map(|(key, change)| {
-                let c = if change.state == gate::State::Holding { cfg.colors.needs_you } else { cfg.colors.failed };
-                (key.led, c.scale(pulse))
-            });
-            let frame = compose(engine.frame(now, hour()), &lights, &board, &slot_leds, answer);
+            let mut answers = Vec::new();
+            if let Some(change) = waiting.as_ref() {
+                if let Some(key) = answer_key {
+                    let c = if change.state == gate::State::Holding {
+                        cfg.colors.needs_you
+                    } else if decline_key.is_some() {
+                        cfg.colors.done
+                    } else {
+                        cfg.colors.failed
+                    };
+                    answers.push((key.led, c.scale(pulse)));
+                }
+                if let Some(key) = decline_key {
+                    answers.push((key.led, cfg.colors.failed.scale(pulse)));
+                }
+            }
+            let frame = compose(engine.frame(now, hour(), layer), &lights, &board, &slot_leds, &answers);
+            let desired_status = desired_status_leds(&cfg.status_leds, &engine, waiting.is_some(), &lights.status);
             if let Some(d) = dev.as_mut() {
                 if let Err(e) = render(d.as_mut(), &frame, &mut sent) {
+                    lost = Some(e);
+                } else if let Err(e) = render_status_leds(d.as_mut(), &desired_status, &mut sent_status) {
                     lost = Some(e);
                 }
             }
@@ -1023,6 +1112,7 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
             dev = None;
             firmware = None;
             sent = None;
+            sent_status = None;
         }
 
         if last_flush.elapsed() >= Duration::from_secs(30) {
@@ -1039,6 +1129,11 @@ fn run(catalog: &Catalog, config_path: Option<PathBuf>, backend: Option<Backend>
     if let Some(d) = dev.as_mut() {
         if sent.is_some() {
             d.release()?;
+        }
+        if sent_status.is_some() {
+            d.release_status_leds()?;
+        }
+        if sent.is_some() || sent_status.is_some() {
             d.flush()?;
         }
     }
@@ -1079,4 +1174,145 @@ fn render(dev: &mut dyn Device, frame: &Option<Vec<Rgb>>, sent: &mut Option<Vec<
     }
     *sent = frame.clone();
     dev.flush()
+}
+
+/// Desired state of the 6 separate hardware status LEDs, or `None` when
+/// firmware should control them (no configured mappings active and no MCP overrides).
+fn desired_status_leds(cfg: &config::StatusLedsCfg, engine: &Engine, gate_waiting: bool, overrides: &BTreeMap<u8, bool>) -> Option<[bool; 6]> {
+    let any_cfg = [cfg.running, cfg.needs_you, cfg.waiting, cfg.alert].into_iter().any(|x| x.is_some());
+    if !any_cfg && overrides.is_empty() {
+        return None;
+    }
+    let mut state = [false; 6];
+    if let Some(i) = cfg.running {
+        state[i as usize] = engine.any(AgentState::Running);
+    }
+    if let Some(i) = cfg.needs_you {
+        state[i as usize] = engine.any(AgentState::NeedsYou);
+    }
+    if let Some(i) = cfg.waiting {
+        state[i as usize] = gate_waiting;
+    }
+    if let Some(i) = cfg.alert {
+        state[i as usize] = engine.any_alert();
+    }
+    for (&i, &on) in overrides {
+        if (i as usize) < 6 {
+            state[i as usize] = on;
+        }
+    }
+    if overrides.is_empty() && !state.iter().any(|&on| on) {
+        return None;
+    }
+    Some(state)
+}
+
+fn render_status_leds(dev: &mut dyn Device, desired: &Option<[bool; 6]>, sent: &mut Option<[bool; 6]>) -> Result<()> {
+    match (desired, sent.as_ref()) {
+        (None, None) => return Ok(()),
+        (None, Some(_)) => dev.release_status_leds()?,
+        (Some(next), prev) => {
+            for (i, &on) in next.iter().enumerate() {
+                if prev.is_none_or(|p| p[i] != on) {
+                    dev.set_status_led(i as u8, on)?;
+                }
+            }
+        }
+    }
+    *sent = *desired;
+    dev.flush()
+}
+
+fn heatmap(catalog: &Catalog, days: Option<usize>, layout: Option<&str>, as_json: bool) -> Result<()> {
+    let (cfg, _) = Config::load(None)?;
+    let board = pick_board(catalog, &cfg.device.card, false)?;
+    let summary = telemetry::summarize(&config::state_dir().join("telemetry"), &board, layout, days)?;
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&summary)?);
+        return Ok(());
+    }
+    println!("{} | layout {} | {} day(s) | {} presses", summary.board, summary.layout, summary.days, summary.total_presses);
+    if let Some(b) = &summary.hand_balance {
+        println!("hand balance: left {} ({:.1}%) · right {} ({:.1}%)", b.left, b.left_pct, b.right, b.right_pct);
+    }
+    let layers: Vec<String> = summary.per_layer.iter().map(|(l, n)| format!("L{l}: {n}")).collect();
+    println!("layers: {}", layers.join(" · "));
+    println!("unused keys (0 presses): {:?}", summary.unused_keys);
+    let top: Vec<String> = summary.top_keys.iter().take(8).map(|k| format!("k{}={}", k.key, k.count)).collect();
+    println!("hotspots: {}", top.join(" "));
+    // Draw a compact grid using board geometry so any split/unsplit board works without hardcoding.
+    let width = board.keys.iter().map(|k| k.x).max().unwrap_or(0) as usize + 1;
+    let height = board.keys.iter().map(|k| k.y).max().unwrap_or(0) as usize + 1;
+    let mut grid = vec![vec!["       ".to_string(); width]; height];
+    for key in &board.keys {
+        let n = summary.counts[key.index as usize];
+        let count = if n == 0 { ".".to_string() } else { n.to_string() };
+        grid[key.y as usize][key.x as usize] = format!("{:>2}:{:<4}", key.index, count);
+    }
+    println!("\nkey:presses (. = unused):");
+    for row in grid {
+        println!("{}", row.join(" "));
+    }
+    Ok(())
+}
+
+/// Read-only workstation preflight across attached devices through the running daemon.
+fn preflight(as_json: bool) -> Result<()> {
+    let sock = config::socket_path();
+    let reply = source::socket::request(&sock, &Request::Devices)?;
+    if reply["ok"].as_bool() != Some(true) {
+        bail!("daemon refused: {}", reply["error"].as_str().unwrap_or("unknown error"));
+    }
+    let devices = reply["result"]["devices"].as_array().cloned().unwrap_or_default();
+    let mut rows = Vec::new();
+    for dev in devices {
+        let id = dev["id"].as_str().unwrap_or("").to_string();
+        let name = dev["name"].as_str().unwrap_or("").to_string();
+        let mut readings = Vec::new();
+        for cap in dev["abilities"].as_array().into_iter().flatten() {
+            let cap_id = cap["id"].as_str().unwrap_or("");
+            let label = cap["label"].as_str().unwrap_or("");
+            let reachable = cap["reachable"].as_bool().unwrap_or(false);
+            if label != "read" || !reachable {
+                continue;
+            }
+            let r = source::socket::request(&sock, &Request::Read { device: id.clone(), capability: cap_id.to_string() });
+            match r {
+                Ok(v) if v["ok"].as_bool() == Some(true) => {
+                    readings.push(json!({ "capability": cap_id, "status": "ok", "value": v["result"]["value"], "checked": v["result"]["checked"] }));
+                }
+                Ok(v) => {
+                    readings.push(json!({ "capability": cap_id, "status": "unavailable", "error": v["error"] }));
+                }
+                Err(e) => {
+                    readings.push(json!({ "capability": cap_id, "status": "unavailable", "error": format!("{e:#}") }));
+                }
+            }
+        }
+        rows.push(json!({ "device": id, "name": name, "readings": readings }));
+    }
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&json!({ "devices": rows }))?);
+        return Ok(());
+    }
+    for dev in &rows {
+        let name = dev["name"].as_str().unwrap_or("");
+        let id = dev["device"].as_str().unwrap_or("");
+        println!("{name} [{id}]");
+        let readings = dev["readings"].as_array().map(|v| v.as_slice()).unwrap_or(&[]);
+        if readings.is_empty() {
+            println!("  (no reachable read abilities)");
+            continue;
+        }
+        for r in readings {
+            let cap = r["capability"].as_str().unwrap_or("");
+            if r["status"] == "ok" {
+                println!("  ok          {cap:<22} {}", r["value"]);
+            } else {
+                let err = r["error"].as_str().unwrap_or("unavailable");
+                println!("  unavailable {cap:<22} {err}");
+            }
+        }
+    }
+    Ok(())
 }

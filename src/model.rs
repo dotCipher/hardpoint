@@ -63,10 +63,12 @@ pub enum AgentState {
 
 impl AgentState {
     /// Which session wins a slot when there are more sessions than slots.
+    /// Leaves priority 3 for device-watch alerts so they sit above routine
+    /// running sessions without ever displacing urgent agent prompts.
     pub fn priority(self) -> u8 {
         match self {
-            AgentState::NeedsYou => 4,
-            AgentState::Failed => 3,
+            AgentState::NeedsYou => 5,
+            AgentState::Failed => 4,
             AgentState::Running => 2,
             AgentState::Done => 1,
             AgentState::Idle => 0,

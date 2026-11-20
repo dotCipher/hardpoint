@@ -27,6 +27,28 @@ running = "#0090ff"
 needs-you = "#ffa000"
 done = "#00d060"
 failed = "#ff3030"
+alert = "#c040ff"
+
+# Optional layer-aware ambient tints (while Hardpoint holds lighting, or
+# automatically on non-zero layers so your layer is visible at a glance).
+# [lighting.layers]
+# "1" = "#081424"
+# "2" = "#180a24"
+# "3" = "#081c14"
+
+# Optional mapping of the 6 hardware status LEDs (0-2 left half, 3-5 right half).
+# Works independently of the key RGB matrix.
+# [status_leds]
+# running = 0
+# needs_you = 1
+# waiting = 2
+# alert = 3
+
+# Dedicated physical Approve/Keep and Decline keys for Hardpoint's gatekeeper.
+# Choose keys you never type on (run `hardpoint heatmap` to find unused keys).
+# [gate]
+# key = 32
+# decline_key = 70
 
 # Only mark a key `pressable` if pressing it is otherwise harmless: nothing
 # assigned to it in your layout, or a bare modifier hold.
@@ -64,7 +86,11 @@ roots_only = true
 enabled = true
 
 [actions]
+# See examples/focus-session.sh for focusing the matching tmux pane + terminal
+# without injecting keystrokes or auto-approving prompts.
 agent_press = ""
 
 [telemetry]
+# Enable to collect aggregate per-key, per-layer press counts for `hardpoint heatmap`.
+# Counts only: never records order, timing or text.
 enabled = false

@@ -21,6 +21,14 @@ pub trait Device {
     fn fill(&mut self, color: Rgb) -> Result<()>;
     /// Hand lighting back to the keyboard's own firmware.
     fn release(&mut self) -> Result<()>;
+    /// Switch one separate status indicator LED (0..6), independent of key RGB.
+    fn set_status_led(&mut self, _index: u8, _on: bool) -> Result<()> {
+        Ok(())
+    }
+    /// Hand status indicator LEDs back to the keyboard's own firmware.
+    fn release_status_leds(&mut self) -> Result<()> {
+        Ok(())
+    }
     /// Called once after a batch of lighting changes.
     fn flush(&mut self) -> Result<()> {
         Ok(())

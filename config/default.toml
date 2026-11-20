@@ -30,6 +30,21 @@ running = "#0090ff"
 needs-you = "#ffa000"
 done = "#00d060"
 failed = "#ff3030"
+alert = "#c040ff"
+
+# Optional base backlight tint per keyboard layer number (while Hardpoint holds
+# lighting, or automatically on non-zero layers).
+# [lighting.layers]
+# "1" = "#081424"
+# "2" = "#180a24"
+
+# Optional mapping of separate hardware status indicators (0-5) to live states.
+# Works independently of the key RGB matrix.
+# [status_leds]
+# running = 0
+# needs_you = 1
+# waiting = 2
+# alert = 3
 
 # Slots are the keys Hardpoint may light and listen to. None are set here,
 # because which keys are free depends on your keyboard and your layout.
@@ -58,6 +73,7 @@ enabled = false
 hold_secs = 10          # a guarded change goes back after this long unless you keep it
 approve_secs = 60       # a gated change is dropped after this long unless you approve it
 # key = 0               # a key that lights when an answer is wanted; pressing it means yes
+# decline_key = 1       # an optional second key; pressing it says no (reverts or declines)
 
 # Make a label stricter for one of your own devices. It can only be raised.
 # [[stricter]]

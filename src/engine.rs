@@ -18,6 +18,23 @@ pub struct Session {
     pub changed: Instant,
 }
 
+impl Session {
+    /// Device-watch alerts come from Hardpoint itself, not an agent harness.
+    pub fn is_alert(&self) -> bool {
+        self.source == "hardpoint"
+    }
+
+    /// Priority when slots are scarce. An agent waiting on a decision always
+    /// outranks a device-watch alert, so a low battery never evicts an urgent
+    /// agent prompt.
+    pub fn priority(&self) -> u8 {
+        if self.is_alert() {
+            return if self.state == AgentState::Idle { 0 } else { 3 };
+        }
+        self.state.priority()
+    }
+}
+
 /// Something the caller should run because a slot was pressed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Action {
@@ -69,9 +86,14 @@ impl Engine {
         self.reassign();
     }
 
-    /// Whether any session is in this state right now.
+    /// Whether any non-alert agent session is in this state right now.
     pub fn any(&self, state: AgentState) -> bool {
-        self.sessions.iter().any(|s| s.state == state)
+        self.sessions.iter().any(|s| !s.is_alert() && s.state == state)
+    }
+
+    /// Whether any device-watch alert is currently active.
+    pub fn any_alert(&self) -> bool {
+        self.sessions.iter().any(|s| s.is_alert() && s.state != AgentState::Idle)
     }
 
     pub fn gone(&mut self, source: &str, session: &str) {
@@ -103,10 +125,24 @@ impl Engine {
 
     /// Sessions keep their slot while they are visible. When slots run out, a
     /// waiting session takes the slot of a strictly less urgent one.
+    /// When dedicated `alert` slots exist, device watches route there and never
+    /// occupy or evict agent slots.
     fn reassign(&mut self) {
         let visible = |s: &Session| s.state != AgentState::Idle;
+        let has_alert_slots = self.cfg.slots.iter().any(|s| s.kind == SlotKind::Alert);
+        let slot_kind_for = |s: &Session| {
+            if has_alert_slots && s.is_alert() {
+                SlotKind::Alert
+            } else {
+                SlotKind::Agent
+            }
+        };
         for i in 0..self.assigned.len() {
-            let keep = self.assigned[i].as_ref().and_then(|k| self.session(k)).is_some_and(visible);
+            let expected = self.cfg.slots[i].kind;
+            let keep = self.assigned[i]
+                .as_ref()
+                .and_then(|k| self.session(k))
+                .is_some_and(|s| visible(s) && slot_kind_for(s) == expected);
             if !keep {
                 self.assigned[i] = None;
             }
@@ -117,17 +153,17 @@ impl Engine {
             .filter(|s| visible(s))
             .filter(|s| !self.assigned.iter().flatten().any(|k| k.0 == s.source && k.1 == s.id))
             .collect();
-        waiting.sort_by(|a, b| b.state.priority().cmp(&a.state.priority()).then(a.changed.cmp(&b.changed)));
-        let waiting: Vec<(String, String, u8)> =
-            waiting.into_iter().map(|s| (s.source.clone(), s.id.clone(), s.state.priority())).collect();
+        waiting.sort_by(|a, b| b.priority().cmp(&a.priority()).then(a.changed.cmp(&b.changed)));
+        let waiting: Vec<(String, String, u8, SlotKind)> =
+            waiting.into_iter().map(|s| (s.source.clone(), s.id.clone(), s.priority(), slot_kind_for(s))).collect();
 
-        for (source, id, priority) in waiting {
-            let agent_slots = || (0..self.cfg.slots.len()).filter(|i| self.cfg.slots[*i].kind == SlotKind::Agent);
-            let free = agent_slots().find(|i| self.assigned[*i].is_none());
+        for (source, id, priority, kind) in waiting {
+            let matching_slots = || (0..self.cfg.slots.len()).filter(|i| self.cfg.slots[*i].kind == kind);
+            let free = matching_slots().find(|i| self.assigned[*i].is_none());
             let target = free.or_else(|| {
-                agent_slots()
+                matching_slots()
                     .filter_map(|i| {
-                        let p = self.assigned[i].as_ref().and_then(|k| self.session(k)).map(|s| s.state.priority())?;
+                        let p = self.assigned[i].as_ref().and_then(|k| self.session(k)).map(Session::priority)?;
                         (p < priority).then_some((p, i))
                     })
                     .min()
@@ -139,20 +175,27 @@ impl Engine {
         }
 
         // A session that wants a response belongs on a key that can give one:
-        // trade places with a less urgent session sitting on a pressable slot.
+        // trade places with a less urgent session sitting on a pressable slot of the same kind,
+        // without shuffling two already-urgent agent sessions (Failed / NeedsYou).
         let urgency = |this: &Engine, i: usize| {
-            this.assigned[i].as_ref().and_then(|k| this.session(k)).map_or(0, |s| s.state.priority())
+            this.assigned[i].as_ref().and_then(|k| this.session(k)).map_or(0, Session::priority)
         };
-        let wants_response = AgentState::Failed.priority();
+        let agent_urgent = 4;
         for i in 0..self.cfg.slots.len() {
             let slot = &self.cfg.slots[i];
-            if slot.kind != SlotKind::Agent || slot.pressable || urgency(self, i) < wants_response {
+            if slot.kind == SlotKind::Fixed || slot.pressable {
                 continue;
             }
+            let u = urgency(self, i);
+            let wants_response = 3;
+            if u < wants_response {
+                continue;
+            }
+            let cap = if u >= agent_urgent { agent_urgent } else { u };
             let swap = (0..self.cfg.slots.len())
-                .filter(|j| self.cfg.slots[*j].kind == SlotKind::Agent && self.cfg.slots[*j].pressable)
+                .filter(|j| self.cfg.slots[*j].kind == slot.kind && self.cfg.slots[*j].pressable)
                 .map(|j| (urgency(self, j), j))
-                .filter(|(u, _)| *u < wants_response)
+                .filter(|(other, _)| *other < cap)
                 .min();
             if let Some((_, j)) = swap {
                 self.assigned.swap(i, j);
@@ -172,21 +215,30 @@ impl Engine {
 
     /// The colour of every LED right now, or `None` when the keyboard's own
     /// lighting should show instead.
-    pub fn frame(&self, now: Instant, hour: u32) -> Option<Vec<Rgb>> {
+    pub fn frame(&self, now: Instant, hour: u32, layer: u8) -> Option<Vec<Rgb>> {
         let any_session = self.assigned.iter().any(Option::is_some);
         let any_fixed = self.cfg.slots.iter().any(|s| s.kind == SlotKind::Fixed);
-        if !any_session && !any_fixed && self.cfg.lighting.idle == IdleMode::Release {
+        let layer_tint = self.cfg.lighting.layers.get(&layer.to_string()).copied();
+        let hold_for_layer = layer > 0 && layer_tint.is_some();
+        if !any_session && !any_fixed && !hold_for_layer && self.cfg.lighting.idle == IdleMode::Release {
             return None;
         }
         let level = self.cfg.brightness.at_hour(hour);
-        let mut frame = vec![self.cfg.lighting.base.scale(level); self.board.led_count()];
+        let base = layer_tint.unwrap_or(self.cfg.lighting.base);
+        let mut frame = vec![base.scale(level); self.board.led_count()];
         let t = now.saturating_duration_since(self.started).as_secs_f32();
         for (i, slot) in self.cfg.slots.iter().enumerate() {
             let Some(key) = self.board.by_index(slot.key) else { continue };
             let color = match slot.kind {
                 SlotKind::Fixed => slot.color.unwrap_or(Rgb::OFF),
-                SlotKind::Agent => match self.assigned[i].as_ref().and_then(|k| self.session(k)) {
+                SlotKind::Agent | SlotKind::Alert => match self.assigned[i].as_ref().and_then(|k| self.session(k)) {
                     None => self.cfg.lighting.empty_slot,
+                    Some(s) if s.is_alert() => {
+                        // Device-watch alerts use their own colour and a calmer pulse so
+                        // peripheral vision distinguishes them from urgent agent prompts.
+                        let c = slot.color.unwrap_or(self.cfg.colors.alert);
+                        c.scale(0.35 + 0.65 * (0.5 + 0.5 * (t * 3.1).sin()))
+                    }
                     Some(s) => {
                         let c = self.state_color(s.state);
                         match s.state {
@@ -225,20 +277,24 @@ impl Engine {
                     env: vec![("HARDPOINT_KEY".into(), key.to_string())],
                 })
             }
-            SlotKind::Agent => {
+            SlotKind::Agent | SlotKind::Alert => {
                 let target = self.assigned[i].clone()?;
                 let s = self.session(&target)?.clone();
                 self.pressed = Some((key, now));
-                let state = serde_json::to_value(s.state).ok().and_then(|v| v.as_str().map(str::to_string));
+                let state = if s.is_alert() {
+                    Some("alert".to_string())
+                } else {
+                    serde_json::to_value(s.state).ok().and_then(|v| v.as_str().map(str::to_string))
+                };
                 // Pressing a finished or failed session acknowledges it.
-                if matches!(s.state, AgentState::Done | AgentState::Failed) {
+                if !s.is_alert() && matches!(s.state, AgentState::Done | AgentState::Failed) {
                     if let Some(live) = self.sessions.iter_mut().find(|x| x.source == s.source && x.id == s.id) {
                         live.state = AgentState::Idle;
                         live.changed = now;
                     }
                     self.reassign();
                 }
-                let command = self.cfg.actions.agent_press.clone();
+                let command = slot.command.filter(|c| !c.is_empty()).unwrap_or_else(|| self.cfg.actions.agent_press.clone());
                 (!command.is_empty()).then(|| Action {
                     command,
                     env: vec![
@@ -264,16 +320,18 @@ impl Engine {
                 let s = self.assigned[i].as_ref().and_then(|k| self.session(k));
                 json!({
                     "key": slot.key,
+                    "kind": slot.kind,
                     "pressable": slot.pressable,
                     "session": s.map(|s| s.id.clone()),
                     "source": s.map(|s| s.source.clone()),
-                    "state": s.map(|s| s.state),
+                    "state": s.map(|s| if s.is_alert() { json!("alert") } else { json!(s.state) }),
                     "title": s.and_then(|s| s.title.clone()),
                 })
             })
             .collect();
-        let active = self.sessions.iter().filter(|s| s.state != AgentState::Idle).count();
-        json!({ "sessions": self.sessions.len(), "active": active, "slots": slots })
+        let active = self.sessions.iter().filter(|s| !s.is_alert() && s.state != AgentState::Idle).count();
+        let alerts = self.sessions.iter().filter(|s| s.is_alert() && s.state != AgentState::Idle).count();
+        json!({ "sessions": self.sessions.len(), "active": active, "alerts": alerts, "slots": slots })
     }
 }
 
@@ -301,9 +359,9 @@ mod tests {
     fn idle_board_is_released_to_the_firmware() {
         let mut e = engine();
         let now = Instant::now();
-        assert!(e.frame(now, 12).is_none());
+        assert!(e.frame(now, 12, 0).is_none());
         e.apply(update("a", AgentState::Idle), now);
-        assert!(e.frame(now, 12).is_none());
+        assert!(e.frame(now, 12, 0).is_none());
     }
 
     #[test]
@@ -311,7 +369,7 @@ mod tests {
         let mut e = engine();
         let now = Instant::now();
         e.apply(update("a", AgentState::Running), now);
-        let frame = e.frame(now, 12).unwrap();
+        let frame = e.frame(now, 12, 0).unwrap();
         let level = 0.8;
         assert_eq!(frame[led(&e, 36) as usize], e.cfg.colors.running.scale(level));
         assert_eq!(frame[led(&e, 50) as usize], Rgb::OFF);
@@ -323,8 +381,8 @@ mod tests {
         let mut e = engine();
         let now = Instant::now();
         e.apply(update("a", AgentState::Running), now);
-        let day = e.frame(now, 12).unwrap()[led(&e, 36) as usize];
-        let night = e.frame(now, 23).unwrap()[led(&e, 36) as usize];
+        let day = e.frame(now, 12, 0).unwrap()[led(&e, 36) as usize];
+        let night = e.frame(now, 23, 0).unwrap()[led(&e, 36) as usize];
         assert!(night.b < day.b);
     }
 
@@ -383,15 +441,15 @@ mod tests {
         e.apply(update("a", AgentState::NeedsYou), t0);
         let i = led(&e, 36) as usize;
         let samples: std::collections::HashSet<u8> =
-            (0..12).map(|n| e.frame(t0 + Duration::from_millis(n * 100), 12).unwrap()[i].r).collect();
+            (0..12).map(|n| e.frame(t0 + Duration::from_millis(n * 100), 12, 0).unwrap()[i].r).collect();
         assert!(samples.len() > 3, "expected a pulse, got {samples:?}");
 
         e.apply(update("a", AgentState::Done), t0);
-        let early = e.frame(t0, 12).unwrap()[i].g;
-        let late = e.frame(t0 + Duration::from_secs(15), 12).unwrap()[i].g;
+        let early = e.frame(t0, 12, 0).unwrap()[i].g;
+        let late = e.frame(t0 + Duration::from_secs(15), 12, 0).unwrap()[i].g;
         assert!(late < early);
         e.expire(t0 + Duration::from_secs(21));
-        assert!(e.frame(t0 + Duration::from_secs(21), 12).is_none());
+        assert!(e.frame(t0 + Duration::from_secs(21), 12, 0).is_none());
     }
 
     #[test]
@@ -418,13 +476,13 @@ mod tests {
         let i = led(&e, 36) as usize;
         e.press(36, now);
         let white = Rgb::new(255, 255, 255).scale(0.8);
-        assert_eq!(e.frame(now + Duration::from_millis(100), 12).unwrap()[i], white);
-        assert_ne!(e.frame(now + Duration::from_millis(500), 12).unwrap()[i], white);
+        assert_eq!(e.frame(now + Duration::from_millis(100), 12, 0).unwrap()[i], white);
+        assert_ne!(e.frame(now + Duration::from_millis(500), 12, 0).unwrap()[i], white);
         // Display-only slots and ordinary keys never flash.
         e.apply(update("b", AgentState::Running), now);
         e.apply(update("c", AgentState::Running), now);
         e.press(6, now);
-        assert_ne!(e.frame(now + Duration::from_millis(100), 12).unwrap()[led(&e, 6) as usize], white);
+        assert_ne!(e.frame(now + Duration::from_millis(100), 12, 0).unwrap()[led(&e, 6) as usize], white);
     }
 
     #[test]
@@ -432,8 +490,51 @@ mod tests {
         let mut e = engine();
         let now = Instant::now();
         e.apply(update("a", AgentState::Failed), now);
-        assert!(e.frame(now, 12).is_some());
+        assert!(e.frame(now, 12, 0).is_some());
         e.press(36, now);
-        assert!(e.frame(now, 12).is_none());
+        assert!(e.frame(now, 12, 0).is_none());
+    }
+
+    #[test]
+    fn device_alerts_never_evict_urgent_agents_and_route_to_alert_slots() {
+        let alert = AgentUpdate {
+            source: "hardpoint".into(),
+            session: "mouse battery.level".into(),
+            state: AgentState::NeedsYou,
+            title: Some("Mouse battery is low (12)".into()),
+            detail: None,
+            directory: None,
+        };
+        let now = Instant::now();
+        // Without dedicated alert slots, alerts never trigger agent-only rules or evict agent NeedsYou.
+        let mut e = engine();
+        for id in ["a", "b", "c", "d", "e", "f"] {
+            e.apply(update(id, AgentState::NeedsYou), now);
+        }
+        e.apply(alert.clone(), now);
+        assert!(e.any_alert());
+        assert!(!e.assigned.iter().flatten().any(|(src, _)| src == "hardpoint"), "an alert must not evict urgent agents");
+
+        // With a dedicated alert slot, alerts route there without touching agent slots.
+        let cfg = Config::parse(&format!("{EXAMPLE}\n[[slot]]\nkey = 0\nkind = \"alert\"\npressable = true\ncommand = \"notify\"\n")).unwrap();
+        let mut e = Engine::new(cfg, test_board());
+        e.apply(alert, now);
+        assert!(!e.any(AgentState::NeedsYou), "a device alert is not an agent waiting on you");
+        assert!(e.any_alert());
+        assert!(e.assigned[0].is_none(), "agent slot stays free");
+        assert_eq!(e.assigned[6].as_ref().unwrap().0, "hardpoint");
+        let action = e.press(0, now).unwrap();
+        assert_eq!(action.command, "notify");
+        assert!(action.env.contains(&("HARDPOINT_STATE".to_string(), "alert".to_string())));
+    }
+
+    #[test]
+    fn layer_tints_change_the_base_backlight_and_hold_on_non_zero_layers() {
+        let cfg = Config::parse(&format!("{EXAMPLE}\n[lighting.layers]\n\"1\" = \"#082040\"\n")).unwrap();
+        let e = Engine::new(cfg, test_board());
+        let now = Instant::now();
+        assert!(e.frame(now, 12, 0).is_none(), "layer 0 still releases when idle");
+        let frame = e.frame(now, 12, 1).expect("configured non-zero layer tints the board");
+        assert_eq!(frame[led(&e, 15) as usize], Rgb::new(0x08, 0x20, 0x40).scale(0.8));
     }
 }

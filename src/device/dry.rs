@@ -11,6 +11,8 @@ use std::time::{Duration, Instant};
 pub struct DryDevice {
     board: Board,
     frame: Vec<Option<Rgb>>,
+    status_leds: [bool; 6],
+    status_controlled: bool,
     dirty: bool,
     last_draw: Option<Instant>,
     released: bool,
@@ -19,7 +21,7 @@ pub struct DryDevice {
 impl DryDevice {
     pub fn new(board: Board) -> DryDevice {
         let frame = vec![None; board.led_count()];
-        DryDevice { board, frame, dirty: false, last_draw: None, released: true }
+        DryDevice { board, frame, status_leds: [false; 6], status_controlled: false, dirty: false, last_draw: None, released: true }
     }
 
     pub fn render(&self) -> String {
@@ -37,8 +39,14 @@ impl DryDevice {
 
     /// Lit keys as `index:#rrggbb`, for logs and tests.
     pub fn summary(&self) -> String {
+        let status_note = if self.status_controlled {
+            let on: Vec<String> = self.status_leds.iter().enumerate().filter(|(_, on)| **on).map(|(i, _)| i.to_string()).collect();
+            format!(" | status:[{}]", on.join(","))
+        } else {
+            String::new()
+        };
         if self.released {
-            return "released".to_string();
+            return format!("released{status_note}");
         }
         let mut lit: Vec<(u8, Rgb)> = self
             .board
@@ -58,8 +66,8 @@ impl DryDevice {
             .map(|(i, c)| format!("{i}:{}", c.hex()))
             .collect();
         match common {
-            Some(c) => format!("base {c} | {}", parts.join(" ")),
-            None => parts.join(" "),
+            Some(c) => format!("base {c} | {}{status_note}", parts.join(" ")),
+            None => format!("{}{status_note}", parts.join(" ")),
         }
     }
 }
@@ -89,6 +97,22 @@ impl Device for DryDevice {
         self.frame.iter_mut().for_each(|c| *c = None);
         self.dirty = true;
         self.released = true;
+        Ok(())
+    }
+
+    fn set_status_led(&mut self, index: u8, on: bool) -> Result<()> {
+        if let Some(cell) = self.status_leds.get_mut(index as usize) {
+            *cell = on;
+            self.status_controlled = true;
+            self.dirty = true;
+        }
+        Ok(())
+    }
+
+    fn release_status_leds(&mut self) -> Result<()> {
+        self.status_leds = [false; 6];
+        self.status_controlled = false;
+        self.dirty = true;
         Ok(())
     }
 

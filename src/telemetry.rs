@@ -2,9 +2,143 @@
 //! nothing else: no order, no timing and no text can be recovered from it.
 //! The `layers` array is one list of counts per layer, indexed by key number.
 
-use anyhow::{Context, Result};
+use crate::board::Board;
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+#[derive(Clone, Debug, Serialize)]
+pub struct KeyCount {
+    pub key: u8,
+    pub count: u64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct HandBalance {
+    pub left: u64,
+    pub right: u64,
+    pub left_pct: f64,
+    pub right_pct: f64,
+}
+
+/// Aggregate ergonomic summary computed solely from per-key press counts.
+/// Never records or infers text, keystroke order, or timing.
+#[derive(Clone, Debug, Serialize)]
+pub struct Summary {
+    pub board: String,
+    pub layout: String,
+    pub days: usize,
+    pub total_presses: u64,
+    pub per_layer: BTreeMap<usize, u64>,
+    pub unused_keys: Vec<u8>,
+    pub rare_keys: Vec<KeyCount>,
+    pub top_keys: Vec<KeyCount>,
+    pub hand_balance: Option<HandBalance>,
+    pub counts: Vec<u64>,
+}
+
+/// Read aggregate daily count files for a board/layout and compute unused keys,
+/// hotspots, layer usage and (for split boards) left/right hand balance.
+pub fn summarize(dir: &Path, board: &Board, layout: Option<&str>, days: Option<usize>) -> Result<Summary> {
+    let mut entries: Vec<Day> = Vec::new();
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+            let path = entry?.path();
+            if path.extension().is_some_and(|e| e == "json") {
+                if let Ok(text) = std::fs::read_to_string(&path) {
+                    if let Ok(day) = serde_json::from_str::<Day>(&text) {
+                        let same_keys = day.layers.first().is_none_or(|l| l.len() == board.keys.len());
+                        let board_matches = day.board == board.card || (same_keys && !day.board.is_empty() && board.card.contains(&day.board));
+                        if board_matches && layout.is_none_or(|want| day.layout == want) {
+                            entries.push(day);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if entries.is_empty() {
+        bail!("no telemetry files found in {} for {}", dir.display(), board.card);
+    }
+    entries.sort_by(|a, b| a.date.cmp(&b.date).then(a.layout.cmp(&b.layout)));
+    let chosen_layout = layout.map(str::to_string).unwrap_or_else(|| entries.last().unwrap().layout.clone());
+    entries.retain(|d| d.layout == chosen_layout);
+    if let Some(limit) = days.filter(|&n| n > 0) {
+        if entries.len() > limit {
+            entries = entries.split_off(entries.len() - limit);
+        }
+    }
+    let key_count = board.keys.len();
+    let mut counts = vec![0u64; key_count];
+    let mut per_layer: BTreeMap<usize, u64> = BTreeMap::new();
+    for day in &entries {
+        for (layer, arr) in day.layers.iter().enumerate() {
+            let sum: u64 = arr.iter().take(key_count).sum();
+            if sum > 0 {
+                *per_layer.entry(layer).or_insert(0) += sum;
+            }
+            for (i, &n) in arr.iter().take(key_count).enumerate() {
+                counts[i] += n;
+            }
+        }
+    }
+    let total_presses: u64 = counts.iter().sum();
+    let unused_keys: Vec<u8> = counts.iter().enumerate().filter(|(_, &n)| n == 0).map(|(i, _)| i as u8).collect();
+    let mut rare_keys: Vec<KeyCount> = counts
+        .iter()
+        .enumerate()
+        .filter(|(_, &n)| n > 0 && n <= 15)
+        .map(|(i, &count)| KeyCount { key: i as u8, count })
+        .collect();
+    rare_keys.sort_by_key(|k| (k.count, k.key));
+    let mut top_keys: Vec<KeyCount> = counts
+        .iter()
+        .enumerate()
+        .filter(|(_, &n)| n > 0)
+        .map(|(i, &count)| KeyCount { key: i as u8, count })
+        .collect();
+    top_keys.sort_by(|a, b| b.count.cmp(&a.count).then(a.key.cmp(&b.key)));
+    top_keys.truncate(12);
+
+    // Detect a split keyboard by a gap in grid x-coordinates (same geometry rule as tools/build.py).
+    let mut xs: Vec<u8> = board.keys.iter().map(|k| k.x).collect();
+    xs.sort();
+    xs.dedup();
+    let split_x = xs.windows(2).find(|w| w[1] > w[0] + 1).map(|w| w[1]);
+    let hand_balance = split_x.map(|mid| {
+        let mut left = 0u64;
+        let mut right = 0u64;
+        for key in &board.keys {
+            let n = counts[key.index as usize];
+            if key.x < mid {
+                left += n;
+            } else {
+                right += n;
+            }
+        }
+        let denom = (left + right).max(1) as f64;
+        HandBalance {
+            left,
+            right,
+            left_pct: ((left as f64 / denom) * 1000.0).round() / 10.0,
+            right_pct: ((right as f64 / denom) * 1000.0).round() / 10.0,
+        }
+    });
+
+    Ok(Summary {
+        board: board.card.clone(),
+        layout: chosen_layout,
+        days: entries.len(),
+        total_presses,
+        per_layer,
+        unused_keys,
+        rare_keys,
+        top_keys,
+        hand_balance,
+        counts,
+    })
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Day {
@@ -118,5 +252,29 @@ mod tests {
         new.flush().unwrap();
         let old = Telemetry::open(dir.path().into(), "vendor/board", "abc/1", 72, "2026-01-01").unwrap();
         assert_eq!(old.total(), 1);
+    }
+
+    #[test]
+    fn summarizes_unused_keys_and_split_hand_balance() {
+        let dir = tempfile::tempdir().unwrap();
+        let board = crate::board::test_board();
+        let mut t = Telemetry::open(dir.path().into(), &board.card, "lay/1", board.keys.len(), "2026-01-01").unwrap();
+        // Press one left-half key (index 0) three times and one right-half key (index 36) once.
+        for _ in 0..3 {
+            t.record(0, 0, "2026-01-01").unwrap();
+        }
+        t.record(1, 36, "2026-01-01").unwrap();
+        t.flush().unwrap();
+
+        let s = summarize(dir.path(), &board, None, None).unwrap();
+        assert_eq!(s.total_presses, 4);
+        assert_eq!(s.per_layer.get(&0), Some(&3));
+        assert_eq!(s.per_layer.get(&1), Some(&1));
+        assert!(!s.unused_keys.contains(&0));
+        assert!(!s.unused_keys.contains(&36));
+        assert!(s.unused_keys.contains(&1));
+        let balance = s.hand_balance.expect("split board reports hand balance");
+        assert_eq!((balance.left, balance.right), (3, 1));
+        assert_eq!((balance.left_pct, balance.right_pct), (75.0, 25.0));
     }
 }

@@ -18,7 +18,9 @@ const CMD_GET_FW_VERSION: u8 = 0x00;
 const CMD_PAIRING_INIT: u8 = 0x01;
 const CMD_RGB_CONTROL: u8 = 0x05;
 const CMD_SET_RGB_LED: u8 = 0x06;
+const CMD_SET_STATUS_LED: u8 = 0x07;
 const CMD_SET_RGB_LED_ALL: u8 = 0x09;
+const CMD_STATUS_LED_CONTROL: u8 = 0x0A;
 const CMD_GET_PROTOCOL_VERSION: u8 = 0xFE;
 
 const EVT_FW_VERSION: u8 = 0x00;
@@ -142,6 +144,17 @@ impl Device for OryxDevice {
 
     fn release(&mut self) -> Result<()> {
         self.send(&[CMD_RGB_CONTROL, 0])
+    }
+
+    fn set_status_led(&mut self, index: u8, on: bool) -> Result<()> {
+        if index >= 6 {
+            bail!("status indicator index must be 0 to 5, got {index}");
+        }
+        self.send(&[CMD_SET_STATUS_LED, index, on as u8])
+    }
+
+    fn release_status_leds(&mut self) -> Result<()> {
+        self.send(&[CMD_STATUS_LED_CONTROL, 0])
     }
 
     fn poll(&mut self, timeout_ms: i32) -> Result<Vec<DeviceEvent>> {
